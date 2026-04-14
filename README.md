@@ -1,5 +1,9 @@
 # mcp-code-context
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://img.shields.io/badge/tests-66%2F66%20passing-success.svg)]()
+[![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
+
 > MCP server that compresses any codebase into LLM-ready semantic context. AST-based compression for TypeScript, JavaScript, PHP, Dart & Python.
 
 Works with **Claude Desktop**, **Cursor**, **Windsurf**, **GitHub Copilot**, **Amazon Q**, and any [Model Context Protocol](https://modelcontextprotocol.io/) compatible client.
