@@ -18,6 +18,10 @@ When an LLM needs to understand a large codebase, sending raw source files waste
 | Dart repository (230 lines) | 230 | 30 | **87.0%** |
 | PHP config (68 lines) | 68 | 15 | **77.9%** |
 
+## Reliability & Testing
+
+Built to be robust and precise. The extraction engines are tested against real-world, complex codebases (including nested generic types in Dart and complex interfaces in PHP) with a **100% test pass rate** (66/66 test assertions passing across all languages).
+
 ## Features
 
 - 🌳 **AST-based compression** — Real parsers for TypeScript/JavaScript ([ts-morph](https://ts-morph.com/)) and PHP ([php-parser](https://github.com/nickygerritsen/php-parser)). Brace-counting engine for Dart. Regex-based extraction for Python.

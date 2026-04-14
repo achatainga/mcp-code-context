@@ -11,7 +11,7 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "dev": "tsc && node dist/index.js",
-    "test": "tsc && node dist/test-dart.js && node dist/test-php.js",
+    "test": "tsc && node dist/tests/test-dart.js && node dist/tests/test-php.js",
     "clean": "rimraf dist",
     "rebuild": "npm run clean && npm run build"
   },
