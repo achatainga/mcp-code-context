@@ -1,0 +1,69 @@
+# mcp-code-context
+
+> A Model Context Protocol (MCP) server that compresses any code repository into LLM-ready semantic context.
+
+## What This Tool Does
+
+This MCP server solves the "token bloat" problem. When an LLM needs to understand a large codebase, sending raw source files wastes most of the context window on function bodies, boilerplate, and irrelevant files. This server extracts only the **structural skeleton** of a repository — function signatures, class declarations, interfaces, type aliases — and delivers it as a compressed map.
+
+## Available Tools
+
+### 1. `get_semantic_repo_map`
+**Purpose:** Generate a compressed architectural map of an entire repository.
+
+**Input:**
+- `directoryPath` (required): Absolute path to the repository root.
+- `format` (optional): `"xml"` (default) or `"markdown"`.
+
+**What it does:**
+- Walks the directory tree respecting `.gitignore` and `.repomixignore` rules.
+- Always excludes `node_modules`, `dist`, `build`, `vendor`, `.git`.
+- For TypeScript/JavaScript files: Uses AST parsing (ts-morph) to extract only function signatures, class structures, interfaces, types, and enums. Function bodies are replaced with `/* ... */`.
+- For PHP files: Uses AST parsing (php-parser) to extract namespaces, use statements, classes, interfaces, traits, enums, methods, properties, constants, and docblocks. Method bodies are replaced with `/* ... */`.
+- For Dart files: Uses brace-counting + regex engine to extract classes, mixins, extensions, enums, methods, constructors, fields, and doc comments. Method bodies are replaced with `/* ... */`.
+- For Python files: Uses regex-based extraction to capture class/function signatures and docstrings.
+- For other files: Returns content as-is if small, or a truncated preview if large.
+
+**Best used when:** You need to understand the architecture of a project before diving into specific files.
+
+### 2. `read_file_surgical`
+**Purpose:** Read a full file or extract only a specific named symbol.
+
+**Input:**
+- `filePath` (required): Absolute path to the source file.
+- `symbolName` (optional): Name of a function, class, interface, method, or type to extract.
+
+**What it does:**
+- Without `symbolName`: Returns the complete file content.
+- With `symbolName`: Parses the AST and returns only the full source code block for that specific symbol (including its body). This saves tokens when you only need one function from a large file.
+
+**Best used when:** You identified a symbol from the repo map and need to see its full implementation.
+
+### 3. `analyze_impact`
+**Purpose:** Find all files that depend on a given file.
+
+**Input:**
+- `filePath` (required): Absolute path to the file being modified.
+- `rootDir` (optional): Repository root. Auto-detected if omitted.
+
+**What it does:**
+- Scans all source files in the repository for `import`, `require()`, Python `from/import`, PHP `use`/`require_once`/`include`, and Dart `import` statements.
+- Resolves relative paths to determine if they point to the target file.
+- Returns a structured report listing every dependent file and the specific import statement.
+
+**Best used when:** You're about to modify a file and need to understand the blast radius.
+
+## Recommended Workflow
+
+1. **Start with `get_semantic_repo_map`** to understand the project structure.
+2. **Use `read_file_surgical`** with a symbol name to drill into specific implementations.
+3. **Before modifying a file, run `analyze_impact`** to know what might break.
+
+## Technical Details
+
+- **Transport:** stdio (JSON-RPC over stdin/stdout)
+- **Runtime:** Node.js >= 18
+- **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting/regex (Dart, Python)
+- **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
+- **Supported languages for AST compression:** TypeScript, JavaScript (all variants), PHP (classes, interfaces, traits, enums, functions), Dart (classes, mixins, extensions, enums, methods), Python
+- **Supported languages for file reading:** All text-based files

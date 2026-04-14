@@ -1,0 +1,57 @@
+{
+  "name": "mcp-code-context",
+  "version": "1.0.0",
+  "description": "MCP server that compresses any code repository into LLM-ready semantic context. AST-based compression for TypeScript, JavaScript, PHP, Dart, and Python — extracts only structural signatures, stripping implementation bodies to save tokens.",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "bin": {
+    "mcp-code-context": "dist/src/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc && node dist/index.js",
+    "test": "tsc && node dist/test-dart.js && node dist/test-php.js",
+    "clean": "rimraf dist",
+    "rebuild": "npm run clean && npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "semantic-compression",
+    "llm",
+    "code-analysis",
+    "ast",
+    "repository-map",
+    "claude",
+    "cursor",
+    "windsurf",
+    "copilot",
+    "amazon-q",
+    "code-context",
+    "typescript",
+    "php",
+    "dart",
+    "python"
+  ],
+  "author": "",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/achatainga/mcp-code-context.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "ignore": "^6.0.2",
+    "php-parser": "^3.5.1",
+    "ts-morph": "^24.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
