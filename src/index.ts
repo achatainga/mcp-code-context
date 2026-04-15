@@ -4,11 +4,18 @@
  * mcp-code-context — Semantic Code Context Server
  *
  * A Model Context Protocol (MCP) server that compresses any code repository
- * into LLM-ready semantic context. Registers 3 tools:
+ * into LLM-ready semantic context and provides surgical code editing.
  *
+ * Read Tools:
  *   1. get_semantic_repo_map  — Compressed structural map of a repo
  *   2. read_file_surgical     — Full file or specific symbol extraction
  *   3. analyze_impact         — Find all dependents of a modified file
+ *
+ * Write Tools:
+ *   4. write_file_surgical    — Replace a symbol's code in-place
+ *   5. insert_symbol          — Insert code at precise AST positions
+ *   6. rename_symbol          — Rename across entire repository
+ *   7. remove_symbol          — Safely delete symbols with dep checking
  *
  * Transport: stdio (JSON-RPC over stdin/stdout)
  * Compatible with: Claude Desktop, Cursor, Windsurf, Copilot, Amazon Q, and any MCP client.
@@ -22,13 +29,24 @@ import {
 } from "@modelcontextprotocol/sdk/types.js";
 import { IgnoreManager } from "./utils/ignoreManager.js";
 import { compressFile, extractSymbol } from "./ast/semanticCompressor.js";
+import {
+  replaceSymbol,
+  insertCode,
+  renameInFile,
+  removeSymbolFromFile,
+  WRITABLE_EXTENSIONS,
+  type WriteResult,
+  type InsertPosition,
+} from "./ast/writers/symbolWriter.js";
+import { generateDiff, generateMultiFileDiff } from "./utils/diffEngine.js";
+import { createBackup, restoreBackup, cleanBackup } from "./utils/backupManager.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 // ─── Constants ──────────────────────────────────────────────────────
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "1.0.0";
+const SERVER_VERSION = "2.0.0";
 
 /** Extensions we consider source code for analysis */
 const SOURCE_EXTENSIONS = new Set([
@@ -149,6 +167,175 @@ const TOOLS = [
       required: ["filePath"],
     },
   },
+  // ─── Write Tools ────────────────────────────────────────────────────
+  {
+    name: "write_file_surgical",
+    description:
+      "Surgically replaces the full source code of a named symbol (function, class, " +
+      "method, interface, type alias) in a file. The AI provides ONLY the replacement " +
+      "code for that specific symbol — the tool handles locating it via AST parsing " +
+      "and splicing the replacement into the correct position. Supports TypeScript, " +
+      "JavaScript, PHP, Dart, and Python. Returns a unified diff of the changes. " +
+      "Supports dry-run mode to preview changes without modifying the file.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: {
+          type: "string",
+          description: "Absolute path to the source file to modify.",
+        },
+        symbolName: {
+          type: "string",
+          description:
+            "Name of the function, class, method, interface, or type alias to replace.",
+        },
+        newContent: {
+          type: "string",
+          description:
+            "The complete replacement source code for the symbol, including its " +
+            "signature and body. Must be syntactically valid for the target language.",
+        },
+        dryRun: {
+          type: "boolean",
+          description:
+            "If true, returns the diff of proposed changes without modifying the file. " +
+            "Defaults to false.",
+        },
+        createBackup: {
+          type: "boolean",
+          description:
+            "If true, creates a .bak copy of the file before modifying it. " +
+            "Defaults to false (opt-in).",
+        },
+      },
+      required: ["filePath", "symbolName", "newContent"],
+    },
+  },
+  {
+    name: "insert_symbol",
+    description:
+      "Inserts new code at a precise location relative to an existing symbol in a file. " +
+      "Can insert before or after a symbol, or inside a class/interface at the start or end. " +
+      "If no anchor symbol is provided, inserts at the end of the file. " +
+      "Supports TypeScript, JavaScript, PHP, Dart, and Python. " +
+      "Automatically matches the surrounding indentation style.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: {
+          type: "string",
+          description: "Absolute path to the source file to modify.",
+        },
+        code: {
+          type: "string",
+          description: "The new code to insert. Must be syntactically valid.",
+        },
+        anchorSymbol: {
+          type: "string",
+          description:
+            "Name of an existing symbol to position relative to. " +
+            "If omitted, code is inserted at the end of the file.",
+        },
+        position: {
+          type: "string",
+          enum: ["before", "after", "inside_start", "inside_end"],
+          description:
+            "Where to insert relative to the anchor. 'before' and 'after' insert " +
+            "outside the symbol. 'inside_start' and 'inside_end' insert as members " +
+            "inside a class or interface. Defaults to 'after'.",
+        },
+        dryRun: {
+          type: "boolean",
+          description: "If true, preview changes without modifying the file.",
+        },
+        createBackup: {
+          type: "boolean",
+          description: "If true, backup the file before modifying.",
+        },
+      },
+      required: ["filePath", "code"],
+    },
+  },
+  {
+    name: "rename_symbol",
+    description:
+      "Renames a symbol across an entire repository. Renames the definition in the " +
+      "source file AND updates all files that import or reference it. Uses AST-aware " +
+      "whole-word replacement to avoid false matches. Supports TypeScript, JavaScript, " +
+      "PHP, Dart, and Python. Returns a multi-file diff showing all changes. " +
+      "Essential for safe refactoring.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: {
+          type: "string",
+          description:
+            "Absolute path to the file where the symbol is defined.",
+        },
+        oldName: {
+          type: "string",
+          description: "The current name of the symbol.",
+        },
+        newName: {
+          type: "string",
+          description: "The new name for the symbol.",
+        },
+        rootDir: {
+          type: "string",
+          description:
+            "Optional. Absolute path to the repository root. " +
+            "If omitted, auto-detected from the file path.",
+        },
+        dryRun: {
+          type: "boolean",
+          description:
+            "If true, preview all changes across the repo without modifying any files.",
+        },
+        createBackup: {
+          type: "boolean",
+          description: "If true, backup each modified file before changing it.",
+        },
+      },
+      required: ["filePath", "oldName", "newName"],
+    },
+  },
+  {
+    name: "remove_symbol",
+    description:
+      "Removes a named symbol from a file. By default, checks for dependents first " +
+      "and refuses to remove if other files import or reference the symbol. " +
+      "Use force=true to skip the dependency check and remove anyway. " +
+      "Supports TypeScript, JavaScript, PHP, Dart, and Python. " +
+      "Returns a diff showing what was removed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: {
+          type: "string",
+          description: "Absolute path to the source file.",
+        },
+        symbolName: {
+          type: "string",
+          description: "Name of the symbol to remove.",
+        },
+        force: {
+          type: "boolean",
+          description:
+            "If true, skip the dependency check and remove the symbol even if " +
+            "other files reference it. Defaults to false.",
+        },
+        dryRun: {
+          type: "boolean",
+          description: "If true, preview the removal without modifying the file.",
+        },
+        createBackup: {
+          type: "boolean",
+          description: "If true, backup the file before modifying.",
+        },
+      },
+      required: ["filePath", "symbolName"],
+    },
+  },
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -172,6 +359,22 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
       case "analyze_impact":
         return await handleAnalyzeImpact(args as Record<string, unknown>);
+      case "write_file_surgical":
+        return await handleWriteFileSurgical(
+          args as Record<string, unknown>,
+        );
+      case "insert_symbol":
+        return await handleInsertSymbol(
+          args as Record<string, unknown>,
+        );
+      case "rename_symbol":
+        return await handleRenameSymbol(
+          args as Record<string, unknown>,
+        );
+      case "remove_symbol":
+        return await handleRemoveSymbol(
+          args as Record<string, unknown>,
+        );
       default:
         return errorResponse(`Unknown tool: "${name}"`);
     }
@@ -425,6 +628,514 @@ async function handleAnalyzeImpact(args: Record<string, unknown>) {
 
   return {
     content: [{ type: "text" as const, text: report }],
+  };
+}
+
+// ─── Tool 4: write_file_surgical ────────────────────────────────────
+
+async function handleWriteFileSurgical(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const symbolName = args.symbolName as string;
+  const newContent = args.newContent as string;
+  const dryRun = (args.dryRun as boolean) || false;
+  const shouldBackup = (args.createBackup as boolean) || false;
+
+  if (!filePath) return errorResponse("Missing required parameter: filePath");
+  if (!symbolName) return errorResponse("Missing required parameter: symbolName");
+  if (!newContent) return errorResponse("Missing required parameter: newContent");
+
+  const resolvedPath = path.resolve(filePath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return errorResponse(`File not found: ${resolvedPath}`);
+  }
+
+  const ext = path.extname(resolvedPath).toLowerCase();
+  if (!WRITABLE_EXTENSIONS.has(ext)) {
+    return errorResponse(
+      `Unsupported file type "${ext}" for surgical writing. ` +
+      `Supported: .ts, .tsx, .js, .jsx, .mts, .mjs, .cts, .cjs, .php, .phtml, .dart, .py, .pyi`,
+    );
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(resolvedPath, "utf-8");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to read file: ${msg}`);
+  }
+
+  // Perform the replacement
+  const result: WriteResult = replaceSymbol(resolvedPath, content, symbolName, newContent);
+
+  if (!result.success) {
+    return errorResponse(result.error || "Unknown error during symbol replacement");
+  }
+
+  // Generate diff
+  const diff = generateDiff(content, result.newContent, resolvedPath);
+
+  if (dryRun) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text:
+            `// 🔍 DRY RUN — No files modified\n` +
+            `// Tool: write_file_surgical\n` +
+            `// File: ${resolvedPath}\n` +
+            `// Symbol: ${symbolName}\n\n` +
+            diff,
+        },
+      ],
+    };
+  }
+
+  // Create backup if requested
+  if (shouldBackup) {
+    try {
+      createBackup(resolvedPath);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return errorResponse(`Failed to create backup: ${msg}`);
+    }
+  }
+
+  // Write the modified file
+  try {
+    fs.writeFileSync(resolvedPath, result.newContent, "utf-8");
+  } catch (error: unknown) {
+    // Restore backup on write failure
+    if (shouldBackup) restoreBackup(resolvedPath);
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to write file: ${msg}`);
+  }
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text:
+          `// ✅ Symbol "${symbolName}" replaced successfully\n` +
+          `// File: ${resolvedPath}\n` +
+          `// Backup: ${shouldBackup ? "created" : "skipped (opt-in)"}\n\n` +
+          diff,
+      },
+    ],
+  };
+}
+
+// ─── Tool 5: insert_symbol ──────────────────────────────────────────
+
+async function handleInsertSymbol(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const code = args.code as string;
+  const anchorSymbol = (args.anchorSymbol as string) || null;
+  const position = (args.position as InsertPosition) || "after";
+  const dryRun = (args.dryRun as boolean) || false;
+  const shouldBackup = (args.createBackup as boolean) || false;
+
+  if (!filePath) return errorResponse("Missing required parameter: filePath");
+  if (!code) return errorResponse("Missing required parameter: code");
+
+  const resolvedPath = path.resolve(filePath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return errorResponse(`File not found: ${resolvedPath}`);
+  }
+
+  const ext = path.extname(resolvedPath).toLowerCase();
+  if (!WRITABLE_EXTENSIONS.has(ext)) {
+    return errorResponse(`Unsupported file type "${ext}" for code insertion.`);
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(resolvedPath, "utf-8");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to read file: ${msg}`);
+  }
+
+  const result: WriteResult = insertCode(resolvedPath, content, code, anchorSymbol, position);
+
+  if (!result.success) {
+    return errorResponse(result.error || "Unknown error during code insertion");
+  }
+
+  const diff = generateDiff(content, result.newContent, resolvedPath);
+
+  if (dryRun) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text:
+            `// 🔍 DRY RUN — No files modified\n` +
+            `// Tool: insert_symbol\n` +
+            `// File: ${resolvedPath}\n` +
+            `// Anchor: ${anchorSymbol || "(end of file)"}\n` +
+            `// Position: ${position}\n\n` +
+            diff,
+        },
+      ],
+    };
+  }
+
+  if (shouldBackup) {
+    try {
+      createBackup(resolvedPath);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return errorResponse(`Failed to create backup: ${msg}`);
+    }
+  }
+
+  try {
+    fs.writeFileSync(resolvedPath, result.newContent, "utf-8");
+  } catch (error: unknown) {
+    if (shouldBackup) restoreBackup(resolvedPath);
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to write file: ${msg}`);
+  }
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text:
+          `// ✅ Code inserted successfully\n` +
+          `// File: ${resolvedPath}\n` +
+          `// Anchor: ${anchorSymbol || "(end of file)"}\n` +
+          `// Position: ${position}\n\n` +
+          diff,
+      },
+    ],
+  };
+}
+
+// ─── Tool 6: rename_symbol ──────────────────────────────────────────
+
+async function handleRenameSymbol(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const oldName = args.oldName as string;
+  const newName = args.newName as string;
+  let rootDir = args.rootDir as string | undefined;
+  const dryRun = (args.dryRun as boolean) || false;
+  const shouldBackup = (args.createBackup as boolean) || false;
+
+  if (!filePath) return errorResponse("Missing required parameter: filePath");
+  if (!oldName) return errorResponse("Missing required parameter: oldName");
+  if (!newName) return errorResponse("Missing required parameter: newName");
+
+  const resolvedPath = path.resolve(filePath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return errorResponse(`File not found: ${resolvedPath}`);
+  }
+
+  // Discover project root
+  if (!rootDir) {
+    rootDir = findProjectRoot(resolvedPath);
+  }
+  if (!rootDir || !fs.existsSync(rootDir)) {
+    return errorResponse(
+      `Could not determine project root for ${resolvedPath}. Provide rootDir explicitly.`,
+    );
+  }
+  rootDir = path.resolve(rootDir);
+
+  // Step 1: Rename in the source file
+  let sourceContent: string;
+  try {
+    sourceContent = fs.readFileSync(resolvedPath, "utf-8");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to read source file: ${msg}`);
+  }
+
+  const sourceResult = renameInFile(resolvedPath, sourceContent, oldName, newName);
+  if (!sourceResult.success) {
+    return errorResponse(sourceResult.error || "Failed to rename in source file");
+  }
+
+  // Step 2: Find all dependent files
+  const ignoreManager = new IgnoreManager(rootDir);
+  const allFiles = ignoreManager.walkDirectory();
+
+  const importPatterns: RegExp[] = [
+    /import\s+(?:[\s\S]*?)\s+from\s+['"]([^'"]+)['"]/gm,
+    /import\s*\(\s*['"]([^'"]+)['"]\s*\)/gm,
+    /require\s*\(\s*['"]([^'"]+)['"]\s*\)/gm,
+    /from\s+(\S+)\s+import/gm,
+    /^import\s+(\S+)/gm,
+    /^\s*use\s+([\w\\]+)/gm,
+    /(?:require_once|require|include_once|include)\s*\(?\s*['"]([^'"]+)['"]\s*\)?/gm,
+    /^\s*import\s+['"]([^'"]+)['"]\s*;/gm,
+  ];
+
+  const allChanges: Array<{
+    filePath: string;
+    oldContent: string;
+    newContent: string;
+  }> = [];
+
+  // Add source file change
+  allChanges.push({
+    filePath: resolvedPath,
+    oldContent: sourceContent,
+    newContent: sourceResult.newContent,
+  });
+
+  // Step 3: Rename in dependent files
+  for (const file of allFiles) {
+    if (path.resolve(file) === resolvedPath) continue;
+
+    const ext = path.extname(file).toLowerCase();
+    if (!WRITABLE_EXTENSIONS.has(ext)) continue;
+
+    let fileContent: string;
+    try {
+      fileContent = fs.readFileSync(file, "utf-8");
+    } catch {
+      continue;
+    }
+
+    // Check if this file imports the target
+    let importsTarget = false;
+    for (const pattern of importPatterns) {
+      const regex = new RegExp(pattern.source, pattern.flags);
+      let match: RegExpExecArray | null;
+      while ((match = regex.exec(fileContent)) !== null) {
+        if (resolveImportMatch(match[1], resolvedPath, file, rootDir)) {
+          importsTarget = true;
+          break;
+        }
+      }
+      if (importsTarget) break;
+    }
+
+    if (!importsTarget) continue;
+
+    // Rename occurrences in this file
+    const depResult = renameInFile(file, fileContent, oldName, newName);
+    if (depResult.success && depResult.newContent !== fileContent) {
+      allChanges.push({
+        filePath: file,
+        oldContent: fileContent,
+        newContent: depResult.newContent,
+      });
+    }
+  }
+
+  // Generate multi-file diff
+  const multiDiff = generateMultiFileDiff(allChanges);
+
+  if (dryRun) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text:
+            `// 🔍 DRY RUN — No files modified\n` +
+            `// Tool: rename_symbol\n` +
+            `// Rename: "${oldName}" → "${newName}"\n` +
+            `// Files affected: ${allChanges.length}\n\n` +
+            multiDiff,
+        },
+      ],
+    };
+  }
+
+  // Apply all changes
+  const appliedFiles: string[] = [];
+  const backedUpFiles: string[] = [];
+
+  try {
+    for (const change of allChanges) {
+      if (shouldBackup) {
+        createBackup(change.filePath);
+        backedUpFiles.push(change.filePath);
+      }
+      fs.writeFileSync(change.filePath, change.newContent, "utf-8");
+      appliedFiles.push(path.relative(rootDir, change.filePath).replace(/\\/g, "/"));
+    }
+  } catch (error: unknown) {
+    // Rollback all backups on failure
+    for (const backedUp of backedUpFiles) {
+      restoreBackup(backedUp);
+    }
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed during multi-file rename. All changes rolled back. Error: ${msg}`);
+  }
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text:
+          `// ✅ Symbol renamed: "${oldName}" → "${newName}"\n` +
+          `// Files modified: ${appliedFiles.length}\n` +
+          `//   ${appliedFiles.join("\n//   ")}\n\n` +
+          multiDiff,
+      },
+    ],
+  };
+}
+
+// ─── Tool 7: remove_symbol ──────────────────────────────────────────
+
+async function handleRemoveSymbol(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const symbolName = args.symbolName as string;
+  const force = (args.force as boolean) || false;
+  const dryRun = (args.dryRun as boolean) || false;
+  const shouldBackup = (args.createBackup as boolean) || false;
+
+  if (!filePath) return errorResponse("Missing required parameter: filePath");
+  if (!symbolName) return errorResponse("Missing required parameter: symbolName");
+
+  const resolvedPath = path.resolve(filePath);
+
+  if (!fs.existsSync(resolvedPath)) {
+    return errorResponse(`File not found: ${resolvedPath}`);
+  }
+
+  const ext = path.extname(resolvedPath).toLowerCase();
+  if (!WRITABLE_EXTENSIONS.has(ext)) {
+    return errorResponse(`Unsupported file type "${ext}" for symbol removal.`);
+  }
+
+  let content: string;
+  try {
+    content = fs.readFileSync(resolvedPath, "utf-8");
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to read file: ${msg}`);
+  }
+
+  // Dependency check (unless forced)
+  if (!force) {
+    const rootDir = findProjectRoot(resolvedPath);
+    if (rootDir) {
+      const ignoreManager = new IgnoreManager(rootDir);
+      const allFiles = ignoreManager.walkDirectory();
+
+      // Check if the symbol name appears in any dependent file
+      const importPatterns: RegExp[] = [
+        /import\s+(?:[\s\S]*?)\s+from\s+['"]([^'"]+)['"]/gm,
+        /require\s*\(\s*['"]([^'"]+)['"]\s*\)/gm,
+        /^\s*use\s+([\w\\]+)/gm,
+        /^\s*import\s+['"]([^'"]+)['"]\s*;/gm,
+        /from\s+(\S+)\s+import/gm,
+      ];
+
+      const usageFiles: string[] = [];
+
+      for (const file of allFiles) {
+        if (path.resolve(file) === resolvedPath) continue;
+
+        const fileExt = path.extname(file).toLowerCase();
+        if (!WRITABLE_EXTENSIONS.has(fileExt)) continue;
+
+        let fileContent: string;
+        try {
+          fileContent = fs.readFileSync(file, "utf-8");
+        } catch {
+          continue;
+        }
+
+        // Check if this file imports the target file
+        let importsTarget = false;
+        for (const pattern of importPatterns) {
+          const regex = new RegExp(pattern.source, pattern.flags);
+          let match: RegExpExecArray | null;
+          while ((match = regex.exec(fileContent)) !== null) {
+            if (resolveImportMatch(match[1], resolvedPath, file, rootDir)) {
+              importsTarget = true;
+              break;
+            }
+          }
+          if (importsTarget) break;
+        }
+
+        if (!importsTarget) continue;
+
+        // Check if this file references the symbol name
+        const escaped = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const symbolRegex = new RegExp(`\\b${escaped}\\b`);
+        if (symbolRegex.test(fileContent)) {
+          usageFiles.push(
+            path.relative(rootDir, file).replace(/\\/g, "/"),
+          );
+        }
+      }
+
+      if (usageFiles.length > 0) {
+        return errorResponse(
+          `Cannot remove "${symbolName}" — it is referenced in ${usageFiles.length} file(s):\n` +
+          usageFiles.map((f) => `  • ${f}`).join("\n") +
+          `\n\nUse force=true to remove anyway, or update the dependent files first.`,
+        );
+      }
+    }
+  }
+
+  // Perform the removal
+  const result: WriteResult = removeSymbolFromFile(resolvedPath, content, symbolName);
+
+  if (!result.success) {
+    return errorResponse(result.error || "Unknown error during symbol removal");
+  }
+
+  const diff = generateDiff(content, result.newContent, resolvedPath);
+
+  if (dryRun) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text:
+            `// 🔍 DRY RUN — No files modified\n` +
+            `// Tool: remove_symbol\n` +
+            `// File: ${resolvedPath}\n` +
+            `// Symbol: ${symbolName}\n` +
+            `// Force: ${force}\n\n` +
+            diff,
+        },
+      ],
+    };
+  }
+
+  if (shouldBackup) {
+    try {
+      createBackup(resolvedPath);
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : String(error);
+      return errorResponse(`Failed to create backup: ${msg}`);
+    }
+  }
+
+  try {
+    fs.writeFileSync(resolvedPath, result.newContent, "utf-8");
+  } catch (error: unknown) {
+    if (shouldBackup) restoreBackup(resolvedPath);
+    const msg = error instanceof Error ? error.message : String(error);
+    return errorResponse(`Failed to write file: ${msg}`);
+  }
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text:
+          `// ✅ Symbol "${symbolName}" removed successfully\n` +
+          `// File: ${resolvedPath}\n` +
+          `// Force: ${force}\n\n` +
+          diff,
+      },
+    ],
   };
 }
 

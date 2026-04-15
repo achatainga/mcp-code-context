@@ -1,7 +1,7 @@
 {
   "name": "mcp-code-context",
-  "version": "1.0.0",
-  "description": "MCP server that compresses any code repository into LLM-ready semantic context. AST-based compression for TypeScript, JavaScript, PHP, Dart, and Python — extracts only structural signatures, stripping implementation bodies to save tokens.",
+  "version": "2.0.0",
+  "description": "Powerful MCP server for LLM-ready semantic code context and surgical AST-aware editing. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
   "type": "module",
   "main": "dist/src/index.js",
   "bin": {
@@ -9,9 +9,9 @@
   },
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
-    "dev": "tsc && node dist/index.js",
-    "test": "tsc && node dist/tests/test-dart.js && node dist/tests/test-php.js",
+    "start": "node dist/src/index.js",
+    "dev": "tsc && node dist/src/index.js",
+    "test": "npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js && node dist/tests/writers/test-write-smoke.js",
     "clean": "rimraf dist",
     "rebuild": "npm run clean && npm run build"
   },

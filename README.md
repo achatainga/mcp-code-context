@@ -1,20 +1,39 @@
 # mcp-code-context
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-66%2F66%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-118%2F118%20passing-success.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)]()
 
-> MCP server that compresses any codebase into LLM-ready semantic context. AST-based compression for TypeScript, JavaScript, PHP, Dart & Python.
+> MCP server that compresses any codebase into LLM-ready semantic context **and provides surgical code editing tools**. AST-based read & write for TypeScript, JavaScript, PHP, Dart & Python.
+
+## 🚀 Quick Start (Claude Desktop)
+
+1. **Install**: `npm install -g mcp-code-context`
+2. **Configure**: Add to `claude_desktop_config.json`:
+```json
+{
+  "mcpServers": {
+    "code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+3. **Enjoy**: Use symbols like `@code-context` to map repos or edit code surgically.
 
 Works with **Claude Desktop**, **Cursor**, **Windsurf**, **GitHub Copilot**, **Amazon Q**, and any [Model Context Protocol](https://modelcontextprotocol.io/) compatible client.
 
 ## The Problem
 
-When an LLM needs to understand a large codebase, sending raw source files wastes most of the context window on function bodies, boilerplate, and irrelevant files. A 500-line file might contain only 30 lines of *structural* information (signatures, types, interfaces) that the LLM actually needs.
+LLMs working with code face two bottlenecks:
+1. **Reading**: Sending raw source files wastes the context window on function bodies and boilerplate. A 500-line file might contain only 30 lines of *structural* information the LLM needs.
+2. **Writing**: Rewriting entire files to change one function is error-prone, token-expensive, and risks corrupting unrelated code.
 
 ## The Solution
 
-`mcp-code-context` extracts only the **structural skeleton** of your code — function signatures, class declarations, interfaces, type aliases, constants, and docblocks — delivering a compressed map that gives the LLM full architectural awareness at a fraction of the token cost.
+`mcp-code-context` provides **7 tools** — 3 for reading and 4 for writing — that operate at the **symbol level** (functions, classes, methods) rather than the file level. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -24,24 +43,33 @@ When an LLM needs to understand a large codebase, sending raw source files waste
 
 ## Reliability & Testing
 
-Built to be robust and precise. The extraction engines are tested against real-world, complex codebases (including nested generic types in Dart and complex interfaces in PHP) with a **100% test pass rate** (66/66 test assertions passing across all languages).
+Built to be robust and precise. Both read and write engines are tested against real-world, complex codebases (including nested generic types in Dart, complex interfaces in PHP, and multi-file rename operations) with a **100% test pass rate** (118/118 test assertions passing across all languages and operations).
 
 ## Features
 
+### Read
 - 🌳 **AST-based compression** — Real parsers for TypeScript/JavaScript ([ts-morph](https://ts-morph.com/)) and PHP ([php-parser](https://github.com/nickygerritsen/php-parser)). Brace-counting engine for Dart. Regex-based extraction for Python.
 - 🔬 **Surgical symbol extraction** — Extract a single function, class, or method from a file by name. Get only what you need.
 - 💥 **Impact analysis** — Discover all files that depend on a given file before refactoring. Supports ES imports, CommonJS `require()`, Python imports, PHP `use`/`require_once`/`include`, and Dart imports.
 - 📁 **Smart file walking** — Respects `.gitignore` and `.repomixignore` rules. Automatically excludes `node_modules`, `dist`, `vendor`, `.git`, etc.
 - 📄 **Multi-format output** — XML (optimized for LLM consumption) or Markdown (human-readable).
 
+### Write
+- ✏️ **Surgical symbol replacement** — Replace a function, method, or class body without touching the rest of the file.
+- ➕ **Precise code insertion** — Insert new code before/after a symbol, or inside a class at the start/end.
+- 🔄 **Repository-wide rename** — Rename a symbol in its definition AND all files that import it, atomically.
+- 🗑️ **Safe symbol removal** — Delete code with automatic dependency checking to prevent breakage.
+- 🔍 **Dry-run mode** — Preview all changes as unified diffs before applying.
+- 💾 **Opt-in backups** — Create `.bak` copies before modification, with automatic rollback on failure.
+
 ## Supported Languages
 
-| Language | Compression Engine | Symbol Extraction | Import Analysis |
-|----------|-------------------|-------------------|-----------------|
-| TypeScript / JavaScript | AST (ts-morph) | ✅ | ✅ |
-| PHP | AST (php-parser) | ✅ | ✅ |
-| Dart | Brace-counting + regex | ✅ | ✅ |
-| Python | Regex-based | ✅ | ✅ |
+| Language | Read (Compress + Extract) | Write (Replace + Insert + Rename + Remove) | Import Analysis |
+|----------|---------------------------|---------------------------------------------|------------------|
+| TypeScript / JavaScript | ✅ AST (ts-morph) | ✅ AST (ts-morph) | ✅ |
+| PHP | ✅ AST (php-parser) | ✅ AST + line-splice | ✅ |
+| Dart | ✅ Brace-counting + regex | ✅ Brace-counting + regex | ✅ |
+| Python | ✅ Regex-based | ✅ Indentation-aware | ✅ |
 | Others (JSON, YAML, CSS, etc.) | Passthrough / truncation | — | — |
 
 ## Installation
@@ -111,79 +139,63 @@ Any MCP-compatible client can use this server. The transport is **stdio** (JSON-
 
 ## Tools
 
-### 1. `get_semantic_repo_map`
+### Read Tools
 
+#### 1. `get_semantic_repo_map`
 Generate a compressed architectural overview of an entire repository.
-
-**Parameters:**
-- `directoryPath` (required) — Absolute path to the repository root
+- `directoryPath` (required) — Path to the repo root
 - `format` (optional) — `"xml"` (default) or `"markdown"`
 
-**Example output (PHP class):**
-```php
-namespace Dt24ApiAuth;
+#### 2. `read_file_surgical`
+Read a file, or extract only a specific named symbol.
+- `filePath` (required) — Path to the source file
+- `symbolName` (optional) — Name of a function, class, method, or type
 
-class Dt24_Api_Auth_Admin {
-    private $plugin_name;
-    private $version;
-    const CUSTOM_STATUSES = ['shipped' => '...', 'delivered' => '...'];
-    public function __construct($plugin_name, $version) { /* ... */ }
-    public function enqueue_styles() { /* ... */ }
-    /** @param int $order_id The order ID. */
-    public function check_the_elapsed_time(int $time_to_check, int $intervalo, string $unidad, ?int $current_time = null) { /* ... */ }
-}
-```
+#### 3. `analyze_impact`
+Find all files that depend on a given file.
+- `filePath` (required) — Path to the file being modified
+- `rootDir` (optional) — Repository root (auto-detected)
 
-### 2. `read_file_surgical`
+### Write Tools
 
-Read a complete file, or extract only a specific named symbol.
+#### 4. `write_file_surgical`
+Replace the full source code of a named symbol in a file.
+- `filePath` (required) — Path to the file
+- `symbolName` (required) — Symbol to replace
+- `newContent` (required) — Replacement code (signature + body)
+- `dryRun` (optional) — Preview changes as diff without writing
+- `createBackup` (optional) — Create `.bak` copy before editing
 
-**Parameters:**
-- `filePath` (required) — Absolute path to the source file
-- `symbolName` (optional) — Name of a function, class, method, or type to extract
+#### 5. `insert_symbol`
+Insert new code at a precise location relative to an existing symbol.
+- `filePath` (required) — Path to the file
+- `code` (required) — Code to insert
+- `anchorSymbol` (optional) — Symbol to position relative to
+- `position` (optional) — `"before"`, `"after"`, `"inside_start"`, `"inside_end"`
+- `dryRun`, `createBackup` (optional)
 
-**Example:** Extract only the `fetchSections` method from a 230-line Dart file:
-```dart
-// Symbol: fetchSections
-// File: home_repository.dart
+#### 6. `rename_symbol`
+Rename a symbol across the entire repository (definition + all usages).
+- `filePath` (required) — File where the symbol is defined
+- `oldName` (required) — Current name
+- `newName` (required) — New name
+- `rootDir` (optional) — Repository root
+- `dryRun`, `createBackup` (optional)
 
-/// Obtiene las secciones del home
-Future<List<Map<String, dynamic>>> fetchSections({
-    String platform = 'app',
-    bool useCache = true,
-}) async {
-    final token = await AuthService().getValidToken();
-    // ... full implementation
-}
-```
-
-### 3. `analyze_impact`
-
-Find all files that import or depend on a given file.
-
-**Parameters:**
-- `filePath` (required) — Absolute path to the file being modified
-- `rootDir` (optional) — Repository root (auto-detected if omitted)
-
-**Example output:**
-```markdown
-# Impact Analysis
-
-## Target
-- **File:** `includes/Dt24Config.php`
-- **Dependent files:** 1
-
-## Dependent Files
-
-### `dt24-core-plugin.php`
-- `use Dt24ApiAuth\Dt24Config`
-```
+#### 7. `remove_symbol`
+Safely remove a symbol from a file with dependency checking.
+- `filePath` (required) — Path to the file
+- `symbolName` (required) — Symbol to remove
+- `force` (optional) — Skip dependency check
+- `dryRun`, `createBackup` (optional)
 
 ## Recommended Workflow
 
-1. **Start with `get_semantic_repo_map`** to understand the project architecture
-2. **Use `read_file_surgical`** with a symbol name to drill into specific implementations
-3. **Before modifying a file, run `analyze_impact`** to understand the blast radius
+1. **Understand** → `get_semantic_repo_map` to see the architecture
+2. **Read** → `read_file_surgical` with symbol name for specific implementations
+3. **Assess** → `analyze_impact` before modifying shared files
+4. **Edit** → `write_file_surgical`, `insert_symbol`, `rename_symbol`, or `remove_symbol`
+5. **Preview** → Always use `dryRun: true` for significant changes
 
 ## Development
 
@@ -191,8 +203,14 @@ Find all files that import or depend on a given file.
 # Build
 npm run build
 
-# Run tests
-npm run build && node dist/test-dart.js && node dist/test-php.js
+# Run read tests (compression + extraction)
+npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js
+
+# Run write tests (replace, insert, rename, remove)
+npm run build && node dist/tests/writers/test-write-smoke.js
+
+# Run all tests
+npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js && node dist/tests/writers/test-write-smoke.js
 
 # Development (build + start)
 npm run dev
@@ -205,6 +223,7 @@ npm run dev
 - **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io/)
 - **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting (Dart), regex (Python)
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
+- **Safety Features:** Dry-run previews, opt-in backups, syntax validation, dependency checking, atomic rollback
 
 ## License
 

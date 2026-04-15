@@ -29,3 +29,6 @@ npm-debug.log*
 
 # Debug scripts (keep test-* in tests/)
 src/debug-*.ts
+
+# Backup files (created by surgical write tools)
+*.bak

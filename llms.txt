@@ -1,14 +1,18 @@
 # mcp-code-context
 
-> A Model Context Protocol (MCP) server that compresses any code repository into LLM-ready semantic context.
+> A Model Context Protocol (MCP) server that compresses any code repository into LLM-ready semantic context and provides surgical code editing tools.
 
 ## What This Tool Does
 
-This MCP server solves the "token bloat" problem. When an LLM needs to understand a large codebase, sending raw source files wastes most of the context window on function bodies, boilerplate, and irrelevant files. This server extracts only the **structural skeleton** of a repository — function signatures, class declarations, interfaces, type aliases — and delivers it as a compressed map.
+This MCP server solves two problems:
+1. **Token bloat on reads**: When an LLM needs to understand a large codebase, sending raw source files wastes most of the context window. This server extracts only structural signatures.
+2. **Imprecise writes**: When an LLM needs to edit code, rewriting entire files is error-prone and expensive. This server enables symbol-level surgical edits.
 
 ## Available Tools
 
-### 1. `get_semantic_repo_map`
+### Read Tools
+
+#### 1. `get_semantic_repo_map`
 **Purpose:** Generate a compressed architectural map of an entire repository.
 
 **Input:**
@@ -18,15 +22,15 @@ This MCP server solves the "token bloat" problem. When an LLM needs to understan
 **What it does:**
 - Walks the directory tree respecting `.gitignore` and `.repomixignore` rules.
 - Always excludes `node_modules`, `dist`, `build`, `vendor`, `.git`.
-- For TypeScript/JavaScript files: Uses AST parsing (ts-morph) to extract only function signatures, class structures, interfaces, types, and enums. Function bodies are replaced with `/* ... */`.
-- For PHP files: Uses AST parsing (php-parser) to extract namespaces, use statements, classes, interfaces, traits, enums, methods, properties, constants, and docblocks. Method bodies are replaced with `/* ... */`.
-- For Dart files: Uses brace-counting + regex engine to extract classes, mixins, extensions, enums, methods, constructors, fields, and doc comments. Method bodies are replaced with `/* ... */`.
-- For Python files: Uses regex-based extraction to capture class/function signatures and docstrings.
+- For TypeScript/JavaScript: Uses AST parsing (ts-morph) to extract only function signatures, class structures, interfaces, types, and enums.
+- For PHP: Uses AST parsing (php-parser) to extract namespaces, classes, interfaces, traits, enums, methods, properties, and docblocks.
+- For Dart: Uses brace-counting + regex engine to extract classes, mixins, extensions, enums, methods, and fields.
+- For Python: Uses regex-based extraction to capture class/function signatures and docstrings.
 - For other files: Returns content as-is if small, or a truncated preview if large.
 
 **Best used when:** You need to understand the architecture of a project before diving into specific files.
 
-### 2. `read_file_surgical`
+#### 2. `read_file_surgical`
 **Purpose:** Read a full file or extract only a specific named symbol.
 
 **Input:**
@@ -35,11 +39,11 @@ This MCP server solves the "token bloat" problem. When an LLM needs to understan
 
 **What it does:**
 - Without `symbolName`: Returns the complete file content.
-- With `symbolName`: Parses the AST and returns only the full source code block for that specific symbol (including its body). This saves tokens when you only need one function from a large file.
+- With `symbolName`: Parses the AST and returns only the full source code block for that symbol. Saves tokens when you only need one function from a large file.
 
 **Best used when:** You identified a symbol from the repo map and need to see its full implementation.
 
-### 3. `analyze_impact`
+#### 3. `analyze_impact`
 **Purpose:** Find all files that depend on a given file.
 
 **Input:**
@@ -47,17 +51,94 @@ This MCP server solves the "token bloat" problem. When an LLM needs to understan
 - `rootDir` (optional): Repository root. Auto-detected if omitted.
 
 **What it does:**
-- Scans all source files in the repository for `import`, `require()`, Python `from/import`, PHP `use`/`require_once`/`include`, and Dart `import` statements.
+- Scans all source files for `import`, `require()`, Python `from/import`, PHP `use`/`require_once`/`include`, and Dart `import` statements.
 - Resolves relative paths to determine if they point to the target file.
 - Returns a structured report listing every dependent file and the specific import statement.
 
 **Best used when:** You're about to modify a file and need to understand the blast radius.
+
+### Write Tools
+
+#### 4. `write_file_surgical`
+**Purpose:** Replace the full source code of a named symbol in a file.
+
+**Input:**
+- `filePath` (required): Absolute path to the file to modify.
+- `symbolName` (required): Name of the symbol to replace.
+- `newContent` (required): Complete replacement code (signature + body).
+- `dryRun` (optional): If true, returns diff without modifying the file.
+- `createBackup` (optional): If true, creates a `.bak` copy before editing.
+
+**What it does:**
+- Locates the symbol via AST parsing (ts-morph, php-parser, brace-counting, or indentation detection).
+- Replaces only that symbol's code, preserving all other file contents.
+- Returns a unified diff showing exactly what changed.
+- Validates the result is syntactically valid before writing.
+
+**Best used when:** You need to modify a specific function or method without touching the rest of the file.
+
+#### 5. `insert_symbol`
+**Purpose:** Insert new code at a precise location relative to an existing symbol.
+
+**Input:**
+- `filePath` (required): Absolute path to the file.
+- `code` (required): The new code to insert.
+- `anchorSymbol` (optional): Symbol name to position relative to. If omitted, inserts at end of file.
+- `position` (optional): `"before"`, `"after"`, `"inside_start"`, `"inside_end"`. Defaults to `"after"`.
+- `dryRun` (optional): Preview changes without modifying.
+- `createBackup` (optional): Create `.bak` copy before editing.
+
+**What it does:**
+- Finds the anchor symbol and inserts new code at the specified position.
+- Automatically matches the surrounding indentation style.
+- `inside_start` and `inside_end` insert as members inside a class or interface.
+
+**Best used when:** Adding new methods to a class or new functions to a module.
+
+#### 6. `rename_symbol`
+**Purpose:** Rename a symbol across an entire repository.
+
+**Input:**
+- `filePath` (required): File where the symbol is defined.
+- `oldName` (required): Current name.
+- `newName` (required): New name.
+- `rootDir` (optional): Repository root. Auto-detected if omitted.
+- `dryRun` (optional): Preview all changes without modifying any files.
+- `createBackup` (optional): Backup each file before modifying.
+
+**What it does:**
+- Renames the symbol definition in the source file.
+- Finds all dependent files using import analysis.
+- Renames all references in dependent files using whole-word replacement.
+- Returns a multi-file diff showing all changes.
+- Rolls back all changes if any file write fails.
+
+**Best used when:** Refactoring a class, function, or method name that is used across multiple files.
+
+#### 7. `remove_symbol`
+**Purpose:** Safely remove a symbol from a file.
+
+**Input:**
+- `filePath` (required): Absolute path.
+- `symbolName` (required): Symbol to remove.
+- `force` (optional): If true, skip dependency check. Defaults to false.
+- `dryRun` (optional): Preview removal without modifying.
+- `createBackup` (optional): Create `.bak` copy.
+
+**What it does:**
+- Checks if other files reference the symbol (unless `force: true`).
+- If dependents exist, refuses to remove and reports which files use it.
+- If safe, removes the symbol's code and cleans up whitespace.
+
+**Best used when:** Cleaning up deprecated functions or unused code.
 
 ## Recommended Workflow
 
 1. **Start with `get_semantic_repo_map`** to understand the project structure.
 2. **Use `read_file_surgical`** with a symbol name to drill into specific implementations.
 3. **Before modifying a file, run `analyze_impact`** to know what might break.
+4. **Use `write_file_surgical`** to replace symbols, `insert_symbol` to add code, `rename_symbol` for refactoring, `remove_symbol` for cleanup.
+5. **Always preview with `dryRun: true`** for significant changes.
 
 ## Technical Details
 
@@ -65,5 +146,5 @@ This MCP server solves the "token bloat" problem. When an LLM needs to understan
 - **Runtime:** Node.js >= 18
 - **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting/regex (Dart, Python)
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
-- **Supported languages for AST compression:** TypeScript, JavaScript (all variants), PHP (classes, interfaces, traits, enums, functions), Dart (classes, mixins, extensions, enums, methods), Python
-- **Supported languages for file reading:** All text-based files
+- **Supported languages:** TypeScript, JavaScript (all variants), PHP, Dart, Python
+- **Safety features:** Dry-run mode, opt-in backups, syntax validation, dependency checking, atomic rollback
