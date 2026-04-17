@@ -1543,7 +1543,11 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((error) => {
-  console.error("Fatal error starting MCP server:", error);
-  process.exit(1);
-});
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error) => {
+    console.error("Fatal error starting MCP server:", error);
+    process.exit(1);
+  });
+}
