@@ -434,6 +434,76 @@ function testPython(): void {
   );
 }
 
+// ─── Class Name Filtering Tests ───────────────────────────────────────
+
+function testClassName(): void {
+  section("ClassName Disambiguation");
+
+  const DART_MULTI_CLASS = `
+class ClassA {
+  void build() {
+    print('A');
+  }
+}
+
+class ClassB {
+  void build() {
+    print('B');
+  }
+}
+  `;
+
+  // Try to remove "build" from ClassB
+  const removeResult = removeSymbolFromFile(
+    "test_multi.dart",
+    DART_MULTI_CLASS,
+    "build",
+    "ClassB",
+  );
+
+  assert(removeResult.success, "ClassName Remove: build from ClassB");
+  assert(
+    removeResult.newContent.includes("print('A');"),
+    "ClassName Remove: ClassA build preserved",
+  );
+  assert(
+    !removeResult.newContent.includes("print('B');"),
+    "ClassName Remove: ClassB build removed",
+  );
+
+  const PY_MULTI_CLASS = `
+class ClassA:
+    def execute(self):
+        return 'A'
+
+class ClassB:
+    def execute(self):
+        return 'B'
+  `;
+
+  const replaceResult = replaceSymbol(
+    "test_multi.py",
+    PY_MULTI_CLASS,
+    "execute",
+    "    def execute(self):\n        return 'C'",
+    "ClassB",
+  );
+
+  assert(replaceResult.success, "ClassName Replace: execute in ClassB");
+  assert(
+    replaceResult.newContent.includes("return 'A'"),
+    "ClassName Replace: ClassA execute preserved",
+  );
+  assert(
+    replaceResult.newContent.includes("return 'C'"),
+    "ClassName Replace: ClassB execute updated",
+  );
+  assert(
+    !replaceResult.newContent.includes("return 'B'"),
+    "ClassName Replace: ClassB execute old content removed",
+  );
+}
+
 // ─── Diff Engine Tests ──────────────────────────────────────────────
 
 function testDiffEngine(): void {
@@ -477,6 +547,7 @@ async function main(): Promise<void> {
   testPHP();
   testDart();
   testPython();
+  testClassName();
   testDiffEngine();
   testUnsupported();
 

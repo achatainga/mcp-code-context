@@ -128,11 +128,13 @@ export function compressPHP(content: string): string {
 /**
  * Extract the full source code of a named symbol from a PHP file.
  * Supports classes, interfaces, traits, enums, functions, and methods.
+ * When className is provided, scopes method search to within that class only.
  * Returns null if the symbol is not found.
  */
 export function extractPHPSymbol(
   content: string,
   symbolName: string,
+  className?: string,
 ): string | null {
   const parser = getParser();
 
@@ -144,7 +146,7 @@ export function extractPHPSymbol(
   }
 
   const lines = content.split("\n");
-  const node = findSymbolNode(ast, symbolName);
+  const node = findSymbolNode(ast, symbolName, className);
 
   if (!node || !node.loc) {
     return null;
@@ -661,11 +663,56 @@ function buildTypeString(type: PhpNode | string | null): string {
 
 // ─── Symbol Finder (for extractPHPSymbol) ──────────────────────────
 
+// ─── Symbol Finder (for extractPHPSymbol) ──────────────────────────
+
+/**
+ * Find a class/interface/trait/enum node by name in the AST tree.
+ * Used to scope symbol searches to a specific container.
+ */
+function findClassNode(node: PhpNode, className: string): PhpNode | null {
+  if (!node) return null;
+
+  if (
+    ["class", "interface", "trait", "enum"].includes(node.kind) &&
+    getNodeName(node) === className
+  ) {
+    return node;
+  }
+
+  const allChildren = [
+    ...(node.children || []),
+    ...(Array.isArray(node.body) ? node.body : []),
+  ];
+
+  for (const child of allChildren) {
+    const found = findClassNode(child, className);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 function findSymbolNode(
   node: PhpNode,
   symbolName: string,
+  className?: string,
 ): PhpNode | null {
   if (!node) return null;
+
+  // If className is provided, first find the class, then search within it
+  if (className) {
+    const classNode = findClassNode(node, className);
+    if (!classNode) return null;
+
+    // Search only within this class's body
+    const body = Array.isArray(classNode.body) ? classNode.body : [];
+    for (const member of body) {
+      if (member.kind === "method" && getNodeName(member) === symbolName) {
+        return member;
+      }
+    }
+    return null;
+  }
 
   const nodeName = getNodeName(node);
 

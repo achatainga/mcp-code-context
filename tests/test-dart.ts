@@ -221,6 +221,41 @@ class NormalUser extends UserModel {
     }
   }
 
+  // ─── Test 5: ClassName Extraction Disambiguation ─────────────
+  console.log("\n\n🧪 TEST 5: ClassName Extraction Disambiguation");
+
+  const multiClassDart = `
+class ClassA {
+  void build() {
+    print('A');
+  }
+}
+
+class ClassB {
+  void build() {
+    print('B');
+  }
+}
+  `;
+
+  const extractedBuildA = extractDartSymbol(multiClassDart, "build", "ClassA");
+  if (extractedBuildA && extractedBuildA.includes("print('A');")) {
+    console.log(`  ✓ Successfully extracted build from ClassA`);
+    passed++;
+  } else {
+    fail("Extract ClassA build", "Failed to properly extract build from ClassA");
+    failed++;
+  }
+
+  const extractedBuildB = extractDartSymbol(multiClassDart, "build", "ClassB");
+  if (extractedBuildB && extractedBuildB.includes("print('B');")) {
+    console.log(`  ✓ Successfully extracted build from ClassB`);
+    passed++;
+  } else {
+    fail("Extract ClassB build", "Failed to properly extract build from ClassB");
+    failed++;
+  }
+
   // ─── Summary ─────────────────────────────────────────────────
   console.log(`\n\n${"═".repeat(60)}`);
   console.log(`📊 RESULTS: ${passed} passed, ${failed} failed`);

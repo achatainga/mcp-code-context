@@ -64,23 +64,27 @@ function cleanupSourceFile(sf: SourceFile): void {
 /**
  * Replace the full text of a named symbol in a TypeScript/JavaScript file.
  * The newContent should be the complete replacement (signature + body).
+ * When className is provided, scopes the search to within that class only.
  */
 export function replaceTSSymbol(
   content: string,
   symbolName: string,
   newContent: string,
   filePath: string,
+  className?: string,
 ): WriteResult {
   const sf = createSourceFile(content, filePath);
 
   try {
-    const node = findNode(sf, symbolName);
+    const node = findNode(sf, symbolName, className);
     if (!node) {
       return {
         success: false,
         newContent: content,
         symbolsAffected: [],
-        error: `Symbol "${symbolName}" not found in file`,
+        error: className
+          ? `Symbol "${symbolName}" not found in class "${className}"`
+          : `Symbol "${symbolName}" not found in file`,
       };
     }
 
@@ -126,6 +130,7 @@ export type InsertPosition = "before" | "after" | "inside_start" | "inside_end";
 
 /**
  * Insert new code at a precise location relative to an anchor symbol.
+ * When className is provided, scopes the anchor search to within that class only.
  */
 export function insertTSCode(
   content: string,
@@ -133,6 +138,7 @@ export function insertTSCode(
   anchorSymbol: string | null,
   position: InsertPosition,
   filePath: string,
+  className?: string,
 ): WriteResult {
   const sf = createSourceFile(content, filePath);
 
@@ -147,13 +153,15 @@ export function insertTSCode(
       };
     }
 
-    const node = findNode(sf, anchorSymbol);
+    const node = findNode(sf, anchorSymbol, className);
     if (!node) {
       return {
         success: false,
         newContent: content,
         symbolsAffected: [],
-        error: `Anchor symbol "${anchorSymbol}" not found`,
+        error: className
+          ? `Anchor symbol "${anchorSymbol}" not found in class "${className}"`
+          : `Anchor symbol "${anchorSymbol}" not found`,
       };
     }
 
@@ -285,22 +293,26 @@ export function renameTSSymbol(
 /**
  * Remove a named symbol from a TypeScript/JavaScript file.
  * Returns the file content without the symbol.
+ * When className is provided, scopes the search to within that class only.
  */
 export function removeTSSymbol(
   content: string,
   symbolName: string,
   filePath: string,
+  className?: string,
 ): WriteResult {
   const sf = createSourceFile(content, filePath);
 
   try {
-    const node = findNode(sf, symbolName);
+    const node = findNode(sf, symbolName, className);
     if (!node) {
       return {
         success: false,
         newContent: content,
         symbolsAffected: [],
-        error: `Symbol "${symbolName}" not found for removal`,
+        error: className
+          ? `Symbol "${symbolName}" not found in class "${className}" for removal`
+          : `Symbol "${symbolName}" not found for removal`,
       };
     }
 
@@ -334,8 +346,29 @@ export function removeTSSymbol(
  * Find a named declaration node in a source file.
  * Searches: functions, classes, interfaces, type aliases, enums,
  * class methods, getters, setters, and variable declarations.
+ * When className is provided, scopes method/property search to within that class only.
  */
-function findNode(sf: SourceFile, symbolName: string) {
+function findNode(sf: SourceFile, symbolName: string, className?: string) {
+  // If className is provided, scope search to within that class
+  if (className) {
+    const cls = sf.getClass(className);
+    if (!cls) return null;
+
+    const method = cls.getMethod(symbolName);
+    if (method) return method;
+
+    const getter = cls.getGetAccessor(symbolName);
+    if (getter) return getter;
+
+    const setter = cls.getSetAccessor(symbolName);
+    if (setter) return setter;
+
+    const prop = cls.getProperty(symbolName);
+    if (prop) return prop;
+
+    return null;
+  }
+
   // Top-level function
   const func = sf.getFunction(symbolName);
   if (func) return func;

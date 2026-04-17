@@ -95,29 +95,31 @@ export function compressFile(filePath: string, content: string): string {
 
 /**
  * Extract the full source code of a named symbol from a file.
+ * When className is provided, scopes method search to within that class only.
  * Returns null if the symbol is not found.
  */
 export function extractSymbol(
   content: string,
   symbolName: string,
   filePath: string,
+  className?: string,
 ): string | null {
   const ext = path.extname(filePath).toLowerCase();
 
   if (TS_EXTENSIONS.has(ext)) {
-    return extractTSSymbol(content, symbolName, filePath);
+    return extractTSSymbol(content, symbolName, filePath, className);
   }
 
   if (PHP_EXTENSIONS.has(ext)) {
-    return extractPHPSymbol(content, symbolName);
+    return extractPHPSymbol(content, symbolName, className);
   }
 
   if (DART_EXTENSIONS.has(ext)) {
-    return extractDartSymbol(content, symbolName);
+    return extractDartSymbol(content, symbolName, className);
   }
 
   if (PY_EXTENSIONS.has(ext)) {
-    return extractPySymbol(content, symbolName);
+    return extractPySymbol(content, symbolName, className);
   }
 
   return null;
@@ -614,6 +616,7 @@ function extractTSSymbol(
   content: string,
   symbolName: string,
   filePath: string,
+  className?: string,
 ): string | null {
   const project = getProject();
   const ext = path.extname(filePath);
@@ -629,6 +632,26 @@ function extractTSSymbol(
   }
 
   try {
+    // If className is provided, scope search to within that class
+    if (className) {
+      const cls = sourceFile.getClass(className);
+      if (!cls) return null;
+
+      const method = cls.getMethod(symbolName);
+      if (method) return method.getFullText().trim();
+
+      const getter = cls.getGetAccessor(symbolName);
+      if (getter) return getter.getFullText().trim();
+
+      const setter = cls.getSetAccessor(symbolName);
+      if (setter) return setter.getFullText().trim();
+
+      const prop = cls.getProperty(symbolName);
+      if (prop) return prop.getFullText().trim();
+
+      return null;
+    }
+
     // Search top-level functions
     const func = sourceFile.getFunction(symbolName);
     if (func) return func.getFullText().trim();
@@ -683,10 +706,58 @@ function extractTSSymbol(
 function extractPySymbol(
   content: string,
   symbolName: string,
+  className?: string,
 ): string | null {
   const lines = content.split("\n");
   const escapedName = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+  // If className is provided, find the class first, then search within it
+  if (className) {
+    const escapedClass = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!new RegExp(`^class\\s+${escapedClass}[\\s(:]`).test(trimmed)) continue;
+
+      // Found the class — now search for the method within it
+      const classIndent = measureIndent(lines[i]);
+      let j = i + 1;
+
+      while (j < lines.length) {
+        const bodyLine = lines[j];
+        if (bodyLine.trim() === "") { j++; continue; }
+        if (measureIndent(bodyLine) <= classIndent && bodyLine.trim() !== "") break;
+
+        const bodyTrimmed = bodyLine.trim();
+        const isFunc = new RegExp(
+          `^(?:async\\s+)?def\\s+${escapedName}\\s*\\(`,
+        ).test(bodyTrimmed);
+
+        if (isFunc) {
+          const startLine = j;
+          const baseIndent = measureIndent(bodyLine);
+          const blockLines: string[] = [bodyLine];
+          j++;
+
+          while (j < lines.length) {
+            const innerLine = lines[j];
+            if (innerLine.trim() === "") { blockLines.push(innerLine); j++; continue; }
+            if (measureIndent(innerLine) > baseIndent) { blockLines.push(innerLine); j++; }
+            else break;
+          }
+
+          while (blockLines.length > 0 && blockLines[blockLines.length - 1].trim() === "") {
+            blockLines.pop();
+          }
+          return blockLines.join("\n");
+        }
+        j++;
+      }
+      return null; // Method not found within class
+    }
+    return null; // Class not found
+  }
+
+  // Original behavior when no className is provided
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();

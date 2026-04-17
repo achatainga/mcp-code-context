@@ -32,21 +32,25 @@ const IMPORT_REGEX = /^\s*import\s+['"]/;
 
 /**
  * Replace the full text of a named symbol in a Dart file.
+ * When className is provided, scopes the search to within that class only.
  */
 export function replaceDartSymbol(
   content: string,
   symbolName: string,
   newContent: string,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
-  const range = findSymbolRange(lines, symbolName);
+  const range = findSymbolRange(lines, symbolName, className);
 
   if (!range) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Symbol "${symbolName}" not found in Dart file`,
+      error: className
+        ? `Symbol "${symbolName}" not found in class "${className}" in Dart file`
+        : `Symbol "${symbolName}" not found in Dart file`,
     };
   }
 
@@ -82,12 +86,14 @@ export function replaceDartSymbol(
 
 /**
  * Insert new code at a precise location relative to an anchor symbol.
+ * When className is provided, scopes the anchor search to within that class only.
  */
 export function insertDartCode(
   content: string,
   code: string,
   anchorSymbol: string | null,
   position: InsertPosition,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
 
@@ -101,13 +107,15 @@ export function insertDartCode(
     };
   }
 
-  const range = findSymbolRange(lines, anchorSymbol);
+  const range = findSymbolRange(lines, anchorSymbol, className);
   if (!range) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Anchor symbol "${anchorSymbol}" not found`,
+      error: className
+        ? `Anchor symbol "${anchorSymbol}" not found in class "${className}"`
+        : `Anchor symbol "${anchorSymbol}" not found`,
     };
   }
 
@@ -194,20 +202,24 @@ export function renameDartSymbol(
 
 /**
  * Remove a named symbol from a Dart file.
+ * When className is provided, scopes the search to within that class only.
  */
 export function removeDartSymbol(
   content: string,
   symbolName: string,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
-  const range = findSymbolRange(lines, symbolName);
+  const range = findSymbolRange(lines, symbolName, className);
 
   if (!range) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Symbol "${symbolName}" not found for removal`,
+      error: className
+        ? `Symbol "${symbolName}" not found in class "${className}" for removal`
+        : `Symbol "${symbolName}" not found for removal`,
     };
   }
 
@@ -233,11 +245,49 @@ interface SymbolRange {
 /**
  * Find the start and end line indices of a named symbol in a Dart file.
  * Includes leading doc comments and annotations.
+ * When className is provided, scopes method search to within that class only.
  */
 function findSymbolRange(
   lines: string[],
   symbolName: string,
+  className?: string,
 ): SymbolRange | null {
+  // If className is provided, scope the search to within that class
+  if (className) {
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      const declMatch = DECLARATION_REGEX.exec(trimmed);
+      if (declMatch && declMatch[3] === className) {
+        // Found the class — determine body boundaries
+        const classEnd = findBlockEnd(lines, i);
+
+        // Search only within the class body for the method
+        for (let j = i + 1; j < classEnd; j++) {
+          const bodyTrimmed = lines[j].trim();
+          const escaped = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const methodMatch = bodyTrimmed.match(
+            new RegExp(`\\b${escaped}\\s*[<(]`),
+          );
+          if (
+            methodMatch &&
+            !DECLARATION_REGEX.test(bodyTrimmed) &&
+            !IMPORT_REGEX.test(bodyTrimmed) &&
+            (bodyTrimmed.includes("(") || bodyTrimmed.includes("<"))
+          ) {
+            if (isMethodOrConstructor(bodyTrimmed) || isTopLevelFunction(bodyTrimmed)) {
+              const start = findDocStart(lines, j);
+              const end = findBlockEnd(lines, j);
+              return { start, end };
+            }
+          }
+        }
+        return null; // Method not found within class
+      }
+    }
+    return null; // Class not found
+  }
+
+  // Original behavior when no className is provided
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
 

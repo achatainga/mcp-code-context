@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-04-17
+
+### Added
+- **Class Scope Disambiguation**: Added a \`className\` parameter to all read and write tools (\`read_file_surgical\`, \`write_file_surgical\`, \`insert_symbol\`, \`remove_symbol\`).
+- Fixed collisions across duplicate method names (e.g., \`build\` methods in Flutter or identical controllers in PHP/Python) by enforcing boundaries based on the requested class wrapper.
+- Automatic smart detection block-bounding across 4 languages:
+  - TypeScript: Native TS-Morph class-level resolution mapping.
+  - PHP: Custom AST container mapping inside \`php-parser\`.
+  - Dart: Dynamic AST brace-bound indexing block extraction.
+  - Python: Dynamic regex scaling block extractor enforcing indentation thresholds.
+- **Enhanced Testing Options**: Increased overall smoke & unit testing assertion matrix (from 52 assertions to 59).
+
 ## [2.0.0] - 2026-04-15
 
 ### Added

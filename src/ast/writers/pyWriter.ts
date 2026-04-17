@@ -25,21 +25,25 @@ export type InsertPosition = "before" | "after" | "inside_start" | "inside_end";
 /**
  * Replace the full text of a named symbol in a Python file.
  * The newContent should include the def/class signature and body.
+ * When className is provided, scopes the search to within that class only.
  */
 export function replacePySymbol(
   content: string,
   symbolName: string,
   newContent: string,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
-  const range = findSymbolRange(lines, symbolName);
+  const range = findSymbolRange(lines, symbolName, className);
 
   if (!range) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Symbol "${symbolName}" not found in Python file`,
+      error: className
+        ? `Symbol "${symbolName}" not found in class "${className}" in Python file`
+        : `Symbol "${symbolName}" not found in Python file`,
     };
   }
 
@@ -65,12 +69,14 @@ export function replacePySymbol(
 
 /**
  * Insert new code at a precise location relative to an anchor symbol.
+ * When className is provided, scopes the anchor search to within that class only.
  */
 export function insertPyCode(
   content: string,
   code: string,
   anchorSymbol: string | null,
   position: InsertPosition,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
 
@@ -84,13 +90,15 @@ export function insertPyCode(
     };
   }
 
-  const range = findSymbolRange(lines, anchorSymbol);
+  const range = findSymbolRange(lines, anchorSymbol, className);
   if (!range) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Anchor symbol "${anchorSymbol}" not found`,
+      error: className
+        ? `Anchor symbol "${anchorSymbol}" not found in class "${className}"`
+        : `Anchor symbol "${anchorSymbol}" not found`,
     };
   }
 
@@ -182,20 +190,24 @@ export function renamePySymbol(
 
 /**
  * Remove a named symbol from a Python file.
+ * When className is provided, scopes the search to within that class only.
  */
 export function removePySymbol(
   content: string,
   symbolName: string,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
-  const range = findSymbolRange(lines, symbolName);
+  const range = findSymbolRange(lines, symbolName, className);
 
   if (!range) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Symbol "${symbolName}" not found for removal`,
+      error: className
+        ? `Symbol "${symbolName}" not found in class "${className}" for removal`
+        : `Symbol "${symbolName}" not found for removal`,
     };
   }
 
@@ -227,13 +239,74 @@ interface SymbolRange {
 /**
  * Find the start and end line indices of a named symbol in a Python file.
  * Uses indentation to detect block boundaries (Python's significant whitespace).
+ * When className is provided, scopes the search to within that class only.
  */
 function findSymbolRange(
   lines: string[],
   symbolName: string,
+  className?: string,
 ): SymbolRange | null {
   const escaped = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+  // If className is provided, find the class first, then search within it
+  if (className) {
+    const escapedClass = className.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      if (!new RegExp(`^class\\s+${escapedClass}[\\s(:]`).test(trimmed)) continue;
+
+      // Found the class — search for the method within it
+      const classIndent = measureIndent(lines[i]);
+      let j = i + 1;
+
+      while (j < lines.length) {
+        const bodyLine = lines[j];
+        if (bodyLine.trim() === "") { j++; continue; }
+        if (measureIndent(bodyLine) <= classIndent && bodyLine.trim() !== "") break;
+
+        const bodyTrimmed = bodyLine.trim();
+        const isFunc = new RegExp(
+          `^(?:async\\s+)?def\\s+${escaped}\\s*\\(`,
+        ).test(bodyTrimmed);
+
+        if (isFunc) {
+          const startLine = j;
+          const baseIndent = measureIndent(bodyLine);
+
+          // Check for decorators above
+          let decoratorStart = startLine;
+          while (
+            decoratorStart > 0 &&
+            lines[decoratorStart - 1].trim().startsWith("@")
+          ) {
+            decoratorStart--;
+          }
+
+          // Find end of block
+          let endLine = startLine;
+          let k = startLine + 1;
+          while (k < lines.length) {
+            const innerLine = lines[k];
+            if (innerLine.trim() === "") { k++; continue; }
+            if (measureIndent(innerLine) > baseIndent) { endLine = k; k++; }
+            else break;
+          }
+
+          while (endLine > startLine && lines[endLine].trim() === "") {
+            endLine--;
+          }
+
+          return { start: decoratorStart, end: endLine };
+        }
+        j++;
+      }
+      return null; // Method not found within class
+    }
+    return null; // Class not found
+  }
+
+  // Original behavior when no className is provided
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const trimmed = line.trim();

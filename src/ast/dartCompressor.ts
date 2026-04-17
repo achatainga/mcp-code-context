@@ -165,14 +165,56 @@ export function compressDart(content: string): string {
 /**
  * Extract the full source code of a named symbol from a Dart file.
  * Supports classes, mixins, extensions, enums, functions, and methods.
+ * When className is provided, scopes method search to within that class only.
  * Returns null if the symbol is not found.
  */
 export function extractDartSymbol(
   content: string,
   symbolName: string,
+  className?: string,
 ): string | null {
   const lines = content.split("\n");
 
+  // If className is provided, scope the search to within that class
+  if (className) {
+    for (let i = 0; i < lines.length; i++) {
+      const trimmed = lines[i].trim();
+      const declMatch = DECLARATION_REGEX.exec(trimmed);
+      if (declMatch && declMatch[4] === className) {
+        // Found the class — determine body boundaries
+        let braceLineIdx = i;
+        while (braceLineIdx < lines.length && !lines[braceLineIdx].includes("{")) {
+          braceLineIdx++;
+        }
+        const bodyEnd = findMatchingBrace(lines, braceLineIdx + 1, 1);
+
+        // Search only within the class body for the method
+        for (let j = braceLineIdx + 1; j < bodyEnd; j++) {
+          const bodyTrimmed = lines[j].trim();
+          const methodMatch = bodyTrimmed.match(
+            new RegExp(`\\b${escapeRegex(symbolName)}\\s*[<(]`),
+          );
+          if (
+            methodMatch &&
+            !DECLARATION_REGEX.test(bodyTrimmed) &&
+            !IMPORT_REGEX.test(bodyTrimmed) &&
+            (bodyTrimmed.includes("(") || bodyTrimmed.includes("<"))
+          ) {
+            if (
+              isMethodOrConstructor(bodyTrimmed) ||
+              isTopLevelFunction(bodyTrimmed)
+            ) {
+              return extractFullBlock(lines, j);
+            }
+          }
+        }
+        return null; // Method not found within the specified class
+      }
+    }
+    return null; // Class not found
+  }
+
+  // Original behavior when no className is provided
   for (let i = 0; i < lines.length; i++) {
     const trimmed = lines[i].trim();
 

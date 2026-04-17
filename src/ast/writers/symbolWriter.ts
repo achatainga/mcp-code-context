@@ -72,33 +72,35 @@ export const WRITABLE_EXTENSIONS = new Set([
  * Replace the full source code of a named symbol in a file.
  * Dispatches to the correct language-specific writer.
  *
- * @param filePath  - Used to detect language via extension
- * @param content   - Current file content
+ * @param filePath   - Used to detect language via extension
+ * @param content    - Current file content
  * @param symbolName - Name of the symbol to replace
  * @param newContent - Complete replacement code (signature + body)
+ * @param className  - Optional. Scopes search to within a specific class
  */
 export function replaceSymbol(
   filePath: string,
   content: string,
   symbolName: string,
   newContent: string,
+  className?: string,
 ): WriteResult {
   const ext = path.extname(filePath).toLowerCase();
 
   if (TS_EXTENSIONS.has(ext)) {
-    return replaceTSSymbol(content, symbolName, newContent, filePath);
+    return replaceTSSymbol(content, symbolName, newContent, filePath, className);
   }
 
   if (PHP_EXTENSIONS.has(ext)) {
-    return replacePHPSymbol(content, symbolName, newContent);
+    return replacePHPSymbol(content, symbolName, newContent, className);
   }
 
   if (DART_EXTENSIONS.has(ext)) {
-    return replaceDartSymbol(content, symbolName, newContent);
+    return replaceDartSymbol(content, symbolName, newContent, className);
   }
 
   if (PY_EXTENSIONS.has(ext)) {
-    return replacePySymbol(content, symbolName, newContent);
+    return replacePySymbol(content, symbolName, newContent, className);
   }
 
   return {
@@ -119,6 +121,7 @@ export function replaceSymbol(
  * @param code         - The code to insert
  * @param anchorSymbol - Symbol to position relative to (null = end of file)
  * @param position     - Where to insert: before, after, inside_start, inside_end
+ * @param className    - Optional. Scopes anchor search to within a specific class
  */
 export function insertCode(
   filePath: string,
@@ -126,23 +129,24 @@ export function insertCode(
   code: string,
   anchorSymbol: string | null,
   position: InsertPosition,
+  className?: string,
 ): WriteResult {
   const ext = path.extname(filePath).toLowerCase();
 
   if (TS_EXTENSIONS.has(ext)) {
-    return insertTSCode(content, code, anchorSymbol, position, filePath);
+    return insertTSCode(content, code, anchorSymbol, position, filePath, className);
   }
 
   if (PHP_EXTENSIONS.has(ext)) {
-    return insertPHPCode(content, code, anchorSymbol, position);
+    return insertPHPCode(content, code, anchorSymbol, position, className);
   }
 
   if (DART_EXTENSIONS.has(ext)) {
-    return insertDartCode(content, code, anchorSymbol, position);
+    return insertDartCode(content, code, anchorSymbol, position, className);
   }
 
   if (PY_EXTENSIONS.has(ext)) {
-    return insertPyCode(content, code, anchorSymbol, position);
+    return insertPyCode(content, code, anchorSymbol, position, className);
   }
 
   return {
@@ -203,28 +207,30 @@ export function renameInFile(
  * @param filePath   - Used to detect language via extension
  * @param content    - Current file content
  * @param symbolName - Name of the symbol to remove
+ * @param className  - Optional. Scopes search to within a specific class
  */
 export function removeSymbolFromFile(
   filePath: string,
   content: string,
   symbolName: string,
+  className?: string,
 ): WriteResult {
   const ext = path.extname(filePath).toLowerCase();
 
   if (TS_EXTENSIONS.has(ext)) {
-    return removeTSSymbol(content, symbolName, filePath);
+    return removeTSSymbol(content, symbolName, filePath, className);
   }
 
   if (PHP_EXTENSIONS.has(ext)) {
-    return removePHPSymbol(content, symbolName);
+    return removePHPSymbol(content, symbolName, className);
   }
 
   if (DART_EXTENSIONS.has(ext)) {
-    return removeDartSymbol(content, symbolName);
+    return removeDartSymbol(content, symbolName, className);
   }
 
   if (PY_EXTENSIONS.has(ext)) {
-    return removePySymbol(content, symbolName);
+    return removePySymbol(content, symbolName, className);
   }
 
   return {

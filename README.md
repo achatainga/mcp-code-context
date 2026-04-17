@@ -1,9 +1,9 @@
 # mcp-code-context
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-118%2F118%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)]()
 
 > MCP server that compresses any codebase into LLM-ready semantic context **and provides surgical code editing tools**. AST-based read & write for TypeScript, JavaScript, PHP, Dart & Python.
 
@@ -33,7 +33,7 @@ LLMs working with code face two bottlenecks:
 
 ## The Solution
 
-`mcp-code-context` provides **7 tools** — 3 for reading and 4 for writing — that operate at the **symbol level** (functions, classes, methods) rather than the file level. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
+`mcp-code-context` provides **7 tools** — 3 for reading and 4 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -43,19 +43,19 @@ LLMs working with code face two bottlenecks:
 
 ## Reliability & Testing
 
-Built to be robust and precise. Both read and write engines are tested against real-world, complex codebases (including nested generic types in Dart, complex interfaces in PHP, and multi-file rename operations) with a **100% test pass rate** (118/118 test assertions passing across all languages and operations).
+Built to be robust and precise. Both read and write engines are tested against real-world, complex codebases (including nested generic types in Dart, complex interfaces in PHP, and multi-file rename operations) with a **100% test pass rate** across all languages and operations.
 
 ## Features
 
 ### Read
 - 🌳 **AST-based compression** — Real parsers for TypeScript/JavaScript ([ts-morph](https://ts-morph.com/)) and PHP ([php-parser](https://github.com/nickygerritsen/php-parser)). Brace-counting engine for Dart. Regex-based extraction for Python.
-- 🔬 **Surgical symbol extraction** — Extract a single function, class, or method from a file by name. Get only what you need.
+- 🔬 **Surgical symbol extraction** — Extract a single function, class, or method from a file by name. Use `className` to scope disambiguation (e.g., getting multiple `build()` methods in Dart).
 - 💥 **Impact analysis** — Discover all files that depend on a given file before refactoring. Supports ES imports, CommonJS `require()`, Python imports, PHP `use`/`require_once`/`include`, and Dart imports.
 - 📁 **Smart file walking** — Respects `.gitignore` and `.repomixignore` rules. Automatically excludes `node_modules`, `dist`, `vendor`, `.git`, etc.
 - 📄 **Multi-format output** — XML (optimized for LLM consumption) or Markdown (human-readable).
 
 ### Write
-- ✏️ **Surgical symbol replacement** — Replace a function, method, or class body without touching the rest of the file.
+- ✏️ **Surgical symbol replacement** — Replace a function, method, or class body without touching the rest of the file. Narrow down the target using the `className` parameter.
 - ➕ **Precise code insertion** — Insert new code before/after a symbol, or inside a class at the start/end.
 - 🔄 **Repository-wide rename** — Rename a symbol in its definition AND all files that import it, atomically.
 - 🗑️ **Safe symbol removal** — Delete code with automatic dependency checking to prevent breakage.
@@ -150,6 +150,7 @@ Generate a compressed architectural overview of an entire repository.
 Read a file, or extract only a specific named symbol.
 - `filePath` (required) — Path to the source file
 - `symbolName` (optional) — Name of a function, class, method, or type
+- `className` (optional) — Scope the symbol to a specific class (to avoid duplicates)
 
 #### 3. `analyze_impact`
 Find all files that depend on a given file.
@@ -163,6 +164,7 @@ Replace the full source code of a named symbol in a file.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to replace
 - `newContent` (required) — Replacement code (signature + body)
+- `className` (optional) — Scope the symbol to a specific class
 - `dryRun` (optional) — Preview changes as diff without writing
 - `createBackup` (optional) — Create `.bak` copy before editing
 
@@ -172,6 +174,7 @@ Insert new code at a precise location relative to an existing symbol.
 - `code` (required) — Code to insert
 - `anchorSymbol` (optional) — Symbol to position relative to
 - `position` (optional) — `"before"`, `"after"`, `"inside_start"`, `"inside_end"`
+- `className` (optional) — Scope the anchor to a specific class
 - `dryRun`, `createBackup` (optional)
 
 #### 6. `rename_symbol`
@@ -186,6 +189,7 @@ Rename a symbol across the entire repository (definition + all usages).
 Safely remove a symbol from a file with dependency checking.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to remove
+- `className` (optional) — Scope the symbol to a specific class
 - `force` (optional) — Skip dependency check
 - `dryRun`, `createBackup` (optional)
 

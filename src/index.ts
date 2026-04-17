@@ -135,6 +135,13 @@ const TOOLS = [
             "Optional. Name of a specific function, class, interface, method, " +
             "or type alias to extract. If omitted, the entire file is returned.",
         },
+        className: {
+          type: "string",
+          description:
+            "Optional. Name of the class to scope the symbol search to. " +
+            "Use this when multiple classes in the same file have methods with the same name " +
+            "(e.g., multiple build() methods in Flutter). If omitted, returns the first match.",
+        },
       },
       required: ["filePath"],
     },
@@ -195,6 +202,12 @@ const TOOLS = [
             "The complete replacement source code for the symbol, including its " +
             "signature and body. Must be syntactically valid for the target language.",
         },
+        className: {
+          type: "string",
+          description:
+            "Optional. Name of the class to scope the symbol search to. " +
+            "Use when multiple classes have methods with the same name.",
+        },
         dryRun: {
           type: "boolean",
           description:
@@ -243,6 +256,12 @@ const TOOLS = [
             "Where to insert relative to the anchor. 'before' and 'after' insert " +
             "outside the symbol. 'inside_start' and 'inside_end' insert as members " +
             "inside a class or interface. Defaults to 'after'.",
+        },
+        className: {
+          type: "string",
+          description:
+            "Optional. Name of the class to scope the anchor symbol search to. " +
+            "Use when multiple classes have methods with the same name.",
         },
         dryRun: {
           type: "boolean",
@@ -317,6 +336,12 @@ const TOOLS = [
         symbolName: {
           type: "string",
           description: "Name of the symbol to remove.",
+        },
+        className: {
+          type: "string",
+          description:
+            "Optional. Name of the class to scope the symbol search to. " +
+            "Use when multiple classes have methods with the same name.",
         },
         force: {
           type: "boolean",
@@ -458,6 +483,7 @@ async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
 async function handleReadFileSurgical(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const symbolName = args.symbolName as string | undefined;
+  const className = args.className as string | undefined;
 
   if (!filePath) {
     return errorResponse("Missing required parameter: filePath");
@@ -490,7 +516,7 @@ async function handleReadFileSurgical(args: Record<string, unknown>) {
   }
 
   // Attempt surgical extraction
-  const extracted = extractSymbol(content, symbolName, resolvedPath);
+  const extracted = extractSymbol(content, symbolName, resolvedPath, className);
 
   if (extracted === null) {
     // Symbol not found — return full file with a warning
@@ -498,10 +524,13 @@ async function handleReadFileSurgical(args: Record<string, unknown>) {
       content: [
         {
           type: "text" as const,
-          text:
-            `// ⚠️ Symbol "${symbolName}" not found in ${path.basename(resolvedPath)}\n` +
-            `// Returning full file content instead.\n` +
-            `// File: ${resolvedPath}\n\n${content}`,
+          text: className
+            ? `// ⚠️ Symbol "${symbolName}" not found in class "${className}" in ${path.basename(resolvedPath)}\n` +
+              `// Returning full file content instead.\n` +
+              `// File: ${resolvedPath}\n\n${content}`
+            : `// ⚠️ Symbol "${symbolName}" not found in ${path.basename(resolvedPath)}\n` +
+              `// Returning full file content instead.\n` +
+              `// File: ${resolvedPath}\n\n${content}`,
         },
       ],
     };
@@ -637,6 +666,7 @@ async function handleWriteFileSurgical(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const symbolName = args.symbolName as string;
   const newContent = args.newContent as string;
+  const className = args.className as string | undefined;
   const dryRun = (args.dryRun as boolean) || false;
   const shouldBackup = (args.createBackup as boolean) || false;
 
@@ -667,7 +697,7 @@ async function handleWriteFileSurgical(args: Record<string, unknown>) {
   }
 
   // Perform the replacement
-  const result: WriteResult = replaceSymbol(resolvedPath, content, symbolName, newContent);
+  const result: WriteResult = replaceSymbol(resolvedPath, content, symbolName, newContent, className);
 
   if (!result.success) {
     return errorResponse(result.error || "Unknown error during symbol replacement");
@@ -733,6 +763,7 @@ async function handleInsertSymbol(args: Record<string, unknown>) {
   const code = args.code as string;
   const anchorSymbol = (args.anchorSymbol as string) || null;
   const position = (args.position as InsertPosition) || "after";
+  const className = args.className as string | undefined;
   const dryRun = (args.dryRun as boolean) || false;
   const shouldBackup = (args.createBackup as boolean) || false;
 
@@ -758,7 +789,7 @@ async function handleInsertSymbol(args: Record<string, unknown>) {
     return errorResponse(`Failed to read file: ${msg}`);
   }
 
-  const result: WriteResult = insertCode(resolvedPath, content, code, anchorSymbol, position);
+  const result: WriteResult = insertCode(resolvedPath, content, code, anchorSymbol, position, className);
 
   if (!result.success) {
     return errorResponse(result.error || "Unknown error during code insertion");
@@ -989,6 +1020,7 @@ async function handleRenameSymbol(args: Record<string, unknown>) {
 async function handleRemoveSymbol(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const symbolName = args.symbolName as string;
+  const className = args.className as string | undefined;
   const force = (args.force as boolean) || false;
   const dryRun = (args.dryRun as boolean) || false;
   const shouldBackup = (args.createBackup as boolean) || false;
@@ -1083,7 +1115,7 @@ async function handleRemoveSymbol(args: Record<string, unknown>) {
   }
 
   // Perform the removal
-  const result: WriteResult = removeSymbolFromFile(resolvedPath, content, symbolName);
+  const result: WriteResult = removeSymbolFromFile(resolvedPath, content, symbolName, className);
 
   if (!result.success) {
     return errorResponse(result.error || "Unknown error during symbol removal");

@@ -68,11 +68,13 @@ function parsePhp(content: string): PhpNode | null {
 
 /**
  * Replace the full text of a named symbol in a PHP file.
+ * When className is provided, scopes the search to within that class only.
  */
 export function replacePHPSymbol(
   content: string,
   symbolName: string,
   newContent: string,
+  className?: string,
 ): WriteResult {
   const ast = parsePhp(content);
   if (!ast) {
@@ -84,13 +86,15 @@ export function replacePHPSymbol(
     };
   }
 
-  const node = findSymbolNode(ast, symbolName);
+  const node = findSymbolNode(ast, symbolName, className);
   if (!node || !node.loc) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Symbol "${symbolName}" not found in PHP file`,
+      error: className
+        ? `Symbol "${symbolName}" not found in class "${className}" in PHP file`
+        : `Symbol "${symbolName}" not found in PHP file`,
     };
   }
 
@@ -133,12 +137,14 @@ export function replacePHPSymbol(
 
 /**
  * Insert new code at a precise location relative to an anchor symbol.
+ * When className is provided, scopes the anchor search to within that class only.
  */
 export function insertPHPCode(
   content: string,
   code: string,
   anchorSymbol: string | null,
   position: InsertPosition,
+  className?: string,
 ): WriteResult {
   const lines = content.split("\n");
 
@@ -168,13 +174,15 @@ export function insertPHPCode(
     };
   }
 
-  const node = findSymbolNode(ast, anchorSymbol);
+  const node = findSymbolNode(ast, anchorSymbol, className);
   if (!node || !node.loc) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Anchor symbol "${anchorSymbol}" not found`,
+      error: className
+        ? `Anchor symbol "${anchorSymbol}" not found in class "${className}"`
+        : `Anchor symbol "${anchorSymbol}" not found`,
     };
   }
 
@@ -282,10 +290,12 @@ export function renamePHPSymbol(
 
 /**
  * Remove a named symbol from a PHP file.
+ * When className is provided, scopes the search to within that class only.
  */
 export function removePHPSymbol(
   content: string,
   symbolName: string,
+  className?: string,
 ): WriteResult {
   const ast = parsePhp(content);
   if (!ast) {
@@ -297,13 +307,15 @@ export function removePHPSymbol(
     };
   }
 
-  const node = findSymbolNode(ast, symbolName);
+  const node = findSymbolNode(ast, symbolName, className);
   if (!node || !node.loc) {
     return {
       success: false,
       newContent: content,
       symbolsAffected: [],
-      error: `Symbol "${symbolName}" not found for removal`,
+      error: className
+        ? `Symbol "${symbolName}" not found in class "${className}" for removal`
+        : `Symbol "${symbolName}" not found for removal`,
     };
   }
 
@@ -335,11 +347,54 @@ function getNodeName(node: PhpNode | undefined | null): string {
   return "";
 }
 
+/**
+ * Find a class/interface/trait/enum node by name in the AST tree.
+ * Used to scope symbol searches to a specific container.
+ */
+function findClassNodePhp(node: PhpNode, className: string): PhpNode | null {
+  if (!node) return null;
+
+  if (
+    ["class", "interface", "trait", "enum"].includes(node.kind) &&
+    getNodeName(node) === className
+  ) {
+    return node;
+  }
+
+  const allChildren = [
+    ...(node.children || []),
+    ...(Array.isArray(node.body) ? node.body : []),
+  ];
+
+  for (const child of allChildren) {
+    const found = findClassNodePhp(child, className);
+    if (found) return found;
+  }
+
+  return null;
+}
+
 function findSymbolNode(
   node: PhpNode,
   symbolName: string,
+  className?: string,
 ): PhpNode | null {
   if (!node) return null;
+
+  // If className is provided, first find the class, then search within it
+  if (className) {
+    const classNode = findClassNodePhp(node, className);
+    if (!classNode) return null;
+
+    // Search only within this class's body
+    const body = Array.isArray(classNode.body) ? classNode.body : [];
+    for (const member of body) {
+      if (member.kind === "method" && getNodeName(member) === symbolName) {
+        return member;
+      }
+    }
+    return null;
+  }
 
   const nodeName = getNodeName(node);
 
