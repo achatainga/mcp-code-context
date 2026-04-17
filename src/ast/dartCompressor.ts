@@ -801,30 +801,59 @@ function extractFullBlock(
     return block.map((l) => l.replace(/\r$/, "")).join("\n");
   }
 
-  // Find the opening brace
-  let braceLineIdx = startIndex;
-  while (braceLineIdx < lines.length && !lines[braceLineIdx].includes("{")) {
-    braceLineIdx++;
-  }
+  // Find the matching closing brace using a combined approach
+  // We skip all braces until we find the real '{' that opens the block, 
+  // which is the first '{' encountered when parens are balanced.
+  let parenDepth = 0;
+  let blockDepth = 0;
+  let startedCounting = false;
+  let endIdx = startIndex;
 
-  // Find the matching closing brace
-  let depth = 0;
-  let endIdx = braceLineIdx;
-  for (let k = braceLineIdx; k < lines.length; k++) {
-    for (const ch of lines[k]) {
-      if (ch === "{") depth++;
-      else if (ch === "}") {
-        depth--;
-        if (depth === 0) {
-          endIdx = k;
-          break;
+  for (let k = startIndex; k < lines.length; k++) {
+    const lineStr = lines[k];
+    
+    // Quick check for => arrow functions on the first few lines if we haven't started
+    if (!startedCounting && lineStr.includes("=>")) {
+      let arrowEndIdx = k;
+      while (arrowEndIdx < lines.length && !lines[arrowEndIdx].trim().endsWith(";")) {
+        arrowEndIdx++;
+      }
+      const block = lines.slice(actualStart, arrowEndIdx + 1);
+      return block.map((l) => l.replace(/\r$/, "")).join("\n");
+    }
+
+    for (const ch of lineStr) {
+      if (!startedCounting) {
+        if (ch === "(") parenDepth++;
+        else if (ch === ")") parenDepth--;
+        else if (ch === "{" && parenDepth === 0) {
+          // Found the real opening brace!
+          startedCounting = true;
+          blockDepth = 1;
+        }
+      } else {
+        // We are inside the body block
+        if (ch === "{") {
+          blockDepth++;
+        } else if (ch === "}") {
+          blockDepth--;
+          if (blockDepth === 0) {
+            endIdx = k;
+            break;
+          }
         }
       }
     }
-    if (depth === 0 && k >= braceLineIdx) {
-      endIdx = k;
+    
+    if (startedCounting && blockDepth === 0) {
+      // Break the outer line loop as well
       break;
     }
+  }
+
+  // If we never started counting, it's probably an abstract method or just a field
+  if (!startedCounting) {
+    return lines.slice(actualStart, startIndex + 1).map((l) => l.replace(/\r$/, "")).join("\n");
   }
 
   const block = lines.slice(actualStart, endIdx + 1);
