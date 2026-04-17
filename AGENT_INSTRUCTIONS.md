@@ -19,8 +19,8 @@ read_file_surgical(filePath: "/path/to/file.dart", symbolName: "WidgetName")
 // Omitting symbolName will read the entire file
 read_file_surgical(filePath: "/path/to/file.php")
 ```
-- **Surgical extraction is supported for**: TypeScript, JavaScript, PHP, **Dart**, and Python.
-- If the symbol is not found, the tool safely falls back to returning the entire file content.
+- If the symbol is not found, the tool returns a **structured JSON error** with `available_symbols` and `suggestions` (e.g., if a `className` scope is missing but the symbol exists in a class).
+- **Pro-tip**: Use the suggestions to fix your next tool call (e.g., adding the correct `className`).
 
 ### 3. `analyze_impact` — Blast Radius Detection
 **When to use**: ALWAYS before modifying a file that might be imported or depended upon by other parts of the system.
@@ -36,38 +36,73 @@ analyze_impact(filePath: "/path/to/detodo24_mobile/lib/services/tracking_service
 
 ## Write Tools
 
+### Mandatory Two-Phase Write Workflow (v2.1.1+)
+
+All write tools (`write_file_surgical`, `insert_symbol`, `rename_symbol`, `remove_symbol`) now enforce a safety-first confirmation flow.
+
+**Phase 1: Dry-Run / Preview**
+Call the tool with your proposed changes. You will receive:
+1. A unified `diff` of the proposed changes.
+2. A `confirmationToken`.
+
+**Phase 2: Confirmation**
+To apply the changes, call the SAME tool again with:
+1. `confirmationToken`: The token from Phase 1.
+2. `confirm: true`.
+
+---
+
 ### 4. `write_file_surgical` — Surgical Symbol Replacement
-**When to use**: When you need to replace a specific function, method, class, or interface. Provide ONLY the replacement code — the tool locates the symbol via AST and splices it in.
-**NEVER use**: For adding new code (use `insert_symbol` instead) or for renaming (use `rename_symbol`).
+**When to use**: Replace a specific function, method, class, or interface.
+**Phase 1 (Preview)**:
 ```ts
-write_file_surgical(filePath: "/path/to/file.ts", symbolName: "processOrder", newContent: "function processOrder(id: string): Order {\n  return db.find(id);\n}")
-write_file_surgical(filePath: "/path/to/file.php", symbolName: "findUser", newContent: "public function findUser(int $id): ?User { ... }", dryRun: true)
+write_file_surgical(filePath: "/path/to/file.ts", symbolName: "processOrder", newContent: "...")
 ```
-- Returns a **unified diff** of the changes.
-- Use `dryRun: true` to preview changes without modifying the file.
-- Use `createBackup: true` to create a `.bak` copy before editing.
+**Phase 2 (Apply)**:
+```ts
+write_file_surgical(filePath: "/path/to/file.ts", symbolName: "processOrder", confirmationToken: "TOKEN_FROM_P1", confirm: true)
+```
 
 ### 5. `insert_symbol` — Precise Code Insertion
-**When to use**: When adding new methods, functions, or members at a specific location relative to an existing symbol.
-**Position options**: `"before"`, `"after"`, `"inside_start"`, `"inside_end"`.
+**When to use**: Adding new members relative to an existing anchor symbol.
+**Phase 1 (Preview)**:
 ```ts
-// Add a method after an existing one
-insert_symbol(filePath: "/path/to/file.dart", code: "void clearCache() { _cache.clear(); }", anchorSymbol: "getUser", position: "after")
-// Add a method at the end of a class
-insert_symbol(filePath: "/path/to/file.ts", code: "getUserCount(): number { return this.users.size; }", anchorSymbol: "UserService", position: "inside_end")
-// Append to end of file (no anchor)
-insert_symbol(filePath: "/path/to/file.py", code: "def helper(): pass")
+insert_symbol(filePath: "/path/to/file.dart", code: "void clear() { ... }", anchorSymbol: "getUser", position: "after")
+```
+**Phase 2 (Apply)**:
+```ts
+insert_symbol(filePath: "/path/to/file.dart", code: "void clear() { ... }", confirmationToken: "TOKEN_FROM_P1", confirm: true)
 ```
 
 ### 6. `rename_symbol` — Repository-Wide Rename
-**When to use**: When renaming a function, class, or method across the ENTIRE repository. Renames the definition AND all imports/usages.
-**ALWAYS use**: Instead of manual find-and-replace for identifiers.
+**When to use**: Atomic identifier renaming across the entire project.
+**Phase 1 (Preview)**:
 ```ts
-rename_symbol(filePath: "/path/to/UserService.ts", oldName: "UserService", newName: "AccountService", dryRun: true)
-rename_symbol(filePath: "/path/to/models.py", oldName: "get_user", newName: "fetch_user")
+rename_symbol(filePath: "/path/to/UserService.ts", oldName: "UserService", newName: "AccountService")
 ```
-- Scans all dependent files and renames references atomically.
-- Supports rollback on failure when `createBackup: true`.
+**Phase 2 (Apply)**:
+```ts
+rename_symbol(filePath: "/path/to/UserService.ts", oldName: "UserService", newName: "AccountService", confirmationToken: "TOKEN_FROM_P1", confirm: true)
+```
+
+### 7. `remove_symbol` — Safe Symbol Deletion
+**When to use**: Removing code with dependency checking.
+**Phase 1 (Preview)**:
+```ts
+remove_symbol(filePath: "/path/to/file.ts", symbolName: "deprecatedHelper")
+```
+**Phase 2 (Apply)**:
+```ts
+remove_symbol(filePath: "/path/to/file.ts", symbolName: "deprecatedHelper", confirmationToken: "TOKEN_FROM_P1", confirm: true)
+```
+- **Safety**: Safe removal check happens in Phase 1. If dependents exist, use `force: true` in your next Phase 1 call to override.
+
+### 8. `rollback_file` — Surgical Restoration
+**When to use**: If an applied change introduces an unexpected error or side effect.
+**Safety**: The server automatically keeps the last 5 versions in `.mcp-backups/`.
+```ts
+rollback_file(filePath: "/path/to/file.ts", steps: 1)
+```
 
 ### 7. `remove_symbol` — Safe Symbol Deletion
 **When to use**: When removing a function, method, or class from a file.
@@ -83,11 +118,13 @@ remove_symbol(filePath: "/path/to/file.php", symbolName: "oldMethod", force: tru
 
 ## Mandatory Workflow
 1. **New Session / Unknown Context** → Use `get_semantic_repo_map` on the relevant directory to understand the structure.
-2. **Read Code** → Use `read_file_surgical` with a `symbolName` whenever possible (TS, JS, PHP, **Dart**, Python) to save tokens.
-3. **Before Modifying** → Use `analyze_impact` if the file is a shared module, service, or component.
-4. **Modify Code** → Use `write_file_surgical` to replace symbols, `insert_symbol` to add new code, `rename_symbol` for refactoring names, `remove_symbol` to delete code safely.
-5. **Preview First** → ALWAYS use `dryRun: true` for major changes to verify the diff before applying.
-6. **Read Entire File** → Only omit `symbolName` in `read_file_surgical` when you genuinely need the full file content.
+2. **Read Code** → Use `read_file_surgical` with a `symbolName` whenever possible.
+3. **Handle Missing Symbols** → If you get a JSON error, use the `suggestions` to refine your `symbolName` or `className`.
+4. **Before Modifying** → Use `analyze_impact` if the file is a shared module or component.
+5. **Modify Code (Phase 1)** → Use write tools to generate a `diff` and `confirmationToken`.
+6. **Verify Diff** → Read the diff carefully. If incorrect, correct your prompt and start Phase 1 again.
+7. **Apply (Phase 2)** → Call the same write tool with the token and `confirm: true`.
+8. **Verify Result** → Ensure nothing broke. Use `rollback_file` if needed.
 
 ## Supported Languages (Read + Write)
 | Language | Read | Write | Engine |

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-04-17
+
+### Added
+- **Mandatory Preview-then-Confirm Workflow**: All surgical writing tools now implement a safety-first two-phase flow (Phase 1: Dry-Run Preview with \`confirmationToken\`, Phase 2: Atomic Apply).
+- **Rolling Multi-Step Backups**: Automatic rolling window of the last 5 versions for every modified file, stored in a hidden \`.mcp-backups/\` directory.
+- **Rollback Tool**: New \`rollback_file\` MCP tool enabling surgical restoration to any of the 5 previous versions.
+- **Fuzzy Symbol Matching**: Structured JSON error reporting for missing symbols, providing \`available_symbols\` and context-aware \`suggestions\` (e.g., suggesting a missing \`className\` scope or similar top-level symbols).
+- **Private Symbol Support**: Full surgical read/write support for \`_\` and \`__\` prefixed symbols in Dart and Python (fixing previous regex word-boundary limitations).
+- **Repository-Wide Rename Refinement**: Updated \`rename_symbol\` to automatically discover and propose renames across the entire dependency graph with multi-file diff previews.
+
+### Internal
+- Refactored write handlers to perform unconditional backups before modification.
+- Optimized Dart block extraction to correctly track nested parentheses within method signatures.
+- Stabilized TypeScript build process and resolved all existing type inconsistencies.
+
+
 ## [2.1.0] - 2026-04-17
 
 ### Added

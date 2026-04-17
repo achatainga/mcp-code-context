@@ -11,58 +11,56 @@
  */
 
 import * as fs from "node:fs";
-
-// ─── Public API ─────────────────────────────────────────────────────
+import * as path from "node:path";
 
 /**
- * Create a backup copy of a file.
- * The backup is stored at `${filePath}.bak` in the same directory.
- *
- * @returns The absolute path to the backup file.
- * @throws If the original file doesn't exist or can't be read.
+ * Create a backup copy of a file before modifying it.
+ * Keeps a rolling window of the last 5 backups per file in a hidden directory.
  */
 export function createBackup(filePath: string): string {
-  const backupPath = getBackupPath(filePath);
-
-  if (!fs.existsSync(filePath)) {
-    throw new Error(`Cannot create backup: file does not exist: ${filePath}`);
+  if (!fs.existsSync(filePath)) return "";
+  
+  const parsed = path.parse(filePath);
+  const backupDir = path.join(parsed.dir, ".mcp-backups");
+  
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
   }
 
+  // Push existing backups down the stack (max 5)
+  for (let i = 4; i >= 1; i--) {
+    const oldB = path.join(backupDir, `${parsed.base}.${i}.backup`);
+    const newB = path.join(backupDir, `${parsed.base}.${i + 1}.backup`);
+    if (fs.existsSync(oldB)) {
+      if (i === 4 && fs.existsSync(newB)) {
+        fs.unlinkSync(newB); // Drop the 5th one to make room
+      }
+      fs.renameSync(oldB, newB);
+    }
+  }
+
+  const backupPath = path.join(backupDir, `${parsed.base}.1.backup`);
   fs.copyFileSync(filePath, backupPath);
   return backupPath;
 }
 
 /**
  * Restore a file from its `.bak` backup.
- *
- * @returns true if the backup was successfully restored, false if no backup exists.
  */
-export function restoreBackup(filePath: string): boolean {
-  const backupPath = getBackupPath(filePath);
+export function restoreBackup(filePath: string, steps = 1): boolean {
+  const parsed = path.parse(filePath);
+  const backupDir = path.join(parsed.dir, ".mcp-backups");
+  const targetBackup = path.join(backupDir, `${parsed.base}.${steps}.backup`);
 
-  if (!fs.existsSync(backupPath)) {
-    return false;
-  }
+  if (!fs.existsSync(targetBackup)) return false;
 
-  fs.copyFileSync(backupPath, filePath);
-  fs.unlinkSync(backupPath);
+  fs.copyFileSync(targetBackup, filePath);
   return true;
 }
 
 /**
- * Remove the backup file for a given path.
- * No-op if no backup exists.
+ * Clean legacy backups.
  */
 export function cleanBackup(filePath: string): void {
-  const backupPath = getBackupPath(filePath);
-
-  if (fs.existsSync(backupPath)) {
-    fs.unlinkSync(backupPath);
-  }
-}
-
-// ─── Internals ──────────────────────────────────────────────────────
-
-function getBackupPath(filePath: string): string {
-  return `${filePath}.bak`;
+  // No-op. We keep the rolling 5 versions instead of deleting.
 }

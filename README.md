@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)]()
 
 > MCP server that compresses any codebase into LLM-ready semantic context **and provides surgical code editing tools**. AST-based read & write for TypeScript, JavaScript, PHP, Dart & Python.
 
@@ -59,8 +59,11 @@ Built to be robust and precise. Both read and write engines are tested against r
 - ➕ **Precise code insertion** — Insert new code before/after a symbol, or inside a class at the start/end.
 - 🔄 **Repository-wide rename** — Rename a symbol in its definition AND all files that import it, atomically.
 - 🗑️ **Safe symbol removal** — Delete code with automatic dependency checking to prevent breakage.
-- 🔍 **Dry-run mode** — Preview all changes as unified diffs before applying.
-- 💾 **Opt-in backups** — Create `.bak` copies before modification, with automatic rollback on failure.
+- 🔍 **Mandatory dry-run flow** — Write tools return a preview diff and a `confirmationToken` by default. Changes are only applied after explicit confirmation.
+- 💾 **Robust rolling backups** — Automatically keeps the last 5 versions of modified files in a hidden `.mcp-backups/` directory.
+- ⏪ **Surgical rollback** — Revert files to any of the 5 previous states using the new `rollback_file` tool.
+- 🤖 **Fuzzy symbol matching** — When a symbol is not found, the server provides structured suggestions based on Levenshtein distance.
+- 🔐 **Private symbol support** — Full support for `_` and `__` prefixed symbols in Dart and Python.
 
 ## Supported Languages
 
@@ -147,7 +150,7 @@ Generate a compressed architectural overview of an entire repository.
 - `format` (optional) — `"xml"` (default) or `"markdown"`
 
 #### 2. `read_file_surgical`
-Read a file, or extract only a specific named symbol.
+Read a file, or extract only a specific named symbol. Returns structured suggestions if the symbol is missing.
 - `filePath` (required) — Path to the source file
 - `symbolName` (optional) — Name of a function, class, method, or type
 - `className` (optional) — Scope the symbol to a specific class (to avoid duplicates)
@@ -157,16 +160,25 @@ Find all files that depend on a given file.
 - `filePath` (required) — Path to the file being modified
 - `rootDir` (optional) — Repository root (auto-detected)
 
-### Write Tools
+#### 4. `rollback_file`
+Surgically restore a file to a previous state from the automated backup system.
+- `filePath` (required) — Path to the file to restore
+- `steps` (optional) — Number of versions to go back (1-5, default: 1)
 
-#### 4. `write_file_surgical`
+### Write Tools (Phase 1: Preview)
+
+All write tools follow a **Two-Phase Workflow**:
+1. **Call without token**: Returns a unified `diff` and a `confirmationToken`.
+2. **Call with token**: Set `confirm: true` and provide the token to apply the changes.
+
+#### 5. `write_file_surgical`
 Replace the full source code of a named symbol in a file.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to replace
 - `newContent` (required) — Replacement code (signature + body)
+- `confirmationToken` (optional) — Token from Phase 1 to apply changes
+- `confirm` (optional) — Set to `true` to apply
 - `className` (optional) — Scope the symbol to a specific class
-- `dryRun` (optional) — Preview changes as diff without writing
-- `createBackup` (optional) — Create `.bak` copy before editing
 
 #### 5. `insert_symbol`
 Insert new code at a precise location relative to an existing symbol.
@@ -175,7 +187,7 @@ Insert new code at a precise location relative to an existing symbol.
 - `anchorSymbol` (optional) — Symbol to position relative to
 - `position` (optional) — `"before"`, `"after"`, `"inside_start"`, `"inside_end"`
 - `className` (optional) — Scope the anchor to a specific class
-- `dryRun`, `createBackup` (optional)
+- `confirmationToken`, `confirm` (optional)
 
 #### 6. `rename_symbol`
 Rename a symbol across the entire repository (definition + all usages).
@@ -183,7 +195,7 @@ Rename a symbol across the entire repository (definition + all usages).
 - `oldName` (required) — Current name
 - `newName` (required) — New name
 - `rootDir` (optional) — Repository root
-- `dryRun`, `createBackup` (optional)
+- `confirmationToken`, `confirm` (optional)
 
 #### 7. `remove_symbol`
 Safely remove a symbol from a file with dependency checking.
@@ -191,15 +203,16 @@ Safely remove a symbol from a file with dependency checking.
 - `symbolName` (required) — Symbol to remove
 - `className` (optional) — Scope the symbol to a specific class
 - `force` (optional) — Skip dependency check
-- `dryRun`, `createBackup` (optional)
+- `confirmationToken`, `confirm` (optional)
 
 ## Recommended Workflow
 
 1. **Understand** → `get_semantic_repo_map` to see the architecture
 2. **Read** → `read_file_surgical` with symbol name for specific implementations
 3. **Assess** → `analyze_impact` before modifying shared files
-4. **Edit** → `write_file_surgical`, `insert_symbol`, `rename_symbol`, or `remove_symbol`
-5. **Preview** → Always use `dryRun: true` for significant changes
+4. **Edit (Preview)** → Call write tools to generate a `diff` and `confirmationToken`
+5. **Confim** → Call the same write tool with the token and `confirm: true` to apply
+6. **Recovery** → Use `rollback_file` if something goes wrong after confirmation
 
 ## Development
 
@@ -227,7 +240,7 @@ npm run dev
 - **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io/)
 - **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting (Dart), regex (Python)
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
-- **Safety Features:** Dry-run previews, opt-in backups, syntax validation, dependency checking, atomic rollback
+- **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration.
 
 ## License
 

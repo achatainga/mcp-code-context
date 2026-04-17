@@ -38,8 +38,8 @@ This MCP server solves two problems:
 - `symbolName` (optional): Name of a function, class, interface, method, or type to extract.
 
 **What it does:**
-- Without `symbolName`: Returns the complete file content.
 - With `symbolName`: Parses the AST and returns only the full source code block for that symbol. Saves tokens when you only need one function from a large file.
+- If missing: Returns structured JSON with `available_symbols` and `suggestions` (e.g., suggesting a `className` scope).
 
 **Best used when:** You identified a symbol from the repo map and need to see its full implementation.
 
@@ -57,17 +57,29 @@ This MCP server solves two problems:
 
 **Best used when:** You're about to modify a file and need to understand the blast radius.
 
-### Write Tools
+#### 4. `rollback_file`
+**Purpose:** Restores a file to a previous state from the automated backup system.
+**Input:**
+- `filePath` (required): Absolute path.
+- `steps` (optional): Number of versions to go back (1-5, default: 1).
+**What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-#### 4. `write_file_surgical`
+### Write Tools (v2.1.1 Mandatory Workflow)
+
+All write tools follow a **Two-Phase Workflow**:
+1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
+2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
+
+#### 5. `write_file_surgical`
 **Purpose:** Replace the full source code of a named symbol in a file.
 
 **Input:**
 - `filePath` (required): Absolute path to the file to modify.
 - `symbolName` (required): Name of the symbol to replace.
 - `newContent` (required): Complete replacement code (signature + body).
-- `dryRun` (optional): If true, returns diff without modifying the file.
-- `createBackup` (optional): If true, creates a `.bak` copy before editing.
+- `confirmationToken` (optional): Token from Phase 1.
+- `confirm` (optional): Set to `true` to apply.
+- `className` (optional): Scope the symbol to a specific class.
 
 **What it does:**
 - Locates the symbol via AST parsing (ts-morph, php-parser, brace-counting, or indentation detection).
@@ -85,8 +97,7 @@ This MCP server solves two problems:
 - `code` (required): The new code to insert.
 - `anchorSymbol` (optional): Symbol name to position relative to. If omitted, inserts at end of file.
 - `position` (optional): `"before"`, `"after"`, `"inside_start"`, `"inside_end"`. Defaults to `"after"`.
-- `dryRun` (optional): Preview changes without modifying.
-- `createBackup` (optional): Create `.bak` copy before editing.
+- `confirmationToken`, `confirm` (optional): Standard Phase 2 parameters.
 
 **What it does:**
 - Finds the anchor symbol and inserts new code at the specified position.
@@ -103,8 +114,7 @@ This MCP server solves two problems:
 - `oldName` (required): Current name.
 - `newName` (required): New name.
 - `rootDir` (optional): Repository root. Auto-detected if omitted.
-- `dryRun` (optional): Preview all changes without modifying any files.
-- `createBackup` (optional): Backup each file before modifying.
+- `confirmationToken`, `confirm` (optional): Standard Phase 2 parameters.
 
 **What it does:**
 - Renames the symbol definition in the source file.
@@ -122,8 +132,7 @@ This MCP server solves two problems:
 - `filePath` (required): Absolute path.
 - `symbolName` (required): Symbol to remove.
 - `force` (optional): If true, skip dependency check. Defaults to false.
-- `dryRun` (optional): Preview removal without modifying.
-- `createBackup` (optional): Create `.bak` copy.
+- `confirmationToken`, `confirm` (optional): Standard Phase 2 parameters.
 
 **What it does:**
 - Checks if other files reference the symbol (unless `force: true`).
@@ -135,10 +144,11 @@ This MCP server solves two problems:
 ## Recommended Workflow
 
 1. **Start with `get_semantic_repo_map`** to understand the project structure.
-2. **Use `read_file_surgical`** with a symbol name to drill into specific implementations.
-3. **Before modifying a file, run `analyze_impact`** to know what might break.
-4. **Use `write_file_surgical`** to replace symbols, `insert_symbol` to add code, `rename_symbol` for refactoring, `remove_symbol` for cleanup.
-5. **Always preview with `dryRun: true`** for significant changes.
+2. **Use `read_file_surgical`** with a symbol name. Use suggestions if the symbol is missing.
+3. **Before modifying, run `analyze_impact`** to know the blast radius.
+4. **Phase 1: Preview Edit** → Call write tools to get a `diff` and `confirmationToken`.
+5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
+6. **Recovery** → Use `rollback_file` if needed.
 
 ## Technical Details
 
@@ -147,4 +157,4 @@ This MCP server solves two problems:
 - **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting/regex (Dart, Python)
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
 - **Supported languages:** TypeScript, JavaScript (all variants), PHP, Dart, Python
-- **Safety features:** Dry-run mode, opt-in backups, syntax validation, dependency checking, atomic rollback
+- **Safety features:** Mandatory two-phase confirmation, rolling 5-version backups (`.mcp-backups/`), fuzzy symbol suggestions, dependency tracking, surgical restoration.
