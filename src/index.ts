@@ -33,6 +33,7 @@ import {
   replaceSymbol,
   insertCode,
   renameInFile,
+  renameReferencesInFile,
   removeSymbolFromFile,
   WRITABLE_EXTENSIONS,
   type WriteResult,
@@ -445,7 +446,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
 // ─── Tool 1: get_semantic_repo_map ──────────────────────────────────
 
-async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
+export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
   const directoryPath = args.directoryPath as string;
   const format = (args.format as string) || "xml";
 
@@ -513,7 +514,7 @@ async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
 
 // ─── Tool 2: read_file_surgical ─────────────────────────────────────
 
-async function handleReadFileSurgical(args: Record<string, unknown>) {
+export async function handleReadFileSurgical(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const symbolName = args.symbolName as string | undefined;
   const className = args.className as string | undefined;
@@ -605,7 +606,7 @@ async function handleReadFileSurgical(args: Record<string, unknown>) {
 
 // ─── Tool 3: analyze_impact ─────────────────────────────────────────
 
-async function handleAnalyzeImpact(args: Record<string, unknown>) {
+export async function handleAnalyzeImpact(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   let rootDir = args.rootDir as string | undefined;
 
@@ -717,7 +718,7 @@ async function handleAnalyzeImpact(args: Record<string, unknown>) {
 
 // ─── Tool 4: write_file_surgical ────────────────────────────────────
 
-async function handleWriteFileSurgical(args: Record<string, unknown>) {
+export async function handleWriteFileSurgical(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const symbolName = args.symbolName as string;
   const newContent = args.newContent as string;
@@ -847,7 +848,7 @@ async function handleWriteFileSurgical(args: Record<string, unknown>) {
 
 // ─── Tool 5: insert_symbol ──────────────────────────────────────────
 
-async function handleInsertSymbol(args: Record<string, unknown>) {
+export async function handleInsertSymbol(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const code = args.code as string;
   const anchorSymbol = (args.anchorSymbol as string) || null;
@@ -939,7 +940,7 @@ async function handleInsertSymbol(args: Record<string, unknown>) {
 
 // ─── Tool 6: rename_symbol ──────────────────────────────────────────
 
-async function handleRenameSymbol(args: Record<string, unknown>) {
+export async function handleRenameSymbol(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const oldName = args.oldName as string;
   const newName = args.newName as string;
@@ -1029,9 +1030,11 @@ async function handleRenameSymbol(args: Record<string, unknown>) {
       }
 
       // Quick check if file contains oldName before attempting heavy rename
-      if (!depContent.includes(oldName)) continue;
+      const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`);
+      if (!regex.test(depContent)) continue;
 
-      const depResult = renameInFile(dependentFile, depContent, oldName, newName);
+      const depResult = renameReferencesInFile(dependentFile, depContent, oldName, newName);
       if (depResult.success && depResult.newContent !== depContent) {
         results.push({
           filePath: path.resolve(dependentFile),
@@ -1059,7 +1062,7 @@ async function handleRenameSymbol(args: Record<string, unknown>) {
 
 // ─── Tool 7: remove_symbol ──────────────────────────────────────────
 
-async function handleRemoveSymbol(args: Record<string, unknown>) {
+export async function handleRemoveSymbol(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const symbolName = args.symbolName as string;
   const className = args.className as string | undefined;
@@ -1125,9 +1128,10 @@ async function handleRemoveSymbol(args: Record<string, unknown>) {
         
         try {
           const fContent = fs.readFileSync(f, "utf-8");
-          if (fContent.includes(symbolName)) {
-             // This is a naive check (could be any symbol with same name), 
-             // but safe for a surgical handler without full repo AST indexing.
+          const escaped = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`);
+          
+          if (regex.test(fContent)) {
              return errorResponse(`Symbol "${symbolName}" might be used in ${path.relative(projectRoot, f)}. Use force: true to delete anyway.`);
           }
         } catch {}
@@ -1496,7 +1500,7 @@ function esc(str: string): string {
     .replace(/'/g, "&apos;");
 }
 
-async function handleRollbackFile(args: Record<string, unknown>) {
+export async function handleRollbackFile(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
   const steps = (args.steps as number) || 1;
 

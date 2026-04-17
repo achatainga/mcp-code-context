@@ -808,11 +808,15 @@ function extractFullBlock(
   let blockDepth = 0;
   let startedCounting = false;
   let endIdx = startIndex;
+  let inString = false;
+  let stringDelim = "";
+  let inTripleQuote = false;
+  let inComment = false;
+  let inMultiLineComment = false;
 
   for (let k = startIndex; k < lines.length; k++) {
     const lineStr = lines[k];
     
-    // Quick check for => arrow functions on the first few lines if we haven't started
     if (!startedCounting && lineStr.includes("=>")) {
       let arrowEndIdx = k;
       while (arrowEndIdx < lines.length && !lines[arrowEndIdx].trim().endsWith(";")) {
@@ -822,17 +826,69 @@ function extractFullBlock(
       return block.map((l) => l.replace(/\r$/, "")).join("\n");
     }
 
-    for (const ch of lineStr) {
+    for (let j = 0; j < lineStr.length; j++) {
+      const ch = lineStr[j];
+      const prev = j > 0 ? lineStr[j - 1] : "";
+      const next = j < lineStr.length - 1 ? lineStr[j + 1] : "";
+
+      if (prev === "\\" && (inString || inTripleQuote)) continue;
+
+      if (!inString && !inTripleQuote) {
+        if (!inMultiLineComment && ch === "/" && next === "/") {
+          inComment = true;
+          break;
+        }
+        if (!inMultiLineComment && ch === "/" && next === "*") {
+          inMultiLineComment = true;
+          j++;
+          continue;
+        }
+        if (inMultiLineComment && ch === "*" && next === "/") {
+          inMultiLineComment = false;
+          j++;
+          continue;
+        }
+      }
+      if (inComment || inMultiLineComment) continue;
+
+      if (!inString && !inMultiLineComment) {
+        const isTriple = lineStr.slice(j, j + 3) === "'''" || lineStr.slice(j, j + 3) === '"""';
+        if (isTriple) {
+          if (!inTripleQuote) {
+            inTripleQuote = true;
+            stringDelim = lineStr.slice(j, j + 3);
+            j += 2;
+            continue;
+          } else if (lineStr.slice(j, j + 3) === stringDelim) {
+            inTripleQuote = false;
+            stringDelim = "";
+            j += 2;
+            continue;
+          }
+        }
+      }
+      if (inTripleQuote) continue;
+
+      if (!inMultiLineComment && (ch === "'" || ch === '"')) {
+        if (!inString) {
+          inString = true;
+          stringDelim = ch;
+        } else if (ch === stringDelim) {
+          inString = false;
+          stringDelim = "";
+        }
+        continue;
+      }
+      if (inString) continue;
+
       if (!startedCounting) {
         if (ch === "(") parenDepth++;
         else if (ch === ")") parenDepth--;
         else if (ch === "{" && parenDepth === 0) {
-          // Found the real opening brace!
           startedCounting = true;
           blockDepth = 1;
         }
       } else {
-        // We are inside the body block
         if (ch === "{") {
           blockDepth++;
         } else if (ch === "}") {
@@ -844,11 +900,8 @@ function extractFullBlock(
         }
       }
     }
-    
-    if (startedCounting && blockDepth === 0) {
-      // Break the outer line loop as well
-      break;
-    }
+    inComment = false;
+    if (startedCounting && blockDepth === 0) break;
   }
 
   // If we never started counting, it's probably an abstract method or just a field

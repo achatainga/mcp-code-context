@@ -199,6 +199,41 @@ export function renameInFile(
   };
 }
 
+/**
+ * Renames all whole-word occurrences of a symbol in a file.
+ * UNLIKE renameInFile, this does NOT check for the symbol definition.
+ * Used for updating references in dependent files.
+ */
+export function renameReferencesInFile(
+  filePath: string,
+  content: string,
+  oldName: string,
+  newName: string,
+): WriteResult {
+  const ext = path.extname(filePath).toLowerCase();
+
+  // Simple whole-word replacement is generally safe for cross-file reference updates
+  // where we ALREADY know via import analysis that the file depends on this symbol.
+  
+  // Scape regex special chars
+  const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  
+  // Use a regex that respects common identifier boundaries across JS/PHP/Dart/Python
+  const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`, "g");
+  
+  if (!regex.test(content)) {
+    return { success: true, newContent: content, symbolsAffected: [] };
+  }
+
+  const result = content.replace(regex, newName);
+
+  return {
+    success: true,
+    newContent: result,
+    symbolsAffected: [oldName],
+  };
+}
+
 // ─── Remove Symbol ──────────────────────────────────────────────────
 
 /**

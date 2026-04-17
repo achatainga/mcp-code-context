@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2026-04-17
+
+### Fixed
+- **State-Aware Brace Balancing**: Upgraded Dart parsing engine to correctly ignore braces inside string literals (single, double, and triple quotes) and comments. This eliminates "False Imbalance" errors during surgical writes.
+- **Improved Block Boundary Detection**: Block extraction now respects nested literals, fixing issues where \`insert_symbol\` would incorrectly place code inside a method body when using \`position: "after"\`.
+- **Cross-File Rename Propagation**: Refactored repository-wide renaming to update references in dependent files even if they don't contain a symbol definition, ensuring comprehensive refactoring.
+- **Dependency Guard Precision**: Refined the safe-removal dependency check to use whole-word regex, reducing false positives caused by sub-string matches in unrelated files.
+
+### Added
+- **Troubleshooting Guide**: New \`TROUBLESHOOTING.md\` documenting known architectural behaviors and recommended workarounds for complex editing scenarios.
+
 ## [2.1.1] - 2026-04-17
 
 ### Added

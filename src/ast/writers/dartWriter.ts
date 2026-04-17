@@ -367,20 +367,99 @@ function findBlockEnd(lines: string[], startIdx: number): number {
     braceLineIdx++;
   }
 
-  // Count braces to find matching close
+  if (braceLineIdx >= lines.length) return lines.length - 1;
+
+  const result = findMatchingBraceStateAware(lines, braceLineIdx);
+  return result !== -1 ? result : lines.length - 1;
+}
+
+/**
+ * Advanced brace matcher that ignores strings and comments.
+ * Returns the line index of the matching closing brace.
+ */
+function findMatchingBraceStateAware(lines: string[], startLine: number): number {
   let depth = 0;
-  for (let k = braceLineIdx; k < lines.length; k++) {
-    for (const ch of lines[k]) {
-      if (ch === "{") depth++;
-      else if (ch === "}") {
+  let inString = false;
+  let stringDelim = "";
+  let inTripleQuote = false;
+  let inComment = false;
+  let inMultiLineComment = false;
+
+  for (let i = startLine; i < lines.length; i++) {
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      const prev = j > 0 ? line[j - 1] : "";
+      const next = j < line.length - 1 ? line[j + 1] : "";
+
+      // Handle Escape
+      if (prev === "\\" && (inString || inTripleQuote)) continue;
+
+      // Handle Comments
+      if (!inString && !inTripleQuote) {
+        if (!inMultiLineComment && char === "/" && next === "/") {
+          inComment = true; // Skip rest of line
+          break;
+        }
+        if (!inMultiLineComment && char === "/" && next === "*") {
+          inMultiLineComment = true;
+          j++;
+          continue;
+        }
+        if (inMultiLineComment && char === "*" && next === "/") {
+          inMultiLineComment = false;
+          j++;
+          continue;
+        }
+      }
+
+      if (inComment || inMultiLineComment) continue;
+
+      // Handle Multi-line Triple Quotes (''' or """)
+      if (!inString && !inMultiLineComment) {
+        const isTriple = line.slice(j, j + 3) === "'''" || line.slice(j, j + 3) === '"""';
+        if (isTriple) {
+          if (!inTripleQuote) {
+            inTripleQuote = true;
+            stringDelim = line.slice(j, j + 3);
+            j += 2;
+            continue;
+          } else if (line.slice(j, j + 3) === stringDelim) {
+            inTripleQuote = false;
+            stringDelim = "";
+            j += 2;
+            continue;
+          }
+        }
+      }
+
+      if (inTripleQuote) continue;
+
+      // Handle Basic Strings (' or ")
+      if (!inMultiLineComment && (char === "'" || char === '"')) {
+        if (!inString) {
+          inString = true;
+          stringDelim = char;
+        } else if (char === stringDelim) {
+          inString = false;
+          stringDelim = "";
+        }
+        continue;
+      }
+
+      if (inString) continue;
+
+      // Real Braces
+      if (char === "{") depth++;
+      else if (char === "}") {
         depth--;
-        if (depth === 0) return k;
+        if (depth === 0) return i;
       }
     }
+    inComment = false; // Reset line comment
   }
 
-  // Fallback: return last line
-  return lines.length - 1;
+  return -1;
 }
 
 // ─── Utility Functions ──────────────────────────────────────────────
@@ -450,11 +529,80 @@ function findBraceLine(lines: string[], startIdx: number): number {
 }
 
 function hasBraceBalance(content: string): boolean {
+  const lines = content.split("\n");
   let depth = 0;
-  for (const ch of content) {
-    if (ch === "{") depth++;
-    else if (ch === "}") depth--;
-    if (depth < 0) return false;
+  let inString = false;
+  let stringDelim = "";
+  let inTripleQuote = false;
+  let inComment = false;
+  let inMultiLineComment = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      const prev = j > 0 ? line[j - 1] : "";
+      const next = j < line.length - 1 ? line[j + 1] : "";
+
+      if (prev === "\\" && (inString || inTripleQuote)) continue;
+
+      if (!inString && !inTripleQuote) {
+        if (!inMultiLineComment && char === "/" && next === "/") {
+          inComment = true;
+          break;
+        }
+        if (!inMultiLineComment && char === "/" && next === "*") {
+          inMultiLineComment = true;
+          j++;
+          continue;
+        }
+        if (inMultiLineComment && char === "*" && next === "/") {
+          inMultiLineComment = false;
+          j++;
+          continue;
+        }
+      }
+
+      if (inComment || inMultiLineComment) continue;
+
+      if (!inString && !inMultiLineComment) {
+        const isTriple = line.slice(j, j + 3) === "'''" || line.slice(j, j + 3) === '"""';
+        if (isTriple) {
+          if (!inTripleQuote) {
+            inTripleQuote = true;
+            stringDelim = line.slice(j, j + 3);
+            j += 2;
+            continue;
+          } else if (line.slice(j, j + 3) === stringDelim) {
+            inTripleQuote = false;
+            stringDelim = "";
+            j += 2;
+            continue;
+          }
+        }
+      }
+      if (inTripleQuote) continue;
+
+      if (!inMultiLineComment && (char === "'" || char === '"')) {
+        if (!inString) {
+          inString = true;
+          stringDelim = char;
+        } else if (char === stringDelim) {
+          inString = false;
+          stringDelim = "";
+        }
+        continue;
+      }
+      if (inString) continue;
+
+      if (char === "{") depth++;
+      else if (char === "}") {
+        depth--;
+        if (depth < 0) return false;
+      }
+    }
+    inComment = false;
   }
+
   return depth === 0;
 }
