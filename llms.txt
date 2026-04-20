@@ -64,11 +64,15 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v2.1.1 Mandatory Workflow)
+### Write Tools (v2.1.3 Mandatory Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
+
+**Important Notes (v2.1.3):**
+- ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
+- ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 
 #### 5. `write_file_surgical`
 **Purpose:** Replace the full source code of a named symbol in a file.

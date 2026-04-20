@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.3] - 2025-04-17
+
+### Fixed
+- **Windows CRLF Line Ending Support**: Completely resolved false brace imbalance errors on Windows files with CRLF line endings. All Dart writer functions (`replaceDartSymbol`, `insertDartCode`, `renameDartSymbol`, `removeDartSymbol`) now normalize `\r\n` to `\n` before processing, ensuring consistent behavior across all platforms.
+- **Method Parameter Brace Handling**: Fixed critical bug where braces in method parameters (e.g., `{int? cart}`) were incorrectly counted as method body braces, causing false "unbalanced braces" errors. The `findMatchingBraceStateAware` function now correctly identifies the method body opening brace by tracking the closing parenthesis of the method signature.
+- **Helper Function Normalization**: Added CRLF normalization to `hasBraceBalance()` and `reindentCode()` helper functions for defensive consistency.
+
+### Added
+- **CRLF Test Suite**: New comprehensive test suite (`tests/writers/test-crlf-handling.ts`) covering all write operations with Windows line endings, mixed line endings, and edge cases.
+- **Parameter Brace Test Cases**: Added test cases for methods with braces in parameters to prevent regression.
+
 ## [2.1.2] - 2026-04-17
 
 ### Fixed

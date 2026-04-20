@@ -1,6 +1,6 @@
 {
   "name": "mcp-code-context",
-  "version": "2.1.2",
+  "version": "2.1.3",
   "description": "Powerful MCP server for LLM-ready semantic code context and surgical AST-aware editing. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
   "type": "module",
   "main": "dist/src/index.js",

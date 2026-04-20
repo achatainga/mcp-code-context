@@ -7,8 +7,11 @@ This document covers known edge cases and behaviors for the Antigravity MCP surg
 **Cause:** 
 - Discrepancies between character counting and line endings (CRLF vs LF).
 - Braces found inside string literals or comments being counted as structural braces.
-**Solution (Internal):** The server now uses state-aware brace counting (as of v2.1.2) that ignores literals and comments.
-**Workaround:** If you still encounter this, ensure your code snippet is self-contained and try normalizing your file to LF line endings.
+- Braces in method parameters (e.g., `{int? cart}`) being counted as method body braces.
+**Solution (Internal):** 
+- v2.1.2: State-aware brace counting that ignores literals and comments.
+- v2.1.3: CRLF normalization and parameter brace detection. **RESOLVED**.
+**Workaround:** No longer needed as of v2.1.3.
 
 ## 2. `rename_symbol` - Dependents Not Updating
 **Problem:** The symbol is renamed in the definition file, but imports and references in other files are unchanged.

@@ -40,6 +40,10 @@ export function replaceDartSymbol(
   newContent: string,
   className?: string,
 ): WriteResult {
+  // Normalize CRLF to LF for consistent processing
+  content = content.replace(/\r\n/g, "\n");
+  newContent = newContent.replace(/\r\n/g, "\n");
+  
   const lines = content.split("\n");
   const range = findSymbolRange(lines, symbolName, className);
 
@@ -95,6 +99,10 @@ export function insertDartCode(
   position: InsertPosition,
   className?: string,
 ): WriteResult {
+  // Normalize CRLF to LF for consistent processing
+  content = content.replace(/\r\n/g, "\n");
+  code = code.replace(/\r\n/g, "\n");
+  
   const lines = content.split("\n");
 
   if (!anchorSymbol) {
@@ -174,6 +182,9 @@ export function renameDartSymbol(
   oldName: string,
   newName: string,
 ): WriteResult {
+  // Normalize CRLF to LF for consistent processing
+  content = content.replace(/\r\n/g, "\n");
+  
   const lines = content.split("\n");
   const range = findSymbolRange(lines, oldName);
 
@@ -209,6 +220,9 @@ export function removeDartSymbol(
   symbolName: string,
   className?: string,
 ): WriteResult {
+  // Normalize CRLF to LF for consistent processing
+  content = content.replace(/\r\n/g, "\n");
+  
   const lines = content.split("\n");
   const range = findSymbolRange(lines, symbolName, className);
 
@@ -376,6 +390,8 @@ function findBlockEnd(lines: string[], startIdx: number): number {
 /**
  * Advanced brace matcher that ignores strings and comments.
  * Returns the line index of the matching closing brace.
+ * Starts counting from the FIRST brace that appears after a closing parenthesis
+ * to avoid counting braces in method parameters (e.g., {int? cart}).
  */
 function findMatchingBraceStateAware(lines: string[], startLine: number): number {
   let depth = 0;
@@ -384,6 +400,8 @@ function findMatchingBraceStateAware(lines: string[], startLine: number): number
   let inTripleQuote = false;
   let inComment = false;
   let inMultiLineComment = false;
+  let foundMethodBodyBrace = false;
+  let lastCloseParen = -1;
 
   for (let i = startLine; i < lines.length; i++) {
     const line = lines[i];
@@ -449,11 +467,27 @@ function findMatchingBraceStateAware(lines: string[], startLine: number): number
 
       if (inString) continue;
 
+      // Track closing parenthesis to find where method signature ends
+      if (char === ")") {
+        lastCloseParen = j;
+      }
+
       // Real Braces
-      if (char === "{") depth++;
+      if (char === "{") {
+        // Only start counting after we've seen a closing paren (method signature end)
+        if (!foundMethodBodyBrace && lastCloseParen !== -1) {
+          foundMethodBodyBrace = true;
+          depth = 1; // This is the opening brace of the method body
+        } else if (foundMethodBodyBrace) {
+          depth++;
+        }
+        // Ignore braces before the method body (e.g., in parameters)
+      }
       else if (char === "}") {
-        depth--;
-        if (depth === 0) return i;
+        if (foundMethodBodyBrace) {
+          depth--;
+          if (depth === 0) return i;
+        }
       }
     }
     inComment = false; // Reset line comment
@@ -501,6 +535,9 @@ function getIndent(line: string): string {
 }
 
 function reindentCode(code: string, targetIndent: string): string {
+  // Normalize CRLF to LF
+  code = code.replace(/\r\n/g, "\n");
+  
   const lines = code.split("\n");
   if (lines.length === 0) return code;
 
@@ -529,6 +566,9 @@ function findBraceLine(lines: string[], startIdx: number): number {
 }
 
 function hasBraceBalance(content: string): boolean {
+  // Normalize CRLF to LF for consistent processing
+  content = content.replace(/\r\n/g, "\n");
+  
   const lines = content.split("\n");
   let depth = 0;
   let inString = false;
