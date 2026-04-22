@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-2.1.0-blue.svg)]()
 
 > MCP server that compresses any codebase into LLM-ready semantic context **and provides surgical code editing tools**. AST-based read & write for TypeScript, JavaScript, PHP, Dart & Python.
 
@@ -33,7 +33,7 @@ LLMs working with code face two bottlenecks:
 
 ## The Solution
 
-`mcp-code-context` provides **7 tools** — 3 for reading and 4 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
+`mcp-code-context` provides **10 tools** — 5 for reading and 5 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -160,7 +160,25 @@ Find all files that depend on a given file.
 - `filePath` (required) — Path to the file being modified
 - `rootDir` (optional) — Repository root (auto-detected)
 
-#### 4. `rollback_file`
+#### 4. `read_file_lines`
+Read specific line ranges from a file without loading the entire content. More efficient than `read_file_surgical` for small fragments.
+- `filePath` (required) — Path to the source file
+- `startLine` (optional) — Starting line number (1-indexed)
+- `endLine` (optional) — Ending line number (1-indexed)
+- `aroundPattern` (optional) — Search pattern to find and return surrounding lines
+- `contextLines` (optional) — Number of lines before/after pattern (default: 5)
+
+#### 5. `search_code_pattern`
+Search for code patterns across multiple files with context. Respects `.gitignore` rules.
+- `rootDir` (required) — Repository root directory
+- `pattern` (required) — Regular expression pattern to search
+- `fileExtensions` (optional) — Array of extensions to search (e.g., `[".ts", ".dart"]`)
+- `excludeDirs` (optional) — Directories to exclude (default: `["node_modules", "dist", "build"]`)
+- `showContext` (optional) — Include surrounding lines (default: true)
+- `contextLines` (optional) — Number of context lines (default: 3)
+- `maxResults` (optional) — Maximum matches to return (default: 50)
+
+#### 6. `rollback_file`
 Surgically restore a file to a previous state from the automated backup system.
 - `filePath` (required) — Path to the file to restore
 - `steps` (optional) — Number of versions to go back (1-5, default: 1)
@@ -171,7 +189,7 @@ All write tools follow a **Two-Phase Workflow**:
 1. **Call without token**: Returns a unified `diff` and a `confirmationToken`.
 2. **Call with token**: Set `confirm: true` and provide the token to apply the changes.
 
-#### 5. `write_file_surgical`
+#### 7. `write_file_surgical`
 Replace the full source code of a named symbol in a file.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to replace
@@ -180,7 +198,7 @@ Replace the full source code of a named symbol in a file.
 - `confirm` (optional) — Set to `true` to apply
 - `className` (optional) — Scope the symbol to a specific class
 
-#### 5. `insert_symbol`
+#### 8. `insert_symbol`
 Insert new code at a precise location relative to an existing symbol.
 - `filePath` (required) — Path to the file
 - `code` (required) — Code to insert
@@ -189,7 +207,7 @@ Insert new code at a precise location relative to an existing symbol.
 - `className` (optional) — Scope the anchor to a specific class
 - `confirmationToken`, `confirm` (optional)
 
-#### 6. `rename_symbol`
+#### 9. `rename_symbol`
 Rename a symbol across the entire repository (definition + all usages).
 - `filePath` (required) — File where the symbol is defined
 - `oldName` (required) — Current name
@@ -197,7 +215,7 @@ Rename a symbol across the entire repository (definition + all usages).
 - `rootDir` (optional) — Repository root
 - `confirmationToken`, `confirm` (optional)
 
-#### 7. `remove_symbol`
+#### 10. `remove_symbol`
 Safely remove a symbol from a file with dependency checking.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to remove
