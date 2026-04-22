@@ -11,7 +11,7 @@
     "build": "tsc",
     "start": "node dist/src/index.js",
     "dev": "tsc && node dist/src/index.js",
-    "test": "npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js && node dist/tests/writers/test-write-smoke.js && node dist/tests/test-new-tools.js",
+    "test": "npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js && node dist/tests/writers/test-write-smoke.js && node dist/tests/test-new-tools.js && node dist/tests/test-backup-system.js",
     "clean": "rimraf dist",
     "rebuild": "npm run clean && npm run build"
   },
