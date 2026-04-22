@@ -281,7 +281,7 @@ npm run build
 
 En `src/index.ts`, cambiar:
 ```typescript
-const SERVER_VERSION = "2.1.0"; // Era "2.0.0"
+const SERVER_VERSION = "2.2.0"; // Era "2.0.0"
 ```
 
 ---

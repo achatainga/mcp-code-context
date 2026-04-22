@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.1.0] - 2026-04-22
+## [2.2.0] - 2026-04-22
 
 ### Added
 - **`read_file_lines`** - New tool for reading specific line ranges from files
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 85% more efficient than manual grep workflows
 
 ### Changed
-- Updated server version to 2.1.0
+- Updated server version to 2.2.0
 - Updated README with documentation for new tools
 - Renumbered tool sections (now 10 tools total: 5 read + 5 write)
 
@@ -41,5 +41,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rolling backup system
 - Fuzzy symbol matching
 
-[2.1.0]: https://github.com/achatainga/mcp-code-context/compare/v2.0.0...v2.1.0
+[2.2.0]: https://github.com/achatainga/mcp-code-context/compare/v2.0.0...v2.2.0
 [2.0.0]: https://github.com/achatainga/mcp-code-context/releases/tag/v2.0.0
