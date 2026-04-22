@@ -43,13 +43,15 @@ import { generateDiff, generateMultiFileDiff } from "./utils/diffEngine.js";
 import { createBackup, restoreBackup, cleanBackup } from "./utils/backupManager.js";
 import { extractFallbackSymbols, findClosestSymbols } from "./utils/fuzzyMatch.js";
 import { confirmationCache } from "./utils/confirmationCache.js";
+import { readFileLines } from "./tools/readFileLines.js";
+import { searchCodePattern } from "./tools/searchCodePattern.js";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
 // ─── Constants ──────────────────────────────────────────────────────
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "2.0.0";
+const SERVER_VERSION = "2.1.0";
 
 /** Extensions we consider source code for analysis */
 const SOURCE_EXTENSIONS = new Set([
@@ -165,6 +167,94 @@ const TOOLS = [
         }
       },
       required: ["filePath"],
+    },
+  },
+  {
+    name: "read_file_lines",
+    description:
+      "Reads specific line ranges from a file without loading the entire content. " +
+      "Supports reading by exact line range (startLine/endLine) or around a pattern match. " +
+      "More efficient than read_file_surgical when you only need a small fragment of code. " +
+      "Perfect for debugging, viewing specific code blocks, or extracting context around errors.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: {
+          type: "string",
+          description: "Absolute path to the source file to read.",
+        },
+        startLine: {
+          type: "number",
+          description: "Starting line number (1-indexed). Required if using exact range mode.",
+        },
+        endLine: {
+          type: "number",
+          description: "Ending line number (1-indexed). Required if using exact range mode.",
+        },
+        aroundPattern: {
+          type: "string",
+          description:
+            "Search pattern to find in the file. Returns lines around the first match. " +
+            "Use this mode when you don't know the exact line numbers.",
+        },
+        contextLines: {
+          type: "number",
+          description:
+            "Number of lines to include before and after the pattern match. " +
+            "Defaults to 5. Only used with aroundPattern mode.",
+        },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
+    name: "search_code_pattern",
+    description:
+      "Searches for code patterns across multiple files in a repository. " +
+      "Returns matches with file paths, line numbers, and optional context lines. " +
+      "Respects .gitignore rules and allows filtering by file extensions. " +
+      "More efficient than manual grep when you need structured results with context.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        rootDir: {
+          type: "string",
+          description: "Absolute path to the repository root directory to search.",
+        },
+        pattern: {
+          type: "string",
+          description:
+            "Regular expression pattern to search for. Use proper regex escaping " +
+            "(e.g., 'widget\\\\.height' to match 'widget.height').",
+        },
+        fileExtensions: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Array of file extensions to search (e.g., ['.ts', '.dart', '.py']). " +
+            "Defaults to common code extensions if omitted.",
+        },
+        excludeDirs: {
+          type: "array",
+          items: { type: "string" },
+          description:
+            "Array of directory names to exclude (e.g., ['node_modules', 'dist']). " +
+            "Defaults to common build/dependency directories.",
+        },
+        showContext: {
+          type: "boolean",
+          description: "If true, includes surrounding lines for each match. Defaults to true.",
+        },
+        contextLines: {
+          type: "number",
+          description: "Number of context lines before/after each match. Defaults to 3.",
+        },
+        maxResults: {
+          type: "number",
+          description: "Maximum number of matches to return. Defaults to 50.",
+        },
+      },
+      required: ["rootDir", "pattern"],
     },
   },
   {
@@ -432,6 +522,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
       case "rollback_file":
         return await handleRollbackFile(
+          args as Record<string, unknown>,
+        );
+      case "read_file_lines":
+        return await handleReadFileLines(
+          args as Record<string, unknown>,
+        );
+      case "search_code_pattern":
+        return await handleSearchCodePattern(
           args as Record<string, unknown>,
         );
       default:
@@ -1523,6 +1621,86 @@ export async function handleRollbackFile(args: Record<string, unknown>) {
       type: "text" as const,
       text: `// ⏪ Rollback successful!\n// Reverted ${path.basename(resolvedPath)} to state from ${steps} step(s) ago.\n// File: ${resolvedPath}`,
     }],
+  };
+}
+
+// ─── Tool: read_file_lines ──────────────────────────────────────────
+
+export async function handleReadFileLines(args: Record<string, unknown>) {
+  const result = readFileLines(args as any);
+
+  if (!result.success) {
+    return errorResponse(result.error || "Unknown error reading file lines");
+  }
+
+  const { content, lineRange } = result;
+  const header = lineRange
+    ? `// Lines ${lineRange.start}-${lineRange.end}\n// File: ${args.filePath}\n\n`
+    : `// File: ${args.filePath}\n\n`;
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: header + content,
+      },
+    ],
+  };
+}
+
+// ─── Tool: search_code_pattern ──────────────────────────────────────
+
+export async function handleSearchCodePattern(args: Record<string, unknown>) {
+  const result = searchCodePattern(args as any);
+
+  if (!result.success) {
+    return errorResponse(result.error || "Unknown error searching code");
+  }
+
+  const { matches, totalMatches } = result;
+
+  if (!matches || matches.length === 0) {
+    return {
+      content: [
+        {
+          type: "text" as const,
+          text: `# Search Results\n\nNo matches found for pattern: "${args.pattern}"`,
+        },
+      ],
+    };
+  }
+
+  const lines: string[] = [
+    `# Search Results`,
+    ``,
+    `**Pattern:** \`${args.pattern}\``,
+    `**Root:** \`${args.rootDir}\``,
+    `**Matches:** ${totalMatches} (showing ${matches.length})`,
+    ``,
+  ];
+
+  for (const match of matches) {
+    lines.push(`## \`${match.file}\` (line ${match.lineNumber})`);
+    lines.push(``);
+
+    if (match.context) {
+      lines.push("```");
+      lines.push(...match.context);
+      lines.push("```");
+    } else {
+      lines.push(`\`\`\`\n${match.line}\n\`\`\``);
+    }
+
+    lines.push(``);
+  }
+
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text: lines.join("\n"),
+      },
+    ],
   };
 }
 
