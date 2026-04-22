@@ -51,7 +51,7 @@ import * as path from "node:path";
 // ─── Constants ──────────────────────────────────────────────────────
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "2.1.0";
+const SERVER_VERSION = "2.2.0";
 
 /** Extensions we consider source code for analysis */
 const SOURCE_EXTENSIONS = new Set([
