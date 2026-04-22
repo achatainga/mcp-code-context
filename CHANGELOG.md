@@ -21,10 +21,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Optional context lines around each match
   - 85% more efficient than manual grep workflows
 
+- **`clean_backups`** - New tool for cleaning all backup files
+  - Removes entire `.mcp-backups` directory at project root
+  - Keeps projects clean and organized
+  - Frees up disk space
+
 ### Changed
+- **Centralized Backup System** - Major improvement to backup management
+  - Backups now stored in ONE directory: `[project-root]/.mcp-backups/`
+  - Maintains internal folder structure for organization
+  - No more scattered `.mcp-backups/` folders throughout the project
+  - Cleaner git status and working directory
+  - Backward compatible with legacy backup locations
 - Updated server version to 2.2.0
 - Updated README with documentation for new tools
-- Renumbered tool sections (now 10 tools total: 5 read + 5 write)
+- Renumbered tool sections (now 11 tools total: 5 read + 1 cleanup + 5 write)
 
 ### Technical
 - Added comprehensive test suite for new tools (`tests/test-new-tools.ts`)

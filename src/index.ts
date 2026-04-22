@@ -40,7 +40,7 @@ import {
   type InsertPosition,
 } from "./ast/writers/symbolWriter.js";
 import { generateDiff, generateMultiFileDiff } from "./utils/diffEngine.js";
-import { createBackup, restoreBackup, cleanBackup } from "./utils/backupManager.js";
+import { createBackup, restoreBackup, cleanBackup, cleanAllBackups } from "./utils/backupManager.js";
 import { extractFallbackSymbols, findClosestSymbols } from "./utils/fuzzyMatch.js";
 import { confirmationCache } from "./utils/confirmationCache.js";
 import { readFileLines } from "./tools/readFileLines.js";
@@ -167,6 +167,25 @@ const TOOLS = [
         }
       },
       required: ["filePath"],
+    },
+  },
+  {
+    name: "clean_backups",
+    description:
+      "Removes all backup files for a project. Deletes the entire .mcp-backups directory " +
+      "at the project root, freeing up disk space and cleaning the working directory. " +
+      "Use this to clean up after completing a series of edits or when backups are no longer needed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: {
+          type: "string",
+          description:
+            "Absolute path to the project root directory. The .mcp-backups folder " +
+            "at this location will be removed.",
+        },
+      },
+      required: ["projectRoot"],
     },
   },
   {
@@ -522,6 +541,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         );
       case "rollback_file":
         return await handleRollbackFile(
+          args as Record<string, unknown>,
+        );
+      case "clean_backups":
+        return await handleCleanBackups(
           args as Record<string, unknown>,
         );
       case "read_file_lines":
@@ -1620,6 +1643,36 @@ export async function handleRollbackFile(args: Record<string, unknown>) {
     content: [{
       type: "text" as const,
       text: `// ⏪ Rollback successful!\n// Reverted ${path.basename(resolvedPath)} to state from ${steps} step(s) ago.\n// File: ${resolvedPath}`,
+    }],
+  };
+}
+
+export async function handleCleanBackups(args: Record<string, unknown>) {
+  const projectRoot = args.projectRoot as string;
+
+  if (!projectRoot) return errorResponse("Missing required parameter: projectRoot");
+
+  const resolvedPath = path.resolve(projectRoot);
+  
+  if (!fs.existsSync(resolvedPath)) {
+    return errorResponse(`Project root not found: ${resolvedPath}`);
+  }
+
+  const success = cleanAllBackups(resolvedPath);
+
+  if (!success) {
+    return {
+      content: [{
+        type: "text" as const,
+        text: `// ℹ️ No backups found\n// No .mcp-backups directory exists at: ${resolvedPath}`,
+      }],
+    };
+  }
+
+  return {
+    content: [{
+      type: "text" as const,
+      text: `// 🧹 Cleanup successful!\n// Removed all backups from: ${resolvedPath}/.mcp-backups\n// Your project is now clean.`,
     }],
   };
 }

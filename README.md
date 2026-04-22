@@ -33,7 +33,7 @@ LLMs working with code face two bottlenecks:
 
 ## The Solution
 
-`mcp-code-context` provides **10 tools** — 5 for reading and 5 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
+`mcp-code-context` provides **11 tools** — 5 for reading, 1 for cleanup, and 5 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -182,6 +182,12 @@ Search for code patterns across multiple files with context. Respects `.gitignor
 Surgically restore a file to a previous state from the automated backup system.
 - `filePath` (required) — Path to the file to restore
 - `steps` (optional) — Number of versions to go back (1-5, default: 1)
+
+#### 7. `clean_backups`
+Remove all backup files for a project to keep the working directory clean.
+- `projectRoot` (required) — Absolute path to the project root
+
+**Note:** Backups are stored centrally at `[project-root]/.mcp-backups/` to keep your project organized.
 
 ### Write Tools (Phase 1: Preview)
 
