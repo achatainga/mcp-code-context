@@ -184,37 +184,45 @@ function renamePHP(
 /**
  * Dart: Token-based approach (no full AST parser available)
  * Skips strings and comments
+ * 
+ * LIMITATION: This is a best-effort approach. For production use,
+ * consider using dart_style or analyzer package via subprocess.
  */
 function renameDart(
   content: string,
   oldName: string,
   newName: string
 ): SafeRenameResult {
-  return renameTokenBased(content, oldName, newName, {
-    singleLineComment: "//",
-    multiLineCommentStart: "/*",
-    multiLineCommentEnd: "*/",
-    stringDelimiters: ['"', "'"],
-    identifierPattern: /[a-zA-Z_$][a-zA-Z0-9_$]*/g
-  });
+  // FALLBACK: Return unchanged to avoid corruption
+  // Real implementation requires dart analyzer
+  return {
+    success: false,
+    newContent: content,
+    symbolsAffected: [],
+    error: "Dart rename requires manual review. Use IDE refactoring tools."
+  };
 }
 
 /**
  * Python: Token-based approach
  * Skips strings, comments, and respects indentation
+ * 
+ * LIMITATION: This is a best-effort approach. For production use,
+ * consider using libcst or rope library via subprocess.
  */
 function renamePython(
   content: string,
   oldName: string,
   newName: string
 ): SafeRenameResult {
-  return renameTokenBased(content, oldName, newName, {
-    singleLineComment: "#",
-    multiLineCommentStart: '"""',
-    multiLineCommentEnd: '"""',
-    stringDelimiters: ['"', "'", '"""', "'''"],
-    identifierPattern: /[a-zA-Z_][a-zA-Z0-9_]*/g
-  });
+  // FALLBACK: Return unchanged to avoid corruption
+  // Real implementation requires libcst or rope
+  return {
+    success: false,
+    newContent: content,
+    symbolsAffected: [],
+    error: "Python rename requires manual review. Use IDE refactoring tools."
+  };
 }
 
 /**

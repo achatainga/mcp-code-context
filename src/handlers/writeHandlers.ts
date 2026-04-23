@@ -88,12 +88,14 @@ export async function handleWriteFileSurgical(args: Record<string, unknown>) {
     return errorResponse(symbolValidation.error!);
   }
 
-  const validation = validateFilePath(filePath);
+  // SECURITY: Use secure validation with project boundary enforcement
+  const { validateFilePathSecure } = await import("../utils/secureValidation.js");
+  const validation = validateFilePathSecure(filePath);
   if (!validation.valid) {
     return errorResponse(validation.error!);
   }
 
-  const resolvedPath = validation.normalizedPath!;
+  const resolvedPath = validation.resolvedPath!;
 
   const ext = path.extname(resolvedPath).toLowerCase();
   if (!WRITABLE_EXTENSIONS.has(ext)) {
@@ -215,12 +217,14 @@ export async function handleInsertSymbol(args: Record<string, unknown>) {
   // PHASE 1
   if (!code) return errorResponse("Missing required parameter: code");
 
-  const validation = validateFilePath(filePath);
+  // SECURITY: Use secure validation with project boundary enforcement
+  const { validateFilePathSecure } = await import("../utils/secureValidation.js");
+  const validation = validateFilePathSecure(filePath);
   if (!validation.valid) {
     return errorResponse(validation.error!);
   }
 
-  const resolvedPath = validation.normalizedPath!;
+  const resolvedPath = validation.resolvedPath!;
 
   const ext = path.extname(resolvedPath).toLowerCase();
   if (!WRITABLE_EXTENSIONS.has(ext)) {
@@ -319,12 +323,14 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
     return errorResponse(`Invalid newName: ${newValidation.error}`);
   }
 
-  const validation = validateFilePath(filePath);
+  // SECURITY: Use secure validation with project boundary enforcement
+  const { validateFilePathSecure } = await import("../utils/secureValidation.js");
+  const validation = validateFilePathSecure(filePath);
   if (!validation.valid) {
     return errorResponse(validation.error!);
   }
 
-  const resolvedPath = validation.normalizedPath!;
+  const resolvedPath = validation.resolvedPath!;
 
   let sourceContent: string;
   try {
@@ -447,12 +453,14 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
     return errorResponse(symbolValidation.error!);
   }
 
-  const validation = validateFilePath(filePath);
+  // SECURITY: Use secure validation with project boundary enforcement
+  const { validateFilePathSecure } = await import("../utils/secureValidation.js");
+  const validation = validateFilePathSecure(filePath);
   if (!validation.valid) {
     return errorResponse(validation.error!);
   }
 
-  const resolvedPath = validation.normalizedPath!;
+  const resolvedPath = validation.resolvedPath!;
 
   let fileContent: string;
   try {

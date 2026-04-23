@@ -32,6 +32,7 @@ src/debug-*.ts
 
 # Backup files (created by surgical write tools)
 *.bak
+.io
 .mcp-backups/
 */.mcp-backups/
 */*/.mcp-backups/

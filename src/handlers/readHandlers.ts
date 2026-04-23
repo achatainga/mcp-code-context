@@ -59,7 +59,7 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
 
   const resolvedPath = validation.normalizedPath!;
   const ignoreManager = new IgnoreManager(resolvedPath);
-  const files = ignoreManager.walkDirectory();
+  const files = await ignoreManager.walkDirectoryAsync();
 
   // CRITICAL: Limit files to prevent timeout
   if (files.length > MAX_FILES_FOR_REPO_MAP) {
@@ -74,48 +74,58 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
   const entries: FileEntry[] = [];
   let skippedCount = 0;
 
-  for (const file of files) {
-    const ext = path.extname(file).toLowerCase();
-    if (!SOURCE_EXTENSIONS.has(ext)) {
+  // Process files in batches to avoid blocking
+  const { processBatched } = await import("../utils/arrayUtils.js");
+  const results = await processBatched(
+    files,
+    async (file) => {
+      const ext = path.extname(file).toLowerCase();
+      if (!SOURCE_EXTENSIONS.has(ext)) {
+        return { skipped: true };
+      }
+
+      // Validate file size
+      const sizeValidation = validateFileSize(file);
+      if (!sizeValidation.valid) {
+        return { skipped: true };
+      }
+
+      let content: string;
+      try {
+        content = await fs.promises.readFile(file, "utf-8");
+      } catch {
+        return { skipped: true };
+      }
+
+      // Validate content
+      const contentValidation = validateFileContent(content);
+      if (!contentValidation.valid) {
+        return { skipped: true };
+      }
+
+      const relativePath = path.relative(resolvedPath, file).replace(/\\/g, "/");
+      const language = getLanguageName(ext);
+
+      // Check cache first
+      const cacheKey = file;
+      let compressed = compressionCache.get(cacheKey, file);
+
+      if (!compressed) {
+        compressed = compressFile(file, content);
+        compressionCache.set(cacheKey, compressed, file);
+      }
+
+      return { entry: { relativePath, language, compressed } };
+    },
+    50
+  );
+
+  for (const result of results) {
+    if ('skipped' in result) {
       skippedCount++;
-      continue;
+    } else if ('entry' in result) {
+      entries.push(result.entry);
     }
-
-    // Validate file size
-    const sizeValidation = validateFileSize(file);
-    if (!sizeValidation.valid) {
-      skippedCount++;
-      continue;
-    }
-
-    let content: string;
-    try {
-      content = fs.readFileSync(file, "utf-8");
-    } catch {
-      skippedCount++;
-      continue;
-    }
-
-    // Validate content
-    const contentValidation = validateFileContent(content);
-    if (!contentValidation.valid) {
-      skippedCount++;
-      continue;
-    }
-
-    const relativePath = path.relative(resolvedPath, file).replace(/\\/g, "/");
-    const language = getLanguageName(ext);
-
-    // Check cache first
-    const cacheKey = file;
-    let compressed = compressionCache.get(cacheKey, file);
-
-    if (!compressed) {
-      compressed = compressFile(file, content);
-      compressionCache.set(cacheKey, compressed, file);
-    }
-
-    entries.push({ relativePath, language, compressed });
   }
 
   const output =
@@ -259,7 +269,7 @@ export async function handleAnalyzeImpact(args: Record<string, unknown>) {
   rootDir = path.resolve(rootDir);
 
   const ignoreManager = new IgnoreManager(rootDir);
-  const allFiles = ignoreManager.walkDirectory();
+  const allFiles = await ignoreManager.walkDirectoryAsync();
 
   const targetRelative = path.relative(rootDir, resolvedPath).replace(/\\/g, "/");
 
@@ -276,42 +286,49 @@ export async function handleAnalyzeImpact(args: Record<string, unknown>) {
 
   const dependents: Dependent[] = [];
 
-  for (const file of allFiles) {
-    if (path.resolve(file) === resolvedPath) continue;
+  // Process files in batches
+  const { processBatched } = await import("../utils/arrayUtils.js");
+  const results = await processBatched(
+    allFiles.filter(f => path.resolve(f) !== resolvedPath),
+    async (file) => {
+      const ext = path.extname(file).toLowerCase();
+      if (!IMPORTABLE_EXTENSIONS.has(ext)) return null;
 
-    const ext = path.extname(file).toLowerCase();
-    if (!IMPORTABLE_EXTENSIONS.has(ext)) continue;
+      let content: string;
+      try {
+        content = await fs.promises.readFile(file, "utf-8");
+      } catch {
+        return null;
+      }
 
-    let content: string;
-    try {
-      content = fs.readFileSync(file, "utf-8");
-    } catch {
-      continue;
-    }
+      let isDependent = false;
+      const matchedImports: string[] = [];
 
-    let isDependent = false;
-    const matchedImports: string[] = [];
+      for (const pattern of importPatterns) {
+        const regex = new RegExp(pattern.source, pattern.flags);
+        let match: RegExpExecArray | null;
 
-    for (const pattern of importPatterns) {
-      const regex = new RegExp(pattern.source, pattern.flags);
-      let match: RegExpExecArray | null;
-
-      while ((match = regex.exec(content)) !== null) {
-        const importPath = match[1];
-        if (resolveImportMatch(importPath, resolvedPath, file, rootDir)) {
-          matchedImports.push(match[0].trim());
-          isDependent = true;
+        while ((match = regex.exec(content)) !== null) {
+          const importPath = match[1];
+          if (resolveImportMatch(importPath, resolvedPath, file, rootDir)) {
+            matchedImports.push(match[0].trim());
+            isDependent = true;
+          }
         }
       }
-    }
 
-    if (isDependent) {
-      dependents.push({
-        file: path.relative(rootDir, file).replace(/\\/g, "/"),
-        imports: [...new Set(matchedImports)],
-      });
-    }
-  }
+      if (isDependent) {
+        return {
+          file: path.relative(rootDir, file).replace(/\\/g, "/"),
+          imports: [...new Set(matchedImports)],
+        };
+      }
+      return null;
+    },
+    50
+  );
+
+  dependents.push(...results.filter(r => r !== null));
 
   const report = buildImpactReport(targetRelative, rootDir, dependents);
 
