@@ -1,0 +1,46 @@
+# Source files (only dist/ should be published)
+src/
+tests/
+edge_case_tests/
+
+# TypeScript config
+tsconfig.json
+
+# Git
+.git/
+.gitignore
+
+# Documentation (keep only essential)
+IMPROVEMENT_PLAN.md
+INTEGRATION_COMPLETE.md
+READY_FOR_ANALYSIS.md
+README_IMPROVEMENTS.md
+DEPLOYMENT_INSTRUCTIONS.md
+MEJORAS_PROPUESTAS.md
+
+# Backup files
+src/index-original-backup.ts
+*.backup
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Test artifacts
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp

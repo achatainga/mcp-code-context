@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { handleWriteFileSurgical, handleRollbackFile } from '../src/index.js';
+import { handleWriteFileSurgical } from '../src/handlers/writeHandlers.js';
+import { handleRollbackFile } from '../src/handlers/utilHandlers.js';
 
 async function testWorkflow() {
   const testFile = path.resolve('test-artifact.ts');
