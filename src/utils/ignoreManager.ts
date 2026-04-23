@@ -107,6 +107,54 @@ export class IgnoreManager {
     return files;
   }
 
+/**
+   * Async version of walkDirectory - non-blocking for large repos
+   */
+  public async walkDirectoryAsync(dir?: string): Promise<string[]> {
+    const baseDir = dir ? path.resolve(dir) : this.rootDir;
+    const files: string[] = [];
+    await this.walkAsync(baseDir, files);
+    return files;
+  }
+
+  /**
+   * Async recursive walk implementation
+   */
+  private async walkAsync(currentDir: string, collected: string[]): Promise<void> {
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
+    } catch {
+      return; // Permission denied, broken symlink, etc.
+    }
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentDir, entry.name);
+      const relativePath = path
+        .relative(this.rootDir, fullPath)
+        .replace(/\\/g, "/");
+
+      // Check ignore rules
+      if (this.isIgnored(relativePath)) continue;
+
+      if (entry.isDirectory()) {
+        // Also test with trailing slash for directory-level patterns
+        if (this.isIgnored(relativePath + "/")) continue;
+        await this.walkAsync(fullPath, collected);
+      } else if (entry.isFile()) {
+        // Skip files that are too large
+        try {
+          const stat = await fs.promises.stat(fullPath);
+          if (stat.size > MAX_FILE_SIZE_BYTES) continue;
+        } catch {
+          continue;
+        }
+        collected.push(fullPath);
+      }
+      // Symlinks and other entries are silently skipped
+    }
+  }
+
   private walk(currentDir: string, collected: string[]): void {
     let entries: fs.Dirent[];
     try {

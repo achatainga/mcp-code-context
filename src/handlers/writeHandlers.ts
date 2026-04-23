@@ -26,6 +26,7 @@ import { createBackup, restoreBackup } from "../utils/backupManager.js";
 import { extractFallbackSymbols, findClosestSymbols } from "../utils/fuzzyMatch.js";
 import { confirmationCache } from "../utils/confirmationCache.js";
 import { invalidateFileCache } from "../cache/astCache.js";
+import { TransactionManager } from "../utils/transactionManager.js";
 import {
   validateFilePath,
   validateSymbolName,
@@ -279,17 +280,20 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
     }
     
     const results = pending.payload.results;
-    for (const res of results) {
-      try { createBackup(res.filePath); } catch (e) {}
+    
+    const transaction = new TransactionManager();
+    transaction.stageMultiple(results.map((r: any) => ({
+      filePath: r.filePath,
+      newContent: r.newContent
+    })));
+
+    const commitResult = await transaction.commit();
+    if (!commitResult.success) {
+      return errorResponse(commitResult.error!);
     }
 
-    try {
-      for (const res of results) {
-        fs.writeFileSync(res.filePath, res.newContent, "utf-8");
-        invalidateFileCache(res.filePath);
-      }
-    } catch (error: unknown) {
-      return errorResponse(`Write failed: ${error instanceof Error ? error.message : String(error)}`);
+    for (const res of results) {
+      invalidateFileCache(res.filePath);
     }
 
     return {
@@ -345,34 +349,40 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
   const projectRoot = rootDir ? path.resolve(rootDir) : findProjectRoot(resolvedPath);
   if (projectRoot) {
     const ignoreManager = new IgnoreManager(projectRoot);
-    const allFiles = ignoreManager.walkDirectory();
+    const allFiles = await ignoreManager.walkDirectoryAsync();
 
-    for (const dependentFile of allFiles) {
-      if (path.resolve(dependentFile) === resolvedPath) continue;
+    const { processBatched } = await import("../utils/arrayUtils.js");
+    const dependentResults = await processBatched(
+      allFiles.filter(f => path.resolve(f) !== resolvedPath),
+      async (dependentFile) => {
+        const ext = path.extname(dependentFile).toLowerCase();
+        if (!IMPORTABLE_EXTENSIONS.has(ext)) return null;
 
-      const ext = path.extname(dependentFile).toLowerCase();
-      if (!IMPORTABLE_EXTENSIONS.has(ext)) continue;
+        let depContent: string;
+        try {
+          depContent = await fs.promises.readFile(dependentFile, "utf-8");
+        } catch {
+          return null;
+        }
 
-      let depContent: string;
-      try {
-        depContent = fs.readFileSync(dependentFile, "utf-8");
-      } catch {
-        continue;
-      }
+        const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`);
+        if (!regex.test(depContent)) return null;
 
-      const escaped = oldName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-      const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`);
-      if (!regex.test(depContent)) continue;
+        const depResult = renameReferencesInFile(dependentFile, depContent, oldName, newName);
+        if (depResult.success && depResult.newContent !== depContent) {
+          return {
+            filePath: path.resolve(dependentFile),
+            oldContent: depContent,
+            newContent: depResult.newContent,
+          };
+        }
+        return null;
+      },
+      50
+    );
 
-      const depResult = renameReferencesInFile(dependentFile, depContent, oldName, newName);
-      if (depResult.success && depResult.newContent !== depContent) {
-        results.push({
-          filePath: path.resolve(dependentFile),
-          oldContent: depContent,
-          newContent: depResult.newContent,
-        });
-      }
-    }
+    results.push(...dependentResults.filter(r => r !== null));
   }
 
   const multiDiff = generateMultiFileDiff(results);
@@ -456,7 +466,7 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
     const projectRoot = findProjectRoot(resolvedPath);
     if (projectRoot) {
       const ignoreManager = new IgnoreManager(projectRoot);
-      const allFiles = ignoreManager.walkDirectory();
+      const allFiles = await ignoreManager.walkDirectoryAsync();
       
       for (const f of allFiles) {
         if (path.resolve(f) === resolvedPath) continue;
@@ -464,7 +474,7 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
         if (!IMPORTABLE_EXTENSIONS.has(fExt)) continue;
         
         try {
-          const fContent = fs.readFileSync(f, "utf-8");
+          const fContent = await fs.promises.readFile(f, "utf-8");
           const escaped = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`);
           
