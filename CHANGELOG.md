@@ -1,5 +1,18 @@
 # Changelog
 
+## [3.0.2] - 2026-04-24
+
+### 🔧 Critical Fix
+
+**Patch release fixing npm bin path**
+
+### Fixed
+- **NPM bin path**: Changed from `dist/src/index.js` to `dist/index.js`
+- **Main entry**: Updated package.json main field to correct path
+- **CLI execution**: `npx mcp-code-context` now works correctly
+
+---
+
 ## [3.0.1] - 2026-04-24
 
 ### 🔧 Package Optimization
