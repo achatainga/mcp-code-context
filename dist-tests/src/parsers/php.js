@@ -1,5 +1,5 @@
 /**
- * PHP Parser - v3.5.1
+ * PHP Parser - v3.5.2
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
 import { BaseParser } from "./base.js";

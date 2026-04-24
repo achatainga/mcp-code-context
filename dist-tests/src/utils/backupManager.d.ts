@@ -1,5 +1,5 @@
 /**
- * Backup Manager - v3.5.1
+ * Backup Manager - v3.5.2
  * Handles rolling backups for file modifications
  */
 export declare class BackupManager {

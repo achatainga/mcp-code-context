@@ -1,5 +1,5 @@
 /**
- * Rate Limiter - v3.5.1
+ * Rate Limiter - v3.5.2
  * Token bucket algorithm for DoS protection
  */
 

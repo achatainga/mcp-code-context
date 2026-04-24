@@ -1,4 +1,4 @@
 /**
- * Tests v3.5.1 - Telemetry, Streaming, Audit Logger
+ * Tests v3.5.2 - Telemetry, Streaming, Audit Logger
  */
 export {};

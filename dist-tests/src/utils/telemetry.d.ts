@@ -1,5 +1,5 @@
 /**
- * Telemetry - v3.5.1
+ * Telemetry - v3.5.2
  * Metrics collection and monitoring
  */
 export interface Metric {

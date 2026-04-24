@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.5.1 - Tree-sitter WASM Edition
+ * mcp-code-context v3.5.2 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -35,7 +35,7 @@ import { BackupManager } from "./utils/backupManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.5.1";
+const SERVER_VERSION = "3.5.2";
 
 // Global instances
 let engine: CodeContextEngine;
@@ -430,6 +430,9 @@ async function handleTwoPhaseWrite(
   const result = await executeWrite();
   if (!result.success) throw new Error(result.error);
 
+  // Warn if a previous token for this file is being superseded
+  const hadConflict = globalConfirmationStore.hasConflictingPending(String(args.filePath));
+
   const newToken = globalConfirmationStore.storePending({
     filePath: String(args.filePath),
     operation: operationName,
@@ -439,10 +442,14 @@ async function handleTwoPhaseWrite(
     pendingWrites: result.pendingWrites,
   });
 
+  const conflictWarning = hadConflict
+    ? `\n⚠️  A previous pending token for this file was invalidated. Only this new token is valid.`
+    : "";
+
   return {
     content: [{ 
       type: "text", 
-      text: `DRY RUN SUCCESSFUL. Please review the diff below.\nTo apply these changes, call this tool again with confirm=true and confirmationToken="${newToken}"\n\nDiff:\n${result.diff}` 
+      text: `DRY RUN SUCCESSFUL.${conflictWarning}\nTo apply these changes, call this tool again with confirm=true and confirmationToken="${newToken}"\n\nDiff:\n${result.diff}` 
     }],
   };
 }

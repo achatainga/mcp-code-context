@@ -1,5 +1,5 @@
 /**
- * File Lock Manager - v3.5.1
+ * File Lock Manager - v3.5.2
  * Prevents concurrent writes to same file
  */
 export class FileLockManager {

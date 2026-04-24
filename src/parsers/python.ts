@@ -1,5 +1,5 @@
 /**
- * Python Parser - v3.5.1
+ * Python Parser - v3.5.2
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
 

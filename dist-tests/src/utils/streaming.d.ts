@@ -1,5 +1,5 @@
 /**
- * File Streaming - v3.5.1
+ * File Streaming - v3.5.2
  * Stream large files in chunks to avoid memory exhaustion
  */
 export interface StreamOptions {

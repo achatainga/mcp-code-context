@@ -251,7 +251,7 @@ try {
 
 ---
 
-## 🚀 Next Steps (v3.5.1)
+## 🚀 Next Steps (v3.5.2)
 
 - [ ] Streaming for files >10MB
 - [ ] Telemetry and observability

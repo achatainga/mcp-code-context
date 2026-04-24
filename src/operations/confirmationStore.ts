@@ -1,5 +1,5 @@
 /**
- * Confirmation Store - v3.5.1
+ * Confirmation Store - v3.5.2
  * Two-phase write: dry-run preview → confirm with token
  * Stores pending write operations with auto-expiry
  */
@@ -26,7 +26,9 @@ class ConfirmationStore {
   private pending: Map<string, PendingOperation> = new Map();
 
   /**
-   * Store a pending write operation and return a confirmation token
+   * Store a pending write operation and return a confirmation token.
+   * Invalidates any existing pending token for the same file(s) —
+   * prevents stale tokens from overwriting newer changes.
    */
   storePending(params: {
     filePath: string;
@@ -37,6 +39,26 @@ class ConfirmationStore {
     pendingWrites?: Array<{ filePath: string; newContent: string }>;
   }): string {
     this.cleanup();
+
+    // Collect all file paths this operation touches
+    const affectedPaths = new Set<string>();
+    affectedPaths.add(this.normalizePath(params.filePath));
+    for (const pw of params.pendingWrites ?? []) {
+      affectedPaths.add(this.normalizePath(pw.filePath));
+    }
+
+    // Invalidate any existing token that overlaps with these paths
+    for (const [existingToken, op] of this.pending.entries()) {
+      const opPaths = new Set<string>();
+      opPaths.add(this.normalizePath(op.filePath));
+      for (const pw of op.pendingWrites ?? []) {
+        opPaths.add(this.normalizePath(pw.filePath));
+      }
+      const hasOverlap = [...affectedPaths].some(p => opPaths.has(p));
+      if (hasOverlap) {
+        this.pending.delete(existingToken);
+      }
+    }
 
     const token = crypto.randomBytes(16).toString("hex");
     const now = Date.now();
@@ -85,6 +107,20 @@ class ConfirmationStore {
   }
 
   /**
+   * Check if any pending token exists for the given file path (without consuming).
+   * Use before Phase 1 to warn the user of a stale pending operation.
+   */
+  hasConflictingPending(filePath: string): boolean {
+    this.cleanup();
+    const normalized = this.normalizePath(filePath);
+    for (const op of this.pending.values()) {
+      if (this.normalizePath(op.filePath) === normalized) return true;
+      if (op.pendingWrites?.some(pw => this.normalizePath(pw.filePath) === normalized)) return true;
+    }
+    return false;
+  }
+
+  /**
    * Check if a token exists (without consuming)
    */
   hasPending(token: string): boolean {
@@ -99,6 +135,10 @@ class ConfirmationStore {
   getPendingCount(): number {
     this.cleanup();
     return this.pending.size;
+  }
+
+  private normalizePath(filePath: string): string {
+    return filePath.replace(/\\/g, '/').toLowerCase();
   }
 
   /**
