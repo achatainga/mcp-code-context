@@ -62,7 +62,7 @@ export class ParserRegistry {
     const dartParser = new DartTreeSitterParser();
     await dartParser.init(this.engine.createParser(), dartLang);
     this.parsers.set("dart", dartParser);
-    console.log("✅ Parsers loaded: TS/Python/PHP/Dart (WASM)");
+    console.error("✅ Parsers loaded: TS/Python/PHP/Dart (WASM)");
   }
 
   getParser(fileExtension: string): BaseParser | undefined {

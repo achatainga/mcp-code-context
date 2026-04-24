@@ -336,7 +336,7 @@ export class AuditLogger {
     if (entry.level === "error" || entry.level === "security") {
       console.error(message, entry.error || "");
     } else {
-      console.log(message);
+      console.error(message);
     }
   }
 
