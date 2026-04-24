@@ -45,7 +45,11 @@ export class CodeContextEngine {
     const wasmFile = `tree-sitter-${name}.wasm`;
     
     const possiblePaths = [
+      // 1. If running from src/core/engine.ts (ts-node)
       path.join(dirname(fileURLToPath(import.meta.url)), "..", "..", "node_modules", "tree-sitter-wasms", "out", wasmFile),
+      // 2. If running from dist/src/core/engine.js (compiled)
+      path.join(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "node_modules", "tree-sitter-wasms", "out", wasmFile),
+      // 3. Fallback to process.cwd()
       path.join(process.cwd(), "node_modules", "tree-sitter-wasms", "out", wasmFile),
     ];
     
