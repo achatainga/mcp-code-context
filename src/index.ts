@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.0.3 - Tree-sitter WASM Edition
+ * mcp-code-context v3.0.0 - Tree-sitter WASM Edition
  * 
  * Complete rewrite with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -268,7 +268,7 @@ function errorResponse(message: string) {
 }
 
 async function main(): Promise<void> {
-  console.error("🚀 Initializing mcp-code-context v3.0.3 (WASM)...");
+  console.error("🚀 Initializing mcp-code-context v3.0.0 (WASM)...");
 
   engine = new CodeContextEngine();
   await engine.init();

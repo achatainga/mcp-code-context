@@ -6,6 +6,8 @@
 import { Parser, Language } from "web-tree-sitter";
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname } from "path";
  
 export interface EngineConfig {
   wasmPath?: string;
@@ -41,7 +43,26 @@ export class CodeContextEngine {
     }
  
     const wasmFile = `tree-sitter-${name}.wasm`;
-    const wasmPath = path.join(process.cwd(), "node_modules", "tree-sitter-wasms", "out", wasmFile);
+    
+    // Try multiple paths: installed module, local dev, CWD fallback
+    const possiblePaths = [
+      // When installed as npm package
+      path.join(dirname(fileURLToPath(import.meta.url)), "..", "..", "node_modules", "tree-sitter-wasms", "out", wasmFile),
+      // When running from source
+      path.join(process.cwd(), "node_modules", "tree-sitter-wasms", "out", wasmFile),
+    ];
+    
+    let wasmPath: string | null = null;
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        wasmPath = p;
+        break;
+      }
+    }
+    
+    if (!wasmPath) {
+      throw new Error(`WASM file not found: ${wasmFile}. Tried paths: ${possiblePaths.join(", ")}`);
+    }
     
     const wasmBuffer = fs.readFileSync(wasmPath);
     const language = await Language.load(wasmBuffer);
