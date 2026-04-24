@@ -1,13 +1,13 @@
 /**
- * Read Operations - v3.4.1
- * FIXES: extractSymbol args, safe regex in readLines, forEach+async → for...of
+ * Read Operations - v3.5.0
+ * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
-import { safeRegexTest, validateRegexPattern } from "../utils/safeRegex.js";
+import { safeRegexFindFirst, safeRegexMultiFileBatchTest, validateRegexPattern } from "../utils/safeRegex.js";
 
 export interface ReadResult {
   success: boolean;
@@ -79,22 +79,20 @@ export async function readLines(params: {
       }
 
       const regex = new RegExp(params.aroundPattern);
-      let matchIndex = -1;
 
-      for (let i = 0; i < lines.length; i++) {
-        const testResult = await safeRegexTest(regex, lines[i]);
-        if (testResult.timedOut) {
-          return {
-            success: false,
-            error: `Regex timed out on line ${i + 1} (potential ReDoS)`,
-          };
-        }
-        if (testResult.matched) {
-          matchIndex = i;
-          break;
-        }
+      // Batch: send all lines to one worker, find first match
+      const findResult = await safeRegexFindFirst(regex, lines);
+      if (findResult.timedOut) {
+        return {
+          success: false,
+          error: `Regex timed out searching for pattern (potential ReDoS)`,
+        };
+      }
+      if (!findResult.success) {
+        return { success: false, error: findResult.error };
       }
 
+      const matchIndex = findResult.matchIndex!;
       if (matchIndex === -1) {
         return {
           success: false,
@@ -154,7 +152,6 @@ export async function searchPattern(params: {
   maxResults?: number;
 }): Promise<ReadResult> {
   try {
-    const results: any[] = [];
     const maxResults = params.maxResults || 50;
 
     // Validate regex pattern
@@ -170,14 +167,13 @@ export async function searchPattern(params: {
     const extensions = params.fileExtensions || SUPPORTED_EXTENSIONS;
     const excludeDirs = params.excludeDirs || EXCLUDE_DIRS;
 
-    async function walkDir(dir: string) {
-      if (results.length >= maxResults) return;
+    // Step 1: Collect all files and their lines
+    const fileEntries: Array<{ path: string; lines: string[] }> = [];
 
+    async function walkDir(dir: string) {
       const entries = await fs.readdir(dir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (results.length >= maxResults) break;
-
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
@@ -188,36 +184,37 @@ export async function searchPattern(params: {
           const ext = path.extname(entry.name);
           if ((extensions as readonly string[]).includes(ext)) {
             const content = await fs.readFile(fullPath, "utf-8");
-            const lines = content.split("\n");
-
-            // CRITICAL FIX: was forEach(async ...) which is fire-and-forget
-            for (let index = 0; index < lines.length; index++) {
-              if (results.length >= maxResults) break;
-
-              const line = lines[index];
-              // Reset regex lastIndex for each line (global flag)
-              regex.lastIndex = 0;
-              const testResult = await safeRegexTest(regex, line);
-
-              if (testResult.timedOut) {
-                console.warn(`⚠️  Regex timeout on line ${index + 1} in ${fullPath}`);
-                continue;
-              }
-
-              if (testResult.matched) {
-                results.push({
-                  file: fullPath,
-                  line: index + 1,
-                  content: line.trim(),
-                });
-              }
-            }
+            fileEntries.push({ path: fullPath, lines: content.split("\n") });
           }
         }
       }
     }
 
     await walkDir(params.rootDir);
+
+    // Step 2: ONE worker for ALL files — eliminates N worker spawns
+    const scanTimeout = Math.min(30000, 1000 + fileEntries.length * 10);
+    const batchResult = await safeRegexMultiFileBatchTest(regex, fileEntries, scanTimeout);
+
+    if (batchResult.timedOut) {
+      console.warn(`\u26a0\ufe0f  Regex scan timed out across ${fileEntries.length} files`);
+      return { success: false, error: `Regex scan timed out (${fileEntries.length} files, potential ReDoS)` };
+    }
+
+    if (!batchResult.success) {
+      return { success: false, error: batchResult.error };
+    }
+
+    // Step 3: Collect results up to maxResults
+    const results: any[] = [];
+    for (const match of batchResult.results!) {
+      if (results.length >= maxResults) break;
+      results.push({
+        file: match.file,
+        line: match.index + 1,
+        content: match.content,
+      });
+    }
 
     return {
       success: true,

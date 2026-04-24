@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.4.1
+ * Security Validator - v3.5.0
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 export interface ValidationResult {

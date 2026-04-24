@@ -1,5 +1,5 @@
 /**
- * File Lock Manager - v3.4.1
+ * File Lock Manager - v3.5.0
  * Prevents concurrent writes to same file
  */
 interface LockInfo {

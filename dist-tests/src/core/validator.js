@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.4.1
+ * Security Validator - v3.5.0
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 import * as path from "node:path";
@@ -16,10 +16,8 @@ export class SecurityValidator {
         if (!resolved.startsWith(this.projectRoot)) {
             return { valid: false, error: "Path outside project boundary" };
         }
-        // Additional dangerous pattern check
-        if (filePath.includes("..") && !resolved.startsWith(this.projectRoot)) {
-            return { valid: false, error: "Invalid path: contains dangerous patterns" };
-        }
+        // NOTE: Path traversal already caught by startsWith check above.
+        // Removed dead code that duplicated the boundary check (unreachable condition).
         // Existence check
         try {
             await fs.access(resolved);

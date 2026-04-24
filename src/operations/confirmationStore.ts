@@ -1,5 +1,5 @@
 /**
- * Confirmation Store - v3.4.1
+ * Confirmation Store - v3.5.0
  * Two-phase write: dry-run preview → confirm with token
  * Stores pending write operations with auto-expiry
  */
@@ -15,6 +15,8 @@ export interface PendingOperation {
   diff: string;
   createdAt: number;
   expiresAt: number;
+  /** Multi-file pending writes for rename operations */
+  pendingWrites?: Array<{ filePath: string; newContent: string }>;
 }
 
 const EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
@@ -32,6 +34,7 @@ class ConfirmationStore {
     symbolName?: string;
     newContent: string;
     diff: string;
+    pendingWrites?: Array<{ filePath: string; newContent: string }>;
   }): string {
     this.cleanup();
 
@@ -47,6 +50,7 @@ class ConfirmationStore {
       diff: params.diff,
       createdAt: now,
       expiresAt: now + EXPIRY_MS,
+      pendingWrites: params.pendingWrites,
     });
 
     // Enforce max pending limit

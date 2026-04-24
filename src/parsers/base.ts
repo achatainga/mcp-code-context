@@ -1,5 +1,5 @@
 /**
- * Base Parser - v3.4.1
+ * Base Parser - v3.5.0
  * Abstract base for all language parsers
  * IMPROVEMENT: replaceSymbol moved here using AST indices (eliminates indexOf fragility)
  */

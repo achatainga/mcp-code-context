@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.4.1 - Tree-sitter WASM Edition
+ * mcp-code-context v3.5.0 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -35,7 +35,7 @@ import { BackupManager } from "./utils/backupManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.4.1";
+const SERVER_VERSION = "3.5.0";
 
 // Global instances
 let engine: CodeContextEngine;
@@ -273,8 +273,9 @@ async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
     registry, 
     format: format as "xml" | "markdown" 
   });
+  if (!result.success) throw new Error(result.error);
   return {
-    content: [{ type: "text", text: result }],
+    content: [{ type: "text", text: result.content! }],
   };
 }
 
@@ -407,13 +408,21 @@ async function handleTwoPhaseWrite(
     const pendingOp = globalConfirmationStore.consumePending(token);
     if (!pendingOp) throw new Error(`Invalid or expired confirmation token: ${token}`);
     
-    // Create backup before applying
-    await BackupManager.createBackup(pendingOp.filePath, String(args.projectRoot));
-    
-    // Apply the write
-    await writeFile(pendingOp.filePath, pendingOp.newContent);
+    if (pendingOp.pendingWrites && pendingOp.pendingWrites.length > 0) {
+      // Multi-file rename: backup and write ALL files atomically
+      for (const pw of pendingOp.pendingWrites) {
+        await BackupManager.createBackup(pw.filePath, String(args.projectRoot));
+        await writeFile(pw.filePath, pw.newContent);
+      }
+    } else {
+      // Single-file operation
+      await BackupManager.createBackup(pendingOp.filePath, String(args.projectRoot));
+      await writeFile(pendingOp.filePath, pendingOp.newContent);
+    }
+
+    const fileCount = pendingOp.pendingWrites?.length || 1;
     return {
-      content: [{ type: "text", text: `Success. Changes applied to ${pendingOp.filePath}\n\nDiff:\n${pendingOp.diff}` }],
+      content: [{ type: "text", text: `Success. Changes applied to ${fileCount} file(s).\n\nDiff:\n${pendingOp.diff}` }],
     };
   }
 
@@ -427,6 +436,7 @@ async function handleTwoPhaseWrite(
     symbolName: args.symbolName ? String(args.symbolName) : undefined,
     newContent: result.newContent!,
     diff: result.diff!,
+    pendingWrites: result.pendingWrites,
   });
 
   return {
@@ -552,6 +562,21 @@ async function handleGetServerStats() {
 // PIPELINE & MAIN EXECUTION
 // -----------------------------------------------------------------------------
 
+/**
+ * Redact sensitive fields from args before audit logging.
+ * Prevents newContent/code from being persisted in plain text.
+ */
+function redactSensitiveFields(args: Record<string, any>): Record<string, any> {
+  const SENSITIVE_KEYS = ["newContent", "code", "content"];
+  const safe = { ...args };
+  for (const key of SENSITIVE_KEYS) {
+    if (key in safe && typeof safe[key] === "string") {
+      safe[key] = `[REDACTED: ${(safe[key] as string).length} chars]`;
+    }
+  }
+  return safe;
+}
+
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   const startTime = Date.now();
@@ -561,14 +586,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   try {
     // 1. Rate Limiting Middleware
     const cost = OPERATION_COSTS[name as keyof typeof OPERATION_COSTS] ?? 1;
-    const rateCheck = await rateLimiter.checkLimit(name, cost);
+    // Use global bucket — MCP stdio has 1 client per connection
+    const rateCheck = await rateLimiter.checkLimit("global", cost);
     if (!rateCheck.allowed) {
       throw new Error(`Rate limit exceeded for tool: ${name}. Retry after ${rateCheck.retryAfter}ms`);
     }
 
     // 2. File Locking Middleware (for writes only)
     if (WRITE_OPS.has(name) && args && args.filePath) {
-      await globalLockManager.acquireLock(String(args.filePath), "mcp-client", name);
+      const lockResult = await globalLockManager.acquireLock(String(args.filePath), "mcp-client", name);
+      if (!lockResult.acquired) {
+        throw new Error(`File is locked: ${lockResult.error}`);
+      }
     }
 
     // 3. Execution
@@ -623,10 +652,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // 5. Telemetry & Audit Logging Middleware
     globalTelemetry.recordOperation({ toolName: name, duration, success });
+    // Redact sensitive fields (newContent, code) from audit log
+    const safeDetails = args ? redactSensitiveFields(args as Record<string, any>) : {};
     globalAuditLogger.log({ 
       level: success ? "info" : "error",
       operation: name, 
-      details: args ? (args as Record<string, any>) : {}, 
+      details: safeDetails, 
       result: success ? "success" : "failure"
     });
   }

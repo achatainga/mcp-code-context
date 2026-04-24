@@ -1,6 +1,6 @@
 /**
  * Constants - Centralized configuration
- * v3.4.1
+ * v3.5.0
  */
 export const EXCLUDE_DIRS = [
     "node_modules",

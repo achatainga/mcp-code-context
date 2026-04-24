@@ -1,6 +1,7 @@
 /**
- * Write Operations - v3.4.1
+ * Write Operations - v3.5.0
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
+ * CRITICAL: renameSymbol Phase 1 is now pure-functional (no disk writes)
  */
 
 import * as fs from "node:fs/promises";
@@ -16,6 +17,8 @@ export interface WriteResult {
   newContent?: string;
   error?: string;
   diff?: string;
+  /** Multi-file changes for rename operations (Phase 1 accumulation) */
+  pendingWrites?: Array<{ filePath: string; newContent: string }>;
 }
 
 export interface ReplaceOptions {
@@ -227,7 +230,8 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 
 /**
  * Rename symbol using AST-aware replacement
- * v3.4.1 - SECURITY FIX: Validates all paths + uses atomic writes
+ * v3.5.0 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
+ * All changes are accumulated in pendingWrites for Phase 2 confirmation.
  */
 export async function renameSymbol(params: {
   filePath: string;
@@ -263,13 +267,13 @@ export async function renameSymbol(params: {
     }
 
     // Replace only in symbol definition (AST-based)
-    let newContent = content.substring(0, targetSymbol.startIndex) +
+    const newContent = content.substring(0, targetSymbol.startIndex) +
       content.substring(targetSymbol.startIndex, targetSymbol.endIndex)
         .replace(new RegExp(`\\b${sanitizedOld}\\b`, "g"), params.newName) +
       content.substring(targetSymbol.endIndex);
 
-    // Step 2: Find dependent files (within project boundary)
-    const dependents: string[] = [];
+    // Step 2: Find dependent files and cache their content (single read per file)
+    const dependents: Array<{ path: string; content: string }> = [];
 
     async function walkDir(dir: string) {
       const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -284,7 +288,6 @@ export async function renameSymbol(params: {
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name);
           if (SUPPORTED_EXTENSIONS.includes(ext as any)) {
-            // SECURITY FIX: Validate each dependent file path
             const depValidation = await validator.validateFilePath(fullPath);
             if (!depValidation.valid) continue;
 
@@ -296,7 +299,7 @@ export async function renameSymbol(params: {
               new RegExp(`use.*\\b${sanitizedOld}\\b`, "g"),
             ];
             if (importPatterns.some(p => p.test(fileContent))) {
-              dependents.push(fullPath);
+              dependents.push({ path: fullPath, content: fileContent });
             }
           }
         }
@@ -305,24 +308,31 @@ export async function renameSymbol(params: {
 
     await walkDir(params.rootDir);
 
-    // Step 3: Rename in dependent files using atomic writes
-    for (const depFile of dependents) {
-      const depContent = await fs.readFile(depFile, "utf-8");
-      const depNewContent = depContent.replace(
+    // Step 3: Accumulate ALL changes in memory — NO writes in Phase 1
+    const pendingWrites: Array<{ filePath: string; newContent: string }> = [];
+    const diffParts: string[] = [];
+
+    // Accumulate dependent file changes (reuse cached content — no second read)
+    for (const dep of dependents) {
+      const depNewContent = dep.content.replace(
         new RegExp(`\\b${sanitizedOld}\\b`, "g"),
         params.newName
       );
-      // SECURITY FIX: Use atomic write
-      await writeFile(depFile, depNewContent);
+      pendingWrites.push({ filePath: dep.path, newContent: depNewContent });
+      diffParts.push(`--- ${dep.path}\n${generateDiff(dep.content, depNewContent)}`);
     }
 
-    // Step 4: Write definition file atomically
-    await writeFile(defValidation.resolvedPath!, newContent);
+    // Accumulate definition file change
+    pendingWrites.push({ filePath: defValidation.resolvedPath!, newContent });
+    diffParts.push(`--- ${defValidation.resolvedPath!}\n${generateDiff(content, newContent)}`);
+
+    const consolidatedDiff = `Renamed "${params.oldName}" \u2192 "${params.newName}" in ${pendingWrites.length} files\n\n${diffParts.join("\n\n")}`;
 
     return {
       success: true,
       newContent,
-      diff: `Renamed "${params.oldName}" → "${params.newName}" in ${dependents.length + 1} files`,
+      diff: consolidatedDiff,
+      pendingWrites,
     };
   } catch (error) {
     return {
