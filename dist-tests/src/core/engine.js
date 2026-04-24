@@ -7,6 +7,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 import { dirname } from "path";
+import { createRequire } from "node:module";
 export class CodeContextEngine {
     config;
     initialized = false;
@@ -39,6 +40,15 @@ export class CodeContextEngine {
             // 3. Fallback to process.cwd()
             path.join(process.cwd(), "node_modules", "tree-sitter-wasms", "out", wasmFile),
         ];
+        // 4. Robust Node.js module resolution (handles npx hoisting and global installs)
+        try {
+            const require = createRequire(import.meta.url);
+            const pkgPath = require.resolve("tree-sitter-wasms/package.json");
+            possiblePaths.unshift(path.join(path.dirname(pkgPath), "out", wasmFile));
+        }
+        catch {
+            // Ignore resolution errors, fallback to manual paths
+        }
         let wasmPath = null;
         for (const p of possiblePaths) {
             try {

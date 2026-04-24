@@ -35,7 +35,7 @@ import { BackupManager } from "./utils/backupManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.4.0";
+const SERVER_VERSION = "3.4.1";
 
 // Global instances
 let engine: CodeContextEngine;
