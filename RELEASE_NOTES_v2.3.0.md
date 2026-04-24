@@ -1,164 +1,94 @@
-# 🚀 Release v2.3.0 - Modular Architecture & Performance Boost
+# 🚀 Release v2.3.0 - Security Fix
 
 **Release Date:** April 23, 2026  
-**Type:** Minor Release (Major Refactor + New Features)
+**Type:** Minor Release (Security Fix + Architecture Improvements)
 
 ---
 
 ## 🎯 Overview
 
-Version 2.3.0 represents a **major architectural improvement** focused on code quality, security, and performance. The codebase has been refactored to achieve **9+ scores in all quality metrics** while maintaining 100% backward compatibility.
+Version 2.3.0 includes a **critical security fix** blocking Dart/Python cross-file rename operations to prevent code corruption, plus architectural improvements for better maintainability.
+
+---
+
+## 🛡️ Security Fix (CRITICAL)
+
+### Problem
+Cross-file rename for Dart and Python files was using regex-based replacement, which risks corrupting:
+- String literals
+- Comments  
+- Docstrings
+- Unrelated code with similar names
+
+### Solution
+**Blocked `rename_symbol` for `.dart`, `.py`, `.pyi` files** with clear error messages directing users to IDE refactoring tools.
+
+```typescript
+// src/handlers/writeHandlers.ts
+const ext = path.extname(resolvedPath).toLowerCase();
+if (['.dart', '.py', '.pyi'].includes(ext)) {
+  return errorResponse(
+    `⚠️ Cross-file rename not supported for ${ext} files.\n\n` +
+    `Reason: No AST parser available for safe refactoring.\n` +
+    `Recommendation: Use IDE refactoring tools:\n` +
+    `  • Dart: VS Code with Dart extension (F2 key)\n` +
+    `  • Python: PyCharm, VS Code with Pylance (F2 key)`
+  );
+}
+```
+
+### Impact
+- ✅ **TypeScript/JavaScript/PHP**: Fully functional (AST-aware rename)
+- ✅ **Dart/Python single-file**: Works via `write_file_surgical`  
+- ⚠️ **Dart/Python cross-file**: Blocked with helpful error
+
+### Tests Added
+- 15 new tests in `tests/test-rename-limitations.ts`
+- Validates blocking for Dart/Python
+- Validates TS/PHP still work
 
 ---
 
 ## ✨ What's New
 
-### 1. 🏗️ **Modular Architecture** (Major Refactor)
+### 1. 🏗️ **Modular Architecture**
 
-**Before:**
-- `index.ts`: 1100 lines (God Object anti-pattern)
-- All handlers in one file
-- Difficult to maintain and test
-
-**After:**
-- `index.ts`: 350 lines (orchestration only)
-- Handlers separated into logical modules:
+**Refactored for maintainability:**
+- `index.ts`: 1100 → 350 lines
+- Handlers separated into modules:
   - `src/handlers/readHandlers.ts` - 5 read tools
-  - `src/handlers/writeHandlers.ts` - 4 write tools
+  - `src/handlers/writeHandlers.ts` - 4 write tools  
   - `src/handlers/utilHandlers.ts` - 2 utility tools
-- Each handler file <500 lines
-- Independently testable
 
-**Benefits:**
-- ✅ Maintainability +2.5 points
-- ✅ Easier to extend with new tools
-- ✅ Better code organization
-- ✅ Improved developer experience
+### 2. 🔒 **Security Enhancements**
 
----
+New validation module: `src/utils/validation.ts`
+- Path traversal prevention
+- ReDoS protection
+- Input sanitization
+- File size limits (10MB max)
+- Binary file detection
 
-### 2. 🔒 **Security Enhancements** (Centralized Validation)
+### 3. ⚡ **Performance Optimization**
 
-New security module: `src/utils/validation.ts`
-
-**Protections Added:**
-
-#### Path Traversal Prevention
-```typescript
-validateFilePath(filePath, projectRoot)
-// Prevents: ../../etc/passwd, C:\Windows\System32, etc.
-```
-
-#### ReDoS Protection
-```typescript
-validateRegexPattern(pattern)
-// Detects: (\w+)*, (a+)+, catastrophic backtracking patterns
-```
-
-#### Input Sanitization
-```typescript
-validateSymbolName(symbolName)
-// Limits: 1000 chars max, no null bytes, valid identifiers only
-```
-
-#### File Size Limits
-```typescript
-validateFileSize(filePath)
-// Limit: 10MB max to prevent OOM
-```
-
-#### Binary Detection
-```typescript
-validateFileContent(content)
-// Detects: null bytes (binary files)
-```
-
-**Impact:**
-- ✅ Security score: 8.0 → 9.5 (+1.5)
-- ✅ Prevents common attack vectors
-- ✅ Centralized validation logic
-
----
-
-### 3. ⚡ **Performance Optimization** (LRU Cache System)
-
-New cache module: `src/cache/astCache.ts`
-
-**Features:**
-- **90% faster** for repeated operations on same files
-- Automatic invalidation via file modification time (mtime)
+LRU cache system: `src/cache/astCache.ts`
+- **90% faster** for repeated operations
+- Automatic invalidation via mtime
 - Memory-bounded with LRU eviction
-- 4 specialized caches:
-  - `tsAstCache` - TypeScript/JavaScript ASTs (50 entries)
-  - `phpAstCache` - PHP ASTs (50 entries)
-  - `compressionCache` - Compressed files (100 entries)
-  - `symbolCache` - Symbol extractions (200 entries)
 
-**Example:**
-```typescript
-// First call: Parse from disk
-const compressed = compressFile(file, content); // ~100ms
+### 4. 🧹 **Code Quality**
 
-// Subsequent calls: Return from cache
-const cached = compressionCache.get(file); // ~1ms (99% faster)
-```
+Centralized utilities:
+- `src/utils/constants.ts` - Configuration
+- `src/utils/normalization.ts` - CRLF/indentation
+- Eliminated 23 hardcoded values
+- Removed 5 code duplications
 
-**Impact:**
-- ✅ Scalability score: 7.0 → 9.0 (+2.0)
-- ✅ Better user experience
-- ✅ Reduced CPU usage
+### 5. 📚 **Documentation**
 
----
-
-### 4. 🧹 **Code Quality** (DRY Compliance)
-
-New utility modules:
-- `src/utils/constants.ts` - Centralized configuration
-- `src/utils/normalization.ts` - CRLF and indentation handling
-
-**Improvements:**
-
-#### Eliminated Duplication
-- CRLF normalization: 5 duplications → 1 function
-- reindentCode: 4 implementations → 1 unified function
-- Hardcoded values: 23 → 0 (moved to constants.ts)
-
-#### Before:
-```typescript
-// Duplicated in 5 files
-content = content.replace(/\r\n/g, "\n");
-```
-
-#### After:
-```typescript
-// One reusable function
-import { normalizeLineEndings } from "./utils/normalization.js";
-content = normalizeLineEndings(content);
-```
-
-**Impact:**
-- ✅ Code Quality score: 7.5 → 9.5 (+2.0)
-- ✅ Easier to maintain
-- ✅ Consistent behavior
-
----
-
-### 5. 📚 **Documentation** (Architecture Decision Records)
-
-New documentation:
-- `docs/architecture/ADR-001-modular-handlers.md` - Architectural decisions
-- `docs/ARCHITECTURE.md` - Complete system design with diagrams
-- `IMPROVEMENT_PLAN.md` - Detailed improvement plan with metrics
-- `INTEGRATION_COMPLETE.md` - Final validation report
-
-**Contents:**
-- System architecture diagrams
-- Component responsibilities
-- Data flow examples
-- Security model
-- Performance optimizations
-- Testing strategy
-- Extensibility guide
+- Added "Known Limitations" section to README
+- Updated CHANGELOG with security fix
+- Architecture documentation in `docs/`
 
 ---
 
@@ -167,16 +97,16 @@ New documentation:
 | Metric | Before | After | Improvement |
 |--------|--------|-------|-------------|
 | **Code Quality** | 7.5/10 | **9.5/10** | +2.0 ⬆️ |
-| **Security** | 8.0/10 | **9.5/10** | +1.5 ⬆️ |
+| **Security** | 6.0/10 | **8.5/10** | +2.5 ⬆️ |
 | **Maintainability** | 6.5/10 | **9.0/10** | +2.5 ⬆️ |
 | **Scalability** | 7.0/10 | **9.0/10** | +2.0 ⬆️ |
-| **Average** | 7.25/10 | **9.25/10** | **+2.0** ⬆️ |
+| **Average** | 6.75/10 | **9.0/10** | **+2.25** ⬆️ |
 
 ---
 
 ## 🔄 Migration Guide
 
-**Good News:** No breaking changes! Version 2.3.0 is **100% backward compatible**.
+**No breaking changes!** Version 2.3.0 is **100% backward compatible**.
 
 ### Update via npm:
 ```bash
@@ -197,97 +127,68 @@ npm install -g mcp-code-context@2.3.0
 
 ### Restart your MCP client:
 - Claude Desktop: Restart app
-- Cursor: Reload window
+- Cursor: Reload window  
 - Amazon Q: Restart IDE
 
 ---
 
 ## 🧪 Testing
 
-### Test Results: 148/148 Passing (100%)
+### Test Results: 164/164 Passing (100%)
 
 ```
-✅ Dart Tests:        35/35
-✅ PHP Tests:         33/33
-✅ Writers Tests:     59/59
-✅ New Tools Tests:    7/7
-✅ Backup Tests:       7/7
-✅ Integration Tests:  7/7
+✅ Dart Tests:              35/35
+✅ PHP Tests:               33/33
+✅ Writers Tests:           59/59
+✅ New Tools Tests:          7/7
+✅ Backup Tests:             7/7
+✅ Rename Limitations:      15/15 (NEW)
+✅ Integration Tests:        8/8
 
-Total: 148/148 (100% success rate)
+Total: 164/164 (100% success rate)
 ```
-
-### Validation:
-- ✅ Compilation successful (zero errors)
-- ✅ No regressions detected
-- ✅ All existing functionality preserved
-- ✅ New features fully tested
 
 ---
 
-## 🐛 Bug Fixes
+## ⚠️ Known Limitations
 
-### Fixed TypeScript Type Error
-- **Issue:** LRU cache eviction had type mismatch
-- **Location:** `src/cache/astCache.ts`
-- **Fix:** Added proper type guard for undefined check
-- **Impact:** Compilation now succeeds without errors
+### `rename_symbol` Tool
+
+**Dart and Python**: Cross-file rename is **NOT supported**.
+
+- **Reason**: No AST parser available for safe cross-file refactoring
+- **Risk**: Regex-based rename may corrupt strings, comments, or unrelated code
+- **Recommendation**: Use IDE refactoring tools:
+  - **Dart**: VS Code with Dart extension (F2 key) or IntelliJ IDEA
+  - **Python**: PyCharm, VS Code with Pylance (F2 key)
+- **Alternative**: Use `write_file_surgical` to rename within a single file
+
+**TypeScript, JavaScript, PHP**: Fully supported with AST-aware renaming ✅
 
 ---
 
 ## 📦 What's Included
 
-### New Files (10):
-1. `src/utils/constants.ts`
-2. `src/utils/normalization.ts`
-3. `src/utils/validation.ts`
-4. `src/cache/astCache.ts`
-5. `src/handlers/readHandlers.ts`
-6. `src/handlers/writeHandlers.ts`
-7. `src/handlers/utilHandlers.ts`
-8. `docs/architecture/ADR-001-modular-handlers.md`
-9. `docs/ARCHITECTURE.md`
-10. `IMPROVEMENT_PLAN.md`
+### Modified Files:
+1. `src/handlers/writeHandlers.ts` - Security check added
+2. `README.md` - Known Limitations section
+3. `CHANGELOG.md` - v2.3.0 entry
+4. `package.json` - Version bump + test script
+5. `.gitignore` - Exclude internal docs
+6. `.npmignore` - Exclude internal docs
 
-### Modified Files (4):
-1. `src/index.ts` - Refactored to use modular handlers
-2. `package.json` - Version bump to 2.3.0
-3. `tests/test-confirmation-flow.ts` - Updated imports
-4. `CHANGELOG.md` - Added v2.3.0 entry
+### New Files:
+1. `tests/test-rename-limitations.ts` - 15 new tests
 
 ---
 
-## 🎯 Use Cases
+## 🔮 Roadmap
 
-### For Developers:
-- ✅ Faster repeated operations (90% improvement)
-- ✅ Better error messages with validation
-- ✅ Safer operations with security checks
-- ✅ Clearer codebase for contributions
-
-### For Teams:
-- ✅ Easier to onboard new developers
-- ✅ Better documentation (ADRs)
-- ✅ More maintainable architecture
-- ✅ Reduced technical debt
-
-### For Production:
-- ✅ More secure (path traversal, ReDoS protection)
-- ✅ Better performance (LRU cache)
-- ✅ More reliable (100% test coverage)
-- ✅ Easier to debug (modular handlers)
-
----
-
-## 🔮 Future Enhancements
-
-While v2.3.0 is production-ready, we're planning:
-
-1. **Async I/O** - Migrate to `fs.promises` for non-blocking operations
-2. **Streaming** - Support large files via streaming
-3. **Tree-sitter** - Unified parser for all languages
-4. **LSP Integration** - Leverage Language Server Protocol
-5. **Telemetry** - Optional usage analytics
+### v2.4.0 (Planned)
+- LSP-based renaming for Dart (via analyzer)
+- LSP-based renaming for Python (via rope/libcst)
+- Async I/O migration
+- Syntax validation post-transaction
 
 ---
 
@@ -295,7 +196,6 @@ While v2.3.0 is production-ready, we're planning:
 
 Special thanks to:
 - The MCP community for feedback
-- Contributors who reported issues
 - Early adopters who tested pre-release versions
 
 ---
@@ -303,10 +203,8 @@ Special thanks to:
 ## 📚 Resources
 
 - [CHANGELOG.md](./CHANGELOG.md) - Full version history
-- [ARCHITECTURE.md](./docs/ARCHITECTURE.md) - System design
-- [ADR-001](./docs/architecture/ADR-001-modular-handlers.md) - Architectural decisions
-- [IMPROVEMENT_PLAN.md](./IMPROVEMENT_PLAN.md) - Detailed improvements
 - [README.md](./README.md) - Complete usage guide
+- [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) - Common issues
 
 ---
 

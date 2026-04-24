@@ -75,6 +75,33 @@ Built to be robust and precise. Both read and write engines are tested against r
 | Python | ✅ Regex-based | ✅ Indentation-aware | ✅ |
 | Others (JSON, YAML, CSS, etc.) | Passthrough / truncation | — | — |
 
+## ⚠️ Known Limitations
+
+### `rename_symbol` Tool
+
+**Dart and Python**: Cross-file rename is **NOT supported** for `.dart`, `.py`, and `.pyi` files.
+
+- **Reason**: No AST parser available for safe cross-file refactoring
+- **Risk**: Regex-based rename may corrupt strings, comments, or unrelated code
+- **Recommendation**: Use IDE refactoring tools instead:
+  - **Dart**: VS Code with Dart extension (F2 key) or IntelliJ IDEA
+  - **Python**: PyCharm, VS Code with Pylance (F2 key)
+- **Alternative**: Use `write_file_surgical` to rename within a single file
+
+**TypeScript, JavaScript, PHP**: Fully supported with AST-aware renaming ✅
+
+### `get_semantic_repo_map` Tool
+
+- **Max files**: Limited to 500 files to prevent timeouts
+- **Performance**: Synchronous I/O may take 10-30 seconds on large repositories
+- **Recommendation**: Use `@folder` syntax to target specific directories
+
+### General
+
+- **Validation**: No automatic syntax checking after edits. Always review diffs carefully before confirming.
+- **Backups**: 5-version rolling backup system. Use `rollback_file` if something goes wrong.
+- **Large files**: Files >10MB are skipped for safety.
+
 ## Installation
 
 ```bash

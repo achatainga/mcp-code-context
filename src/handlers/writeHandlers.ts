@@ -332,6 +332,20 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
 
   const resolvedPath = validation.resolvedPath!;
 
+  // SECURITY: Block cross-file rename for languages without AST support
+  const ext = path.extname(resolvedPath).toLowerCase();
+  if (['.dart', '.py', '.pyi'].includes(ext)) {
+    return errorResponse(
+      `⚠️ Cross-file rename not supported for ${ext} files.\n\n` +
+      `Reason: No AST parser available for safe refactoring across multiple files.\n` +
+      `Risk: Regex-based rename may corrupt strings, comments, or unrelated code.\n\n` +
+      `Recommendation: Use IDE refactoring tools:\n` +
+      `  • Dart: VS Code with Dart extension (F2 key)\n` +
+      `  • Python: PyCharm, VS Code with Pylance (F2 key)\n\n` +
+      `Alternative: Use write_file_surgical to rename within a single file.`
+    );
+  }
+
   let sourceContent: string;
   try {
     sourceContent = fs.readFileSync(resolvedPath, "utf-8");

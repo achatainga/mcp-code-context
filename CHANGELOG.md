@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.0] - 2026-04-23
 
+### 🔒 Security (CRITICAL)
+- **Disabled cross-file rename for Dart/Python** - Prevents code corruption
+  - `rename_symbol` now blocks `.dart`, `.py`, `.pyi` files with clear error
+  - Reason: No AST parser available for safe refactoring
+  - Users directed to IDE refactoring tools (VS Code, PyCharm)
+  - Single-file rename still works via `write_file_surgical`
+  - Added comprehensive tests in `tests/test-rename-limitations.ts`
+
 ### Added
 - **Modular Architecture** - Refactored index.ts from 1100 to 350 lines
   - Created `src/handlers/` directory with separate read/write/util handlers
@@ -43,6 +51,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated server version to 2.3.0
 - Refactored `src/index.ts` to use modular handlers
 - Updated `tests/test-confirmation-flow.ts` to import from new handlers
+
+### 🛡️ Security
+- Dart/Python cross-file rename now properly blocked to prevent corruption
+- Clear error messages guide users to safe alternatives
+
+### 📝 Documentation
+- Added "Known Limitations" section to README
+- Documented Dart/Python rename restrictions
+- Added performance guidelines for large repositories
+
+### 🛡️ Security
+- Dart/Python cross-file rename now properly blocked to prevent corruption
+- Clear error messages guide users to safe alternatives
+
+### 📝 Documentation
+- Added "Known Limitations" section to README
+- Documented Dart/Python rename restrictions
+- Added performance guidelines for large repositories
 
 ### Fixed
 - Fixed TypeScript type error in `astCache.ts` LRU eviction

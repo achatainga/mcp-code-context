@@ -32,11 +32,33 @@ src/debug-*.ts
 
 # Backup files (created by surgical write tools)
 *.bak
-.io
+.io/
 .mcp-backups/
 */.mcp-backups/
 */*/.mcp-backups/
 */*/*/.mcp-backups/
-*/*/*/.mcp-backups/
 */*/*/*/.mcp-backups/
 */*/*/*/*/.mcp-backups/
+
+# AI Analysis & Internal Docs (not for version control)
+CRITICAL_ISSUES.md
+PRODUCTION_CHECKLIST.md
+RELEASE_CHECKLIST_FINAL.md
+POST_ANALYSIS_FIXES.md
+CONTINUATION_CONTEXT.md
+PHASE_*.md
+READY_FOR_ANALYSIS.md
+README_IMPROVEMENTS.md
+DEPLOYMENT_INSTRUCTIONS.md
+MEJORAS_PROPUESTAS.md
+IMPROVEMENT_PLAN.md
+INTEGRATION_COMPLETE.md
+AGENT_INSTRUCTIONS.md
+PUSH_INSTRUCTIONS.md
+RELEASE_SUMMARY_*.md
+PRODUCTION_READY_FINAL.md
+
+# Release automation scripts (internal use only)
+release-to-production.ps1
+validate-release.ps1
+validate-release.sh

@@ -17,9 +17,23 @@ READY_FOR_ANALYSIS.md
 README_IMPROVEMENTS.md
 DEPLOYMENT_INSTRUCTIONS.md
 MEJORAS_PROPUESTAS.md
+CRITICAL_ISSUES.md
+PRODUCTION_CHECKLIST.md
+RELEASE_CHECKLIST_FINAL.md
+POST_ANALYSIS_FIXES.md
+CONTINUATION_CONTEXT.md
+PHASE_*.md
+AGENT_INSTRUCTIONS.md
+PUSH_INSTRUCTIONS.md
+RELEASE_SUMMARY_*.md
+
+# Validation scripts (internal use only)
+validate-release.ps1
+validate-release.sh
 
 # Backup files
 src/index-original-backup.ts
+dist/src/index-original-backup.*
 *.backup
 
 # IDE
