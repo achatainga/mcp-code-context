@@ -127,7 +127,7 @@ export const ALWAYS_IGNORE_DIRS = [
 // ─── Server Metadata ────────────────────────────────────────────────
 
 export const SERVER_NAME = "mcp-code-context";
-export const SERVER_VERSION = "2.6.0";
+export const SERVER_VERSION = "3.0.0";
 
 // ─── Validation Patterns ────────────────────────────────────────────
 
