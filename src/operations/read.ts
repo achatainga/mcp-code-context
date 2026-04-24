@@ -1,11 +1,12 @@
 /**
- * Read Operations - v3.1.0
- * Implements all read tools from v2.6.0 with WASM parsers
+ * Read Operations - v3.2.0
+ * IMPROVEMENTS: Centralized constants
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
+import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
 
 export interface ReadResult {
   success: boolean;
@@ -129,8 +130,8 @@ export async function searchPattern(params: {
   try {
     const results: any[] = [];
     const regex = new RegExp(params.pattern, "g");
-    const extensions = params.fileExtensions || [".ts", ".js", ".py", ".php", ".dart"];
-    const excludeDirs = params.excludeDirs || ["node_modules", "dist", "build", ".git"];
+    const extensions = params.fileExtensions || SUPPORTED_EXTENSIONS;
+    const excludeDirs = params.excludeDirs || EXCLUDE_DIRS;
     const maxResults = params.maxResults || 50;
 
     async function walkDir(dir: string) {
@@ -144,12 +145,12 @@ export async function searchPattern(params: {
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!excludeDirs.includes(entry.name)) {
+          if (!(excludeDirs as readonly string[]).includes(entry.name)) {
             await walkDir(fullPath);
           }
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name);
-          if (extensions.includes(ext)) {
+          if ((extensions as readonly string[]).includes(ext)) {
             const content = await fs.readFile(fullPath, "utf-8");
             const lines = content.split("\n");
 
@@ -200,12 +201,12 @@ export async function analyzeImpact(params: {
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!["node_modules", "dist", "build", ".git"].includes(entry.name)) {
+          if (!EXCLUDE_DIRS.includes(entry.name)) {
             await walkDir(fullPath);
           }
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name);
-          if ([".ts", ".js", ".py", ".php", ".dart"].includes(ext)) {
+          if (SUPPORTED_EXTENSIONS.includes(ext as any)) {
             const content = await fs.readFile(fullPath, "utf-8");
             
             // Check for imports/requires

@@ -1,6 +1,6 @@
 /**
- * Write Operations - v3.0.0
- * Surgical code modifications with Tree-sitter
+ * Write Operations - v3.2.0
+ * Surgical code modifications with Tree-sitter + validation
  */
 
 import Parser from "web-tree-sitter";
@@ -8,6 +8,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
 import { SecurityValidator } from "../core/validator.js";
+import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
 
 export interface WriteResult {
   success: boolean;
@@ -44,6 +45,21 @@ export interface RemoveOptions {
 }
 
 /**
+ * Validate syntax of generated code
+ */
+function validateSyntax(content: string, parser: BaseParser): { valid: boolean; error?: string } {
+  try {
+    const tree = parser.parse(content);
+    if (tree.rootNode.hasError) {
+      return { valid: false, error: "Generated code has syntax errors" };
+    }
+    return { valid: true };
+  } catch (error) {
+    return { valid: false, error: `Syntax validation failed: ${error}` };
+  }
+}
+
+/**
  * Replace a symbol with new content
  */
 export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResult> {
@@ -66,6 +82,12 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
     // Replace
     const result = parser.replaceSymbol(content, tree, symbolName, newContent, className);
     
+    // CRITICAL: Validate syntax of generated code
+    const syntaxCheck = validateSyntax(result, parser);
+    if (!syntaxCheck.valid) {
+      return { success: false, error: syntaxCheck.error };
+    }
+    
     // Generate diff
     const diff = generateDiff(content, result);
     
@@ -83,7 +105,7 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
 }
 
 /**
- * Insert code at a specific location
+ * Insert code at a specific location using AST positioning
  */
 export async function insertCode(options: InsertOptions): Promise<WriteResult> {
   const { filePath, projectRoot, code, anchorSymbol, position = "after", className, parser } = options;
@@ -104,38 +126,45 @@ export async function insertCode(options: InsertOptions): Promise<WriteResult> {
       // Insert at end
       insertIndex = content.length;
     } else {
-      // Find anchor
-      const extracted = parser.extractSymbol(tree, anchorSymbol, className);
-      if (!extracted) {
+      // Find anchor using AST
+      const symbols = parser.findSymbols(tree);
+      const anchorNode = symbols.find(s => 
+        s.name === anchorSymbol && (!className || s.className === className)
+      );
+      
+      if (!anchorNode) {
         return { success: false, error: `Anchor symbol "${anchorSymbol}" not found` };
       }
 
-      const anchorIndex = content.indexOf(extracted);
-      if (anchorIndex === -1) {
-        return { success: false, error: "Could not locate anchor in content" };
-      }
-
+      // Use AST indices instead of indexOf()
       switch (position) {
         case "before":
-          insertIndex = anchorIndex;
+          insertIndex = anchorNode.startIndex;
           break;
         case "after":
-          insertIndex = anchorIndex + extracted.length;
+          insertIndex = anchorNode.endIndex;
           break;
         case "inside_start":
-          // Find first { after anchor
-          insertIndex = content.indexOf("{", anchorIndex) + 1;
+          // Find first { after anchor start
+          insertIndex = content.indexOf("{", anchorNode.startIndex) + 1;
           break;
         case "inside_end":
-          // Find last } of anchor
-          insertIndex = anchorIndex + extracted.lastIndexOf("}");
+          // Find last } before anchor end
+          insertIndex = content.lastIndexOf("}", anchorNode.endIndex);
           break;
         default:
-          insertIndex = anchorIndex + extracted.length;
+          insertIndex = anchorNode.endIndex;
       }
     }
 
     const result = content.substring(0, insertIndex) + "\n" + code + "\n" + content.substring(insertIndex);
+    
+    // Validate syntax
+    const syntaxCheck = validateSyntax(result, parser);
+    if (!syntaxCheck.valid) {
+      return { success: false, error: syntaxCheck.error };
+    }
+    
     const diff = generateDiff(content, result);
 
     return {
@@ -178,6 +207,13 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
     }
 
     const result = content.substring(0, index) + content.substring(index + extracted.length);
+    
+    // Validate syntax
+    const syntaxCheck = validateSyntax(result, parser);
+    if (!syntaxCheck.valid) {
+      return { success: false, error: syntaxCheck.error };
+    }
+    
     const diff = generateDiff(content, result);
 
     return {
@@ -194,7 +230,8 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 }
 
 /**
- * Write content to file (atomic)
+ * Rename symbol using AST-aware replacement
+ * v3.2.0 - CRITICAL FIX: Sanitizes regex and uses AST positioning
  */
 export async function renameSymbol(params: {
   filePath: string;
@@ -205,23 +242,31 @@ export async function renameSymbol(params: {
   parser: BaseParser;
 }): Promise<WriteResult> {
   try {
-    // Step 1: Rename in definition file
+    // Sanitize to prevent regex injection
+    const sanitizedOld = params.oldName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const sanitizedNew = params.newName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    // Step 1: Rename in definition file using AST
     const content = await fs.readFile(params.filePath, "utf-8");
     const tree = params.parser.parse(content);
-    const extracted = params.parser.extractSymbol(tree, content, params.oldName);
-
-    if (!extracted) {
+    const symbols = params.parser.findSymbols(tree);
+    
+    const targetSymbol = symbols.find(s => s.name === params.oldName);
+    if (!targetSymbol) {
       return {
         success: false,
         error: `Symbol "${params.oldName}" not found in ${params.filePath}`,
       };
     }
 
-    const newContent = content.replace(new RegExp(`\\b${params.oldName}\\b`, "g"), params.newName);
+    // Replace only in symbol definition (AST-based)
+    let newContent = content.substring(0, targetSymbol.startIndex) +
+                     content.substring(targetSymbol.startIndex, targetSymbol.endIndex)
+                       .replace(new RegExp(`\\b${sanitizedOld}\\b`, "g"), params.newName) +
+                     content.substring(targetSymbol.endIndex);
 
     // Step 2: Find dependent files
     const dependents: string[] = [];
-    const targetFile = path.basename(params.filePath);
 
     async function walkDir(dir: string) {
       const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -230,14 +275,21 @@ export async function renameSymbol(params: {
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!["node_modules", "dist", "build", ".git"].includes(entry.name)) {
+          if (!EXCLUDE_DIRS.includes(entry.name)) {
             await walkDir(fullPath);
           }
         } else if (entry.isFile()) {
           const ext = path.extname(entry.name);
-          if ([".ts", ".js", ".py", ".php", ".dart"].includes(ext)) {
+          if (SUPPORTED_EXTENSIONS.includes(ext as any)) {
             const fileContent = await fs.readFile(fullPath, "utf-8");
-            if (fileContent.includes(params.oldName)) {
+            // Check for imports/references only
+            const importPatterns = [
+              new RegExp(`import.*\\b${sanitizedOld}\\b`, "g"),
+              new RegExp(`from.*\\b${sanitizedOld}\\b`, "g"),
+              new RegExp(`require.*\\b${sanitizedOld}\\b`, "g"),
+              new RegExp(`use.*\\b${sanitizedOld}\\b`, "g"),
+            ];
+            if (importPatterns.some(p => p.test(fileContent))) {
               dependents.push(fullPath);
             }
           }
@@ -247,10 +299,13 @@ export async function renameSymbol(params: {
 
     await walkDir(params.rootDir);
 
-    // Step 3: Rename in all dependent files
+    // Step 3: Rename in dependent files
     for (const depFile of dependents) {
       const depContent = await fs.readFile(depFile, "utf-8");
-      const depNewContent = depContent.replace(new RegExp(`\\b${params.oldName}\\b`, "g"), params.newName);
+      const depNewContent = depContent.replace(
+        new RegExp(`\\b${sanitizedOld}\\b`, "g"),
+        params.newName
+      );
       await fs.writeFile(depFile, depNewContent, "utf-8");
     }
 
@@ -260,7 +315,7 @@ export async function renameSymbol(params: {
     return {
       success: true,
       newContent,
-      diff: `Renamed in ${dependents.length + 1} files`,
+      diff: `Renamed "${params.oldName}" → "${params.newName}" in ${dependents.length + 1} files`,
     };
   } catch (error) {
     return {

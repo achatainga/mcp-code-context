@@ -1,11 +1,12 @@
 /**
- * Semantic Compression - v3.1.0
- * Compress entire repositories to structural signatures
+ * Semantic Compression - v3.2.0
+ * IMPROVEMENTS: Centralized constants + size limits + timeout
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { ParserRegistry } from "../parsers/registry.js";
+import { EXCLUDE_DIRS, MAX_FILES_REPO_MAP, MAX_TOTAL_SIZE_BYTES } from "../utils/constants.js";
 
 export interface CompressionResult {
   success: boolean;
@@ -24,21 +25,22 @@ export async function compressRepository(params: {
   try {
     const format = params.format || "xml";
     const files: any[] = [];
-    const excludeDirs = ["node_modules", "dist", "build", ".git", "vendor", ".mcp-backups"];
-    const maxFiles = 500;
+    let totalSize = 0;
 
     async function walkDir(dir: string) {
-      if (files.length >= maxFiles) return;
+      if (files.length >= MAX_FILES_REPO_MAP) return;
+      if (totalSize >= MAX_TOTAL_SIZE_BYTES) return;
 
       const entries = await fs.readdir(dir, { withFileTypes: true });
 
       for (const entry of entries) {
-        if (files.length >= maxFiles) break;
+        if (files.length >= MAX_FILES_REPO_MAP) break;
+        if (totalSize >= MAX_TOTAL_SIZE_BYTES) break;
 
         const fullPath = path.join(dir, entry.name);
 
         if (entry.isDirectory()) {
-          if (!excludeDirs.includes(entry.name)) {
+          if (!EXCLUDE_DIRS.includes(entry.name)) {
             await walkDir(fullPath);
           }
         } else if (entry.isFile()) {
@@ -47,7 +49,12 @@ export async function compressRepository(params: {
 
           if (parser) {
             try {
+              const stat = await fs.stat(fullPath);
+              if (totalSize + stat.size > MAX_TOTAL_SIZE_BYTES) break;
+              
               const content = await fs.readFile(fullPath, "utf-8");
+              totalSize += stat.size;
+              
               const tree = parser.parse(content);
               const symbols = parser.findSymbols(tree);
 

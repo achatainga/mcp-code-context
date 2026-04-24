@@ -1,6 +1,6 @@
 /**
- * Security Validator - v3.0.0
- * Mandatory project boundary enforcement
+ * Security Validator - v3.2.0
+ * CRITICAL FIX: Path traversal check AFTER normalization
  */
 
 import * as path from "node:path";
@@ -20,16 +20,17 @@ export class SecurityValidator {
   }
 
   async validateFilePath(filePath: string): Promise<ValidationResult> {
+    // Resolve FIRST, then check
     const resolved = path.resolve(filePath);
 
-    // Path traversal check (but allow Windows drive letters)
-    if (filePath.includes("..")) {
-      return { valid: false, error: "Invalid path: contains dangerous patterns" };
-    }
-
-    // Project boundary check (MANDATORY)
+    // CRITICAL: Check boundary AFTER normalization
     if (!resolved.startsWith(this.projectRoot)) {
       return { valid: false, error: "Path outside project boundary" };
+    }
+
+    // Additional dangerous pattern check
+    if (filePath.includes("..") && !resolved.startsWith(this.projectRoot)) {
+      return { valid: false, error: "Invalid path: contains dangerous patterns" };
     }
 
     // Existence check
