@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-3.0.3-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-3.0.4-blue.svg)]()
 
 > MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
 
