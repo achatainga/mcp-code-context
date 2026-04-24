@@ -19,6 +19,7 @@ import {
 import { CodeContextEngine } from "./core/engine.js";
 import { ParserRegistry } from "./parsers/registry.js";
 import { SecurityValidator } from "./core/validator.js";
+import { replaceSymbol, insertCode, removeSymbol, writeFile } from "./operations/write.js";
 
 const SERVER_NAME = "mcp-code-context";
 const SERVER_VERSION = "3.0.0";
@@ -45,6 +46,51 @@ const TOOLS = [
       required: ["filePath", "projectRoot"],
     },
   },
+  {
+    name: "replace_symbol",
+    description: "Replace a symbol (function/class/method) with new code",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        symbolName: { type: "string", description: "Symbol to replace" },
+        newContent: { type: "string", description: "New code" },
+        className: { type: "string", description: "Class name (optional, for scoping)" },
+      },
+      required: ["filePath", "projectRoot", "symbolName", "newContent"],
+    },
+  },
+  {
+    name: "insert_code",
+    description: "Insert code at a specific location",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        code: { type: "string", description: "Code to insert" },
+        anchorSymbol: { type: "string", description: "Symbol to position relative to" },
+        position: { type: "string", enum: ["before", "after", "inside_start", "inside_end"], description: "Where to insert" },
+        className: { type: "string", description: "Class name (optional)" },
+      },
+      required: ["filePath", "projectRoot", "code"],
+    },
+  },
+  {
+    name: "remove_symbol",
+    description: "Remove a symbol from file",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        symbolName: { type: "string", description: "Symbol to remove" },
+        className: { type: "string", description: "Class name (optional)" },
+      },
+      required: ["filePath", "projectRoot", "symbolName"],
+    },
+  },
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -58,6 +104,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     switch (name) {
       case "parse_file":
         return await handleParseFile(args as Record<string, unknown>);
+      case "replace_symbol":
+        return await handleReplaceSymbol(args as Record<string, unknown>);
+      case "insert_code":
+        return await handleInsertCode(args as Record<string, unknown>);
+      case "remove_symbol":
+        return await handleRemoveSymbol(args as Record<string, unknown>);
       default:
         return errorResponse(`Unknown tool: "${name}"`);
     }
@@ -102,6 +154,107 @@ async function handleParseFile(args: Record<string, unknown>) {
         text: JSON.stringify({ file: filePath, symbols }, null, 2),
       },
     ],
+  };
+}
+
+async function handleReplaceSymbol(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const projectRoot = args.projectRoot as string;
+  const symbolName = args.symbolName as string;
+  const newContent = args.newContent as string;
+  const className = args.className as string | undefined;
+
+  if (!filePath) return errorResponse("Missing: filePath");
+  if (!projectRoot) return errorResponse("Missing: projectRoot");
+  if (!symbolName) return errorResponse("Missing: symbolName");
+  if (!newContent) return errorResponse("Missing: newContent");
+
+  const path = await import("node:path");
+  const ext = path.extname(filePath);
+  const parser = registry.getParser(ext);
+  if (!parser) return errorResponse(`No parser for: ${ext}`);
+
+  const result = await replaceSymbol({ filePath, projectRoot, symbolName, newContent, className, parser });
+  
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  // Write to file
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (validation.valid) {
+    await writeFile(validation.resolvedPath!, result.newContent!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: `✅ Replaced "${symbolName}"\n\n${result.diff}` }],
+  };
+}
+
+async function handleInsertCode(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const projectRoot = args.projectRoot as string;
+  const code = args.code as string;
+  const anchorSymbol = args.anchorSymbol as string | undefined;
+  const position = args.position as "before" | "after" | "inside_start" | "inside_end" | undefined;
+  const className = args.className as string | undefined;
+
+  if (!filePath) return errorResponse("Missing: filePath");
+  if (!projectRoot) return errorResponse("Missing: projectRoot");
+  if (!code) return errorResponse("Missing: code");
+
+  const path = await import("node:path");
+  const ext = path.extname(filePath);
+  const parser = registry.getParser(ext);
+  if (!parser) return errorResponse(`No parser for: ${ext}`);
+
+  const result = await insertCode({ filePath, projectRoot, code, anchorSymbol, position, className, parser });
+  
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (validation.valid) {
+    await writeFile(validation.resolvedPath!, result.newContent!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: `✅ Code inserted\n\n${result.diff}` }],
+  };
+}
+
+async function handleRemoveSymbol(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const projectRoot = args.projectRoot as string;
+  const symbolName = args.symbolName as string;
+  const className = args.className as string | undefined;
+
+  if (!filePath) return errorResponse("Missing: filePath");
+  if (!projectRoot) return errorResponse("Missing: projectRoot");
+  if (!symbolName) return errorResponse("Missing: symbolName");
+
+  const path = await import("node:path");
+  const ext = path.extname(filePath);
+  const parser = registry.getParser(ext);
+  if (!parser) return errorResponse(`No parser for: ${ext}`);
+
+  const result = await removeSymbol({ filePath, projectRoot, symbolName, className, parser });
+  
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (validation.valid) {
+    await writeFile(validation.resolvedPath!, result.newContent!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: `✅ Removed "${symbolName}"\n\n${result.diff}` }],
   };
 }
 
