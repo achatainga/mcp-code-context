@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.0.0] - 2026-04-24
+## [3.0.1] - 2026-04-24
 
 ### 🚀 COMPLETE REWRITE - Tree-sitter WASM Edition
 
@@ -34,7 +34,7 @@
 - Regex-based Dart parser fallback
 
 ### Fixed
-- **npx compatibility**: Works with `npx -y mcp-code-context@3.0.0`
+- **npx compatibility**: Works with `npx -y mcp-code-context@3.0.1`
 - **WASM loading**: Finds WASM files when installed globally or locally
 - **Windows support**: Full compatibility with Claude Desktop on Windows
 
