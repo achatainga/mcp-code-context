@@ -11,13 +11,19 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": true,
-    "sourceMap": true
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "web-tree-sitter": ["node_modules/web-tree-sitter/web-tree-sitter.d.ts"]
+    }
   },
   "include": [
     "src/**/*",
     "tests/test-v3-smoke.ts",
     "tests/test-all-parsers.ts",
-    "tests/test-write-ops.ts"
+    "tests/test-write-ops.ts",
+    "tests/test-wasm.ts",
+    "tests/test-ts-wasm.ts"
   ],
   "exclude": ["node_modules", "dist", "dist-v3"]
 }

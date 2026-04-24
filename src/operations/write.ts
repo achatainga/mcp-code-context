@@ -3,7 +3,7 @@
  * Surgical code modifications with Tree-sitter
  */
 
-import Parser from "tree-sitter";
+import Parser from "web-tree-sitter";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";

@@ -3,20 +3,21 @@
  * Tree-sitter WASM-based parsing engine
  */
 
-import Parser from "tree-sitter";
+import { Parser, Language } from "web-tree-sitter";
 import * as path from "node:path";
-
+import * as fs from "node:fs";
+ 
 export interface EngineConfig {
   wasmPath?: string;
   maxCacheSize?: number;
 }
-
+ 
 export class CodeContextEngine {
   private config: EngineConfig;
   private initialized: boolean = false;
   private parser: Parser | null = null;
-  private languages: Map<string, any> = new Map();
-
+  private languages: Map<string, Language> = new Map();
+ 
   constructor(config: EngineConfig = {}) {
     this.config = {
       wasmPath: path.join(process.cwd(), "wasm"),
@@ -24,47 +25,40 @@ export class CodeContextEngine {
       ...config,
     };
   }
-
+ 
   async init(): Promise<void> {
     if (this.initialized) return;
+ 
+    await Parser.init();
+ 
     this.parser = new Parser();
     this.initialized = true;
   }
-
+ 
   async loadLanguage(name: string): Promise<void> {
     if (!this.initialized || !this.parser) {
       throw new Error("Engine not initialized");
     }
-
-    let language: any;
-    switch (name) {
-      case "typescript":
-        language = (await import("tree-sitter-typescript")).default.typescript;
-        break;
-      case "python":
-        language = (await import("tree-sitter-python")).default;
-        break;
-      case "php":
-        language = (await import("tree-sitter-php")).default.php;
-        break;
-      default:
-        throw new Error(`Unsupported language: ${name}`);
-    }
-
+ 
+    const wasmFile = `tree-sitter-${name}.wasm`;
+    const wasmPath = path.join(process.cwd(), "node_modules", "tree-sitter-wasms", "out", wasmFile);
+    
+    const wasmBuffer = fs.readFileSync(wasmPath);
+    const language = await Language.load(wasmBuffer);
     this.languages.set(name, language);
   }
-
-  getLanguage(name: string): any {
+ 
+  getLanguage(name: string): Language | undefined {
     return this.languages.get(name);
   }
-
+ 
   createParser(): Parser {
     if (!this.initialized || !this.parser) {
       throw new Error("Engine not initialized");
     }
     return new Parser();
   }
-
+ 
   isInitialized(): boolean {
     return this.initialized;
   }

@@ -2,17 +2,17 @@
  * PHP Parser - v3.0.0
  */
 
-import Parser from "tree-sitter";
+import { Parser, Tree, Node } from "web-tree-sitter";
 import { BaseParser, SymbolInfo } from "./base.js";
-
+ 
 export class PHPParser extends BaseParser {
   constructor() {
     super("php");
   }
-
-  extractSymbol(tree: Parser.Tree, symbolName: string, className?: string): string | null {
+ 
+  extractSymbol(tree: Tree, symbolName: string, className?: string): string | null {
     const cursor = tree.walk();
-
+ 
     const search = (): string | null => {
       const node = cursor.currentNode;
       
@@ -30,7 +30,7 @@ export class PHPParser extends BaseParser {
           }
         }
       }
-
+ 
       if (cursor.gotoFirstChild()) {
         do {
           const result = search();
@@ -38,27 +38,27 @@ export class PHPParser extends BaseParser {
         } while (cursor.gotoNextSibling());
         cursor.gotoParent();
       }
-
+ 
       return null;
     };
-
+ 
     return search();
   }
-
-  replaceSymbol(content: string, tree: Parser.Tree, symbolName: string, newContent: string, className?: string): string {
+ 
+  replaceSymbol(content: string, tree: Tree, symbolName: string, newContent: string, className?: string): string {
     const extracted = this.extractSymbol(tree, symbolName, className);
     if (!extracted) throw new Error(`Symbol "${symbolName}" not found`);
-
+ 
     const index = content.indexOf(extracted);
     if (index === -1) throw new Error("Could not locate symbol in content");
-
+ 
     return content.substring(0, index) + newContent + content.substring(index + extracted.length);
   }
-
-  findSymbols(tree: Parser.Tree): SymbolInfo[] {
+ 
+  findSymbols(tree: Tree): SymbolInfo[] {
     const symbols: SymbolInfo[] = [];
     const cursor = tree.walk();
-
+ 
     const visit = () => {
       const node = cursor.currentNode;
       
@@ -73,7 +73,7 @@ export class PHPParser extends BaseParser {
           });
         }
       }
-
+ 
       if (cursor.gotoFirstChild()) {
         do {
           visit();
@@ -81,12 +81,12 @@ export class PHPParser extends BaseParser {
         cursor.gotoParent();
       }
     };
-
+ 
     visit();
     return symbols;
   }
-
-  private findParentClass(node: Parser.SyntaxNode): Parser.SyntaxNode | null {
+ 
+  private findParentClass(node: Node): Node | null {
     let current = node.parent;
     while (current) {
       if (current.type === "class_declaration") return current;

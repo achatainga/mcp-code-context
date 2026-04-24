@@ -7,6 +7,7 @@ import { BaseParser } from "./base.js";
 import { TypeScriptParser } from "./typescript.js";
 import { PythonParser } from "./python.js";
 import { PHPParser } from "./php.js";
+import { DartTreeSitterParser } from "./dartTreeSitter.js";
 import { CodeContextEngine } from "../core/engine.js";
 
 export class ParserRegistry {
@@ -22,6 +23,7 @@ export class ParserRegistry {
     [".py", "python"],
     [".pyi", "python"],
     [".php", "php"],
+    [".dart", "dart"],
   ]);
 
   constructor(engine: CodeContextEngine) {
@@ -52,6 +54,15 @@ export class ParserRegistry {
     const phpParser = new PHPParser();
     await phpParser.init(this.engine.createParser(), phpLang);
     this.parsers.set("php", phpParser);
+
+    // Load Dart (Tree-sitter WASM)
+    await this.engine.loadLanguage("dart");
+    const dartLang = this.engine.getLanguage("dart");
+    if (!dartLang) throw new Error("Failed to load Dart language");
+    const dartParser = new DartTreeSitterParser();
+    await dartParser.init(this.engine.createParser(), dartLang);
+    this.parsers.set("dart", dartParser);
+    console.log("✅ Parsers loaded: TS/Python/PHP/Dart (WASM)");
   }
 
   getParser(fileExtension: string): BaseParser | undefined {

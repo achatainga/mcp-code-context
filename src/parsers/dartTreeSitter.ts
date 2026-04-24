@@ -1,13 +1,14 @@
 /**
- * Python Parser - v3.0.0
+ * Dart Tree-sitter Parser - v3.0.0
+ * 100% AST accuracy (requires tree-sitter-dart installed)
  */
 
 import { Parser, Tree, Node } from "web-tree-sitter";
 import { BaseParser, SymbolInfo } from "./base.js";
  
-export class PythonParser extends BaseParser {
+export class DartTreeSitterParser extends BaseParser {
   constructor() {
-    super("python");
+    super("dart");
   }
  
   extractSymbol(tree: Tree, symbolName: string, className?: string): string | null {
@@ -16,7 +17,9 @@ export class PythonParser extends BaseParser {
     const search = (): string | null => {
       const node = cursor.currentNode;
       
-      if (node.type === "function_definition" || node.type === "class_definition") {
+      if (node.type === "function_signature" || 
+          node.type === "class_definition" ||
+          node.type === "method_signature") {
         const nameNode = node.childForFieldName("name");
         if (nameNode && nameNode.text === symbolName) {
           if (className) {
@@ -62,7 +65,9 @@ export class PythonParser extends BaseParser {
     const visit = () => {
       const node = cursor.currentNode;
       
-      if (node.type === "function_definition" || node.type === "class_definition") {
+      if (node.type === "function_signature" || 
+          node.type === "class_definition" ||
+          node.type === "method_signature") {
         const nameNode = node.childForFieldName("name");
         if (nameNode) {
           symbols.push({

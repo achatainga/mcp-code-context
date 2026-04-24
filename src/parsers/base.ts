@@ -3,10 +3,10 @@
  * Abstract base for all language parsers
  */
 
-import Parser from "tree-sitter";
+import { Parser, Tree, Language, Node } from "web-tree-sitter";
 
 export interface ParseResult {
-  tree: Parser.Tree;
+  tree: Tree;
   language: string;
 }
 
@@ -20,38 +20,40 @@ export interface SymbolInfo {
 
 export abstract class BaseParser {
   protected parser!: Parser;
-  protected language!: any;
+  protected language!: Language;
   protected languageName: string;
 
   constructor(languageName: string) {
     this.languageName = languageName;
   }
 
-  async init(parser: Parser, language: any): Promise<void> {
+  async init(parser: Parser, language: Language): Promise<void> {
     this.parser = parser;
     this.language = language;
     this.parser.setLanguage(language);
   }
-
-  parse(content: string, oldTree?: Parser.Tree): Parser.Tree {
-    return this.parser.parse(content, oldTree);
+ 
+  parse(content: string, oldTree?: Tree): Tree {
+    const tree = this.parser.parse(content, oldTree);
+    if (!tree) throw new Error(`${this.languageName} parsing failed`);
+    return tree;
   }
-
+ 
   abstract extractSymbol(
-    tree: Parser.Tree,
+    tree: Tree,
     symbolName: string,
     className?: string
   ): string | null;
-
+ 
   abstract replaceSymbol(
     content: string,
-    tree: Parser.Tree,
+    tree: Tree,
     symbolName: string,
     newContent: string,
     className?: string
   ): string;
-
-  abstract findSymbols(tree: Parser.Tree): SymbolInfo[];
+ 
+  abstract findSymbols(tree: Tree): SymbolInfo[];
 
   getName(): string {
     return this.languageName;
