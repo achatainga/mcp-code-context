@@ -1,11 +1,13 @@
 /**
  * Transaction Manager - Atomic Multi-File Operations
  * Ensures all-or-nothing writes with automatic rollback on failure
+ * Now includes syntax validation before commit
  */
 
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { createBackup, restoreBackup } from "./backupManager.js";
+import { validateSyntax } from "./syntaxValidator.js";
 
 export interface FileChange {
   filePath: string;
@@ -35,7 +37,7 @@ export class TransactionManager {
 
   /**
    * Commit all staged changes atomically
-   * Creates backups first, then writes all files
+   * Creates backups first, validates syntax, then writes all files
    * Rolls back automatically on any failure
    */
   async commit(): Promise<{ success: boolean; error?: string }> {
@@ -57,7 +59,28 @@ export class TransactionManager {
       };
     }
 
-    // Phase 2: Write all files
+    // Phase 2: Validate syntax for all files
+    try {
+      for (const [filePath, content] of this.staging) {
+        const validation = await validateSyntax(filePath, content);
+        if (!validation.valid) {
+          await this.rollback();
+          const diagnostics = validation.diagnostics?.join("\n") || "";
+          return {
+            success: false,
+            error: `Syntax validation failed for ${path.basename(filePath)}:\n${validation.error}${diagnostics ? "\n" + diagnostics : ""}`
+          };
+        }
+      }
+    } catch (error) {
+      await this.rollback();
+      return {
+        success: false,
+        error: `Syntax validation error: ${error instanceof Error ? error.message : String(error)}`
+      };
+    }
+
+    // Phase 3: Write all files
     try {
       for (const [filePath, content] of this.staging) {
         await fs.promises.writeFile(filePath, content, "utf-8");
@@ -69,9 +92,6 @@ export class TransactionManager {
         error: `Write failed: ${error instanceof Error ? error.message : String(error)}`
       };
     }
-
-    // Phase 3: Validate (optional syntax check could go here)
-    // For now, we trust the write succeeded
 
     this.clear();
     return { success: true };
