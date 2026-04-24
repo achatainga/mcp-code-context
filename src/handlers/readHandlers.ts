@@ -83,9 +83,16 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>, si
 
   // Process files in batches to avoid blocking
   const { processBatched } = await import("../utils/arrayUtils.js");
+  
+  let failureCount = 0;
   const results = await processBatched(
     files,
     async (file) => {
+      // Circuit breaker: abort if >10% failures
+      if (failureCount > files.length * 0.1) {
+        throw new Error(`Circuit breaker: ${failureCount} failures (>10% of ${files.length} files)`);
+      }
+      
       const ext = path.extname(file).toLowerCase();
       if (!SOURCE_EXTENSIONS.has(ext)) {
         return { skipped: true };
@@ -101,6 +108,7 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>, si
       try {
         content = await fs.promises.readFile(file, "utf-8");
       } catch {
+        failureCount++;
         return { skipped: true };
       }
 

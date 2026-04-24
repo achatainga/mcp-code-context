@@ -19,6 +19,7 @@ interface CacheEntry<T> {
   value: T;
   mtime: number; // File modification time in milliseconds
   size: number;  // Approximate memory size in bytes
+  version: number; // Version counter for race condition prevention
 }
 
 // ─── LRU Cache Implementation ───────────────────────────────────────
@@ -29,6 +30,7 @@ export class LRUCache<K, V> {
   private maxBytes: number;
   private currentEntries: number;
   private currentBytes: number;
+  private fileVersions: Map<string, number>; // Track file versions
 
   constructor(maxEntries: number = 100, maxBytes: number = 100 * 1024 * 1024) {
     this.cache = new Map();
@@ -36,6 +38,7 @@ export class LRUCache<K, V> {
     this.maxBytes = maxBytes;
     this.currentEntries = 0;
     this.currentBytes = 0;
+    this.fileVersions = new Map();
   }
 
   get(key: K, filePath?: string): V | undefined {
@@ -43,11 +46,23 @@ export class LRUCache<K, V> {
     if (!entry) return undefined;
 
     if (filePath) {
+      const currentVersion = this.fileVersions.get(filePath) || 0;
+      
+      // Version mismatch = cache invalidated
+      if (entry.version !== currentVersion) {
+        this.cache.delete(key);
+        this.currentEntries--;
+        this.currentBytes -= entry.size;
+        return undefined;
+      }
+      
+      // Fallback: mtime check
       try {
         const stat = fs.statSync(filePath);
         const currentMtime = stat.mtimeMs;
 
         if (currentMtime !== entry.mtime) {
+          this.incrementVersion(filePath);
           this.cache.delete(key);
           this.currentEntries--;
           this.currentBytes -= entry.size;
@@ -69,6 +84,8 @@ export class LRUCache<K, V> {
 
   set(key: K, value: V, filePath?: string, estimatedSize: number = 1000): void {
     let mtime = Date.now();
+    const version = filePath ? (this.fileVersions.get(filePath) || 0) : 0;
+    
     if (filePath) {
       try {
         const stat = fs.statSync(filePath);
@@ -107,7 +124,7 @@ export class LRUCache<K, V> {
       }
     }
 
-    this.cache.set(key, { value, mtime, size: estimatedSize });
+    this.cache.set(key, { value, mtime, size: estimatedSize, version });
     this.currentEntries++;
     this.currentBytes += estimatedSize;
   }
@@ -129,6 +146,12 @@ export class LRUCache<K, V> {
     this.cache.clear();
     this.currentEntries = 0;
     this.currentBytes = 0;
+    this.fileVersions.clear();
+  }
+  
+  private incrementVersion(filePath: string): void {
+    const current = this.fileVersions.get(filePath) || 0;
+    this.fileVersions.set(filePath, current + 1);
   }
 
   getStats(): { entries: number; maxEntries: number; bytes: number; maxBytes: number } {
@@ -156,6 +179,19 @@ export function getSymbolCacheKey(
 
 export function invalidateFileCache(filePath: string): void {
   const normalized = path.resolve(filePath);
+  
+  // Increment version to invalidate all cache entries for this file
+  const incrementVersion = (cache: LRUCache<any, any>) => {
+    const current = (cache as any).fileVersions.get(normalized) || 0;
+    (cache as any).fileVersions.set(normalized, current + 1);
+  };
+  
+  incrementVersion(tsAstCache);
+  incrementVersion(phpAstCache);
+  incrementVersion(compressionCache);
+  incrementVersion(symbolCache);
+  
+  // Also invalidate existing entries
   tsAstCache.invalidate(normalized);
   phpAstCache.invalidate(normalized);
   compressionCache.invalidate(normalized);

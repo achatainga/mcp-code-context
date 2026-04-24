@@ -63,6 +63,16 @@ export async function handleWriteFileSurgical(args: Record<string, unknown>) {
 
     try {
       fs.writeFileSync(resolvedPath, pending.payload.newContentFull, "utf-8");
+      
+      // Post-write validation
+      const { validateSyntax } = await import("../utils/syntaxValidator.js");
+      const validation = await validateSyntax(resolvedPath, pending.payload.newContentFull);
+      if (!validation.valid) {
+        restoreBackup(resolvedPath);
+        const diagnostics = validation.diagnostics?.join("\n") || "";
+        return errorResponse(`Syntax error after write:\n${validation.error}${diagnostics ? "\n" + diagnostics : ""}`);
+      }
+      
       invalidateFileCache(resolvedPath);
     } catch (error: unknown) {
       restoreBackup(resolvedPath);
@@ -199,6 +209,16 @@ export async function handleInsertSymbol(args: Record<string, unknown>) {
 
     try {
       fs.writeFileSync(resolvedPath, pending.payload.newContentFull, "utf-8");
+      
+      // Post-write validation
+      const { validateSyntax } = await import("../utils/syntaxValidator.js");
+      const validation = await validateSyntax(resolvedPath, pending.payload.newContentFull);
+      if (!validation.valid) {
+        restoreBackup(resolvedPath);
+        const diagnostics = validation.diagnostics?.join("\n") || "";
+        return errorResponse(`Syntax error after write:\n${validation.error}${diagnostics ? "\n" + diagnostics : ""}`);
+      }
+      
       invalidateFileCache(resolvedPath);
     } catch (error: unknown) {
       restoreBackup(resolvedPath);
@@ -446,6 +466,16 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
 
     try {
       fs.writeFileSync(resolvedPath, pending.payload.newContentFull, "utf-8");
+      
+      // Post-write validation
+      const { validateSyntax } = await import("../utils/syntaxValidator.js");
+      const validation = await validateSyntax(resolvedPath, pending.payload.newContentFull);
+      if (!validation.valid) {
+        restoreBackup(resolvedPath);
+        const diagnostics = validation.diagnostics?.join("\n") || "";
+        return errorResponse(`Syntax error after write:\n${validation.error}${diagnostics ? "\n" + diagnostics : ""}`);
+      }
+      
       invalidateFileCache(resolvedPath);
     } catch (error: unknown) {
       restoreBackup(resolvedPath);
