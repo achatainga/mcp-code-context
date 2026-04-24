@@ -1,6 +1,12 @@
-# mcp-code-context v2.4.0
+# mcp-code-context v2.4.1
 
 > A Model Context Protocol (MCP) server that compresses any code repository into LLM-ready semantic context and provides surgical code editing tools.
+
+## What's New in v2.4.1
+
+🐛 **Bug Fix**: analyze_impact now works correctly
+- ✅ Fixed TypeScript ESM import resolution
+- ✅ Correctly detects dependencies in TypeScript projects
 
 ## What's New in v2.4.0
 
