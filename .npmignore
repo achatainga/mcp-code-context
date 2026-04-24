@@ -26,6 +26,7 @@ PHASE_*.md
 AGENT_INSTRUCTIONS.md
 PUSH_INSTRUCTIONS.md
 RELEASE_SUMMARY_*.md
+docs/archive/
 
 # Roadmaps (internal planning)
 ROADMAP_*.md

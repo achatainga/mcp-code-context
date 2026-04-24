@@ -43,6 +43,7 @@ src/debug-*.ts
 # Roadmaps & Plans (internal)
 ROADMAP_*.md
 PLAN_*.md
+docs/archive/
 
 # Analysis docs (internal)
 ANALYSIS_*.md
