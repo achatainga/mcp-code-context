@@ -19,6 +19,8 @@ export class TypeScriptParser extends BaseParser {
       
       if (node.type === "function_declaration" || 
           node.type === "class_declaration" ||
+          node.type === "interface_declaration" ||
+          node.type === "type_alias_declaration" ||
           node.type === "method_definition") {
         const nameNode = node.childForFieldName("name");
         if (nameNode && nameNode.text === symbolName) {
@@ -78,6 +80,8 @@ export class TypeScriptParser extends BaseParser {
       
       if (node.type === "function_declaration" || 
           node.type === "class_declaration" ||
+          node.type === "interface_declaration" ||
+          node.type === "type_alias_declaration" ||
           node.type === "method_definition") {
         const nameNode = node.childForFieldName("name");
         if (nameNode) {
