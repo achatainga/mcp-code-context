@@ -6,6 +6,7 @@ edge_case_tests/
 
 # TypeScript config
 tsconfig.json
+tsconfig.tests.json
 *.tsbuildinfo
 
 # Git
@@ -90,6 +91,10 @@ coverage/
 # Temporary files
 *.tmp
 *.temp
+*.tgz
+stdout.txt
+stderr.txt
+scratch.ts
 
 # Environment
 .env
