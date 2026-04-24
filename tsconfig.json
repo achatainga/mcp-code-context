@@ -4,7 +4,7 @@
     "module": "Node16",
     "moduleResolution": "Node16",
     "outDir": "./dist",
-    "rootDir": ".",
+    "rootDir": "./src",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -18,13 +18,7 @@
     }
   },
   "include": [
-    "src/**/*",
-    "tests/test-v3-smoke.ts",
-    "tests/test-all-parsers.ts",
-    "tests/test-write-ops.ts",
-    "tests/test-wasm.ts",
-    "tests/test-ts-wasm.ts",
-    "tests/test-wasm-parsers.ts"
+    "src/**/*"
   ],
-  "exclude": ["node_modules", "dist", "dist-v3"]
+  "exclude": ["node_modules", "dist", "dist-v3", "src-v2-legacy", "tests"]
 }

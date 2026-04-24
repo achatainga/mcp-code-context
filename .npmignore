@@ -1,16 +1,31 @@
 # Source files (only dist/ should be published)
 src/
+src-v2-legacy/
 tests/
 edge_case_tests/
 
 # TypeScript config
 tsconfig.json
+*.tsbuildinfo
 
 # Git
 .git/
 .gitignore
+.gitattributes
 
-# Documentation (keep only essential)
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Build artifacts (keep only dist/)
+dist-v3/
+dist-tests/
+wasm/
+
+# Documentation (keep only essential: README, CHANGELOG, LICENSE)
+CONTRIBUTING.md
+TROUBLESHOOTING.md
 IMPROVEMENT_PLAN.md
 INTEGRATION_COMPLETE.md
 READY_FOR_ANALYSIS.md
@@ -26,15 +41,17 @@ PHASE_*.md
 AGENT_INSTRUCTIONS.md
 PUSH_INSTRUCTIONS.md
 RELEASE_SUMMARY_*.md
-docs/archive/
+WASM_MIGRATION_PROMPT.md
+docs/
 
-# Roadmaps (internal planning)
+# Roadmaps & Plans (internal)
 ROADMAP_*.md
+PLAN_*.md
 
 # Old release notes
 RELEASE_NOTES_*.md
 
-# Validation scripts (internal use only)
+# Validation scripts (internal)
 validate-release.ps1
 validate-release.sh
 
@@ -42,6 +59,9 @@ validate-release.sh
 src/index-original-backup.ts
 dist/src/index-original-backup.*
 *.backup
+*.bak
+.io/
+.mcp-backups/
 
 # IDE
 .vscode/
@@ -53,15 +73,24 @@ dist/src/index-original-backup.*
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Test artifacts
 coverage/
 .nyc_output/
+*.test.js
+*.spec.js
 
 # Temporary files
 *.tmp
 *.temp
+
+# Environment
+.env
+.env.*

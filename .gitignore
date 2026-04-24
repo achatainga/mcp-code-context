@@ -3,6 +3,7 @@ node_modules/
 
 # Build output
 dist/
+dist-v3/
 
 # TypeScript build info
 *.tsbuildinfo
@@ -22,6 +23,8 @@ desktop.ini
 # Logs
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Environment
 .env
@@ -44,7 +47,15 @@ src/debug-*.ts
 ROADMAP_*.md
 PLAN_*.md
 docs/archive/
+docs/plans/
 
 # Analysis docs (internal)
 ANALYSIS_*.md
 CRITICAL_*.md
+WASM_MIGRATION_PROMPT.md
+
+# Test artifacts
+*.test.js
+*.spec.js
+coverage/
+.nyc_output/
