@@ -31,6 +31,7 @@ import { globalTelemetry, trackOperation } from "./utils/telemetry.js";
 import { RateLimiter, OPERATION_COSTS } from "./utils/rateLimiter.js";
 import { globalLockManager } from "./utils/fileLock.js";
 import { streamFile } from "./utils/streaming.js";
+import { BackupManager } from "./utils/backupManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
@@ -406,6 +407,9 @@ async function handleTwoPhaseWrite(
     const pendingOp = globalConfirmationStore.consumePending(token);
     if (!pendingOp) throw new Error(`Invalid or expired confirmation token: ${token}`);
     
+    // Create backup before applying
+    await BackupManager.createBackup(pendingOp.filePath, String(args.projectRoot));
+    
     // Apply the write
     await writeFile(pendingOp.filePath, pendingOp.newContent);
     return {
@@ -506,13 +510,32 @@ async function handleRenameSymbol(args: Record<string, unknown>) {
 // -----------------------------------------------------------------------------
 
 async function handleRollbackFile(args: Record<string, unknown>) {
-  // To be fully implemented with backup system
-  return { content: [{ type: "text", text: "Rollback file not fully implemented yet." }] };
+  const filePath = String(args.filePath);
+  const projectRoot = String(args.projectRoot);
+  const steps = args.steps ? Number(args.steps) : 1;
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const result = await BackupManager.rollback(validation.resolvedPath!, projectRoot, steps);
+  if (!result.success) throw new Error(result.error);
+
+  return { content: [{ type: "text", text: `Successfully rolled back ${path.basename(filePath)} from backup: ${result.restoredFrom}` }] };
 }
 
 async function handleCleanBackups(args: Record<string, unknown>) {
-  // To be fully implemented with backup system
-  return { content: [{ type: "text", text: "Clean backups not fully implemented yet." }] };
+  const projectRoot = String(args.projectRoot);
+
+  const validator = new SecurityValidator(projectRoot);
+  // Just validate projectRoot is a valid directory
+  const validation = await validator.validateFilePath(projectRoot);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const result = await BackupManager.clean(projectRoot);
+  if (!result.success) throw new Error(result.error);
+
+  return { content: [{ type: "text", text: `Successfully cleaned backups. Deleted ${result.deletedCount} backup files.` }] };
 }
 
 async function handleGetServerStats() {

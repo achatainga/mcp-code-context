@@ -22,6 +22,7 @@
     "tests/test-security.ts",
     "tests/test-rate-limiter.ts",
     "tests/test-file-lock.ts",
+    "tests/test-backup-manager.ts",
     "tests/test-v3.4.ts",
     "tests/manual/**/*"
   ],

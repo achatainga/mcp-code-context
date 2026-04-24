@@ -253,7 +253,7 @@ export class AuditLogger {
             console.error(message, entry.error || "");
         }
         else {
-            console.log(message);
+            console.error(message);
         }
     }
     startFlushInterval() {
