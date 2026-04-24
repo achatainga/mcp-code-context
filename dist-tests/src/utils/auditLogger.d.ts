@@ -1,5 +1,5 @@
 /**
- * Audit Logger - v3.5.0
+ * Audit Logger - v3.5.1
  * Comprehensive audit trail for all operations
  */
 export interface AuditEntry {

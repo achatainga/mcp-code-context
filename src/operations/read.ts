@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.5.0
+ * Read Operations - v3.5.1
  * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 

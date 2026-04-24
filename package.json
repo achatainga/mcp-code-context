@@ -1,6 +1,6 @@
 {
   "name": "mcp-code-context",
-  "version": "3.5.0",
+  "version": "3.5.1",
   "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with streaming, telemetry, audit logging, rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
   "type": "module",
   "main": "dist/src/index.js",

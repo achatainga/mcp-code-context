@@ -1,5 +1,5 @@
 /**
- * Write Operations - v3.5.0
+ * Write Operations - v3.5.1
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
  * CRITICAL: renameSymbol Phase 1 is now pure-functional (no disk writes)
  */
@@ -81,9 +81,17 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
     const tree = parser.parse(content);
 
     // Use AST-based replacement
-    const result = parser.replaceSymbol(content, tree, symbolName, newContent, className);
+    let result: string;
+    try {
+      result = parser.replaceSymbol(content, tree, symbolName, newContent, className);
+    } catch (replaceError) {
+      return {
+        success: false,
+        error: replaceError instanceof Error ? replaceError.message : String(replaceError),
+      };
+    }
 
-    // Validate syntax of generated code
+    // Validate syntax of the resulting file
     const syntaxCheck = validateSyntax(result, parser);
     if (!syntaxCheck.valid) {
       return { success: false, error: syntaxCheck.error };
@@ -230,7 +238,7 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 
 /**
  * Rename symbol using AST-aware replacement
- * v3.5.0 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
+ * v3.5.1 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
  * All changes are accumulated in pendingWrites for Phase 2 confirmation.
  */
 export async function renameSymbol(params: {

@@ -1,5 +1,5 @@
 /**
- * Core Engine - v3.5.0
+ * Core Engine - v3.5.1
  * ASYNC I/O: Migrated to fs.promises
  */
 import { Parser, Language } from "web-tree-sitter";

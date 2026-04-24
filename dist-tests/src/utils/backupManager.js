@@ -1,5 +1,5 @@
 /**
- * Backup Manager - v3.5.0
+ * Backup Manager - v3.5.1
  * Handles rolling backups for file modifications
  */
 import * as fs from "node:fs/promises";

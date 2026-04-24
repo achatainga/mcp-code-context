@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.5.0
+ * Security Validator - v3.5.1
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 import * as path from "node:path";

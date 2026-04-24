@@ -1,5 +1,5 @@
 /**
- * Python Parser - v3.5.0
+ * Python Parser - v3.5.1
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
 import { BaseParser } from "./base.js";

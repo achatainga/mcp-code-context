@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.5.0] - 2026-04-24
+## [3.5.1] - 2026-04-24
 
 ### 🔒 PRODUCTION HARDENING - Security & Infrastructure Complete
 
@@ -30,7 +30,7 @@
 - **Security**: SecurityValidator enforced on all 13 handlers
 - **Architecture**: Middleware pipeline (RateLimiter → FileLock → Execute → AuditLog → Telemetry)
 - **Parsers**: Removed 300+ lines of duplicated replaceSymbol code
-- **Version**: Synchronized all version strings to 3.5.0
+- **Version**: Synchronized all version strings to 3.5.1
 
 ### Performance
 - Streaming I/O for files >5MB (prevents memory exhaustion)
@@ -49,7 +49,7 @@
 - ✅ All security tests passing
 - ✅ All rate limiter tests passing
 - ✅ All file lock tests passing
-- ✅ All v3.5.0 feature tests passing
+- ✅ All v3.5.1 feature tests passing
 - ✅ TypeScript: 0 compilation errors
 - ✅ Build: Clean production dist
 

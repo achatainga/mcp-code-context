@@ -1,5 +1,5 @@
 /**
- * Rate Limiter - v3.5.0
+ * Rate Limiter - v3.5.1
  * Token bucket algorithm for DoS protection
  */
 export class RateLimiter {
