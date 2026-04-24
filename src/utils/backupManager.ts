@@ -90,14 +90,25 @@ export class BackupManager {
       const backupDir = path.join(projectRoot, this.BACKUP_DIR_NAME);
       try {
         const files = await fs.readdir(backupDir);
+        let deletedCount = 0;
         for (const file of files) {
-          await fs.unlink(path.join(backupDir, file));
+          const filePath = path.join(backupDir, file);
+          const stat = await fs.stat(filePath);
+          if (stat.isDirectory()) {
+            await fs.rm(filePath, { recursive: true, force: true });
+          } else {
+            await fs.unlink(filePath);
+          }
+          deletedCount++;
         }
         await fs.rmdir(backupDir);
-        return { success: true, deletedCount: files.length };
-      } catch {
-        // Directory doesn't exist
-        return { success: true, deletedCount: 0 };
+        return { success: true, deletedCount };
+      } catch (e: any) {
+        if (e.code === 'ENOENT') {
+          // Directory doesn't exist
+          return { success: true, deletedCount: 0 };
+        }
+        throw e;
       }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) };
