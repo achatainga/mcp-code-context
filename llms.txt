@@ -1,6 +1,13 @@
-# mcp-code-context v3.0.1
+# mcp-code-context v3.0.3
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
+
+## What's New in v3.0.3
+
+🔧 **npx Compatibility Fix**:
+- ✅ Fixed npx execution on Windows
+- ✅ Reverted to v2 build structure (dist/src/index.js)
+- ✅ Works with Claude Desktop using npx -y
 
 ## What's New in v3.0.1
 

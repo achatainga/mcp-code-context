@@ -1,5 +1,23 @@
 # Changelog
 
+## [3.0.3] - 2026-04-24
+
+### 🔧 Critical Fix - npx Compatibility
+
+**Patch release fixing npx execution on Windows**
+
+### Fixed
+- **Build structure**: Reverted to v2 structure (dist/src/index.js) for npx compatibility
+- **npx execution**: `npx -y mcp-code-context` now works correctly
+- **Windows compatibility**: Restored working configuration for Claude Desktop
+
+### Technical
+- Reverted tsconfig.json rootDir from "./src" to "." 
+- Package structure now matches v2.6.0 (proven working)
+- bin path: dist/src/index.js (npx compatible)
+
+---
+
 ## [3.0.2] - 2026-04-24
 
 ### 🔧 Critical Fix
