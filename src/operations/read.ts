@@ -1,13 +1,13 @@
 /**
- * Read Operations - v3.3.0
- * IMPROVEMENTS: Safe regex with timeout, rate limiting ready
+ * Read Operations - v3.4.0
+ * FIXES: extractSymbol args, safe regex in readLines, forEach+async → for...of
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
-import { safeRegexTest } from "../utils/safeRegex.js";
+import { safeRegexTest, validateRegexPattern } from "../utils/safeRegex.js";
 
 export interface ReadResult {
   success: boolean;
@@ -29,7 +29,9 @@ export async function extractSymbol(params: {
   try {
     const content = await fs.readFile(params.filePath, "utf-8");
     const tree = params.parser.parse(content);
-    const extracted = params.parser.extractSymbol(tree, content, params.symbolName);
+
+    // CRITICAL FIX: args were (tree, content, symbolName) — content was passed as symbolName
+    const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
 
     if (!extracted) {
       const symbols = params.parser.findSymbols(tree);
@@ -67,9 +69,32 @@ export async function readLines(params: {
     const lines = content.split("\n");
 
     if (params.aroundPattern) {
+      // CRITICAL FIX: validate pattern before use (was raw new RegExp)
+      const validation = validateRegexPattern(params.aroundPattern);
+      if (!validation.safe) {
+        return {
+          success: false,
+          error: `Unsafe regex pattern: ${validation.issues.join(", ")}`,
+        };
+      }
+
       const regex = new RegExp(params.aroundPattern);
-      const matchIndex = lines.findIndex(line => regex.test(line));
-      
+      let matchIndex = -1;
+
+      for (let i = 0; i < lines.length; i++) {
+        const testResult = await safeRegexTest(regex, lines[i]);
+        if (testResult.timedOut) {
+          return {
+            success: false,
+            error: `Regex timed out on line ${i + 1} (potential ReDoS)`,
+          };
+        }
+        if (testResult.matched) {
+          matchIndex = i;
+          break;
+        }
+      }
+
       if (matchIndex === -1) {
         return {
           success: false,
@@ -80,7 +105,7 @@ export async function readLines(params: {
       const context = params.contextLines || 5;
       const start = Math.max(0, matchIndex - context);
       const end = Math.min(lines.length, matchIndex + context + 1);
-      
+
       return {
         success: true,
         content: lines.slice(start, end).join("\n"),
@@ -90,7 +115,7 @@ export async function readLines(params: {
     if (params.startLine !== undefined && params.endLine !== undefined) {
       const start = params.startLine - 1; // Convert to 0-indexed
       const end = params.endLine;
-      
+
       if (start < 0 || end > lines.length) {
         return {
           success: false,
@@ -133,12 +158,11 @@ export async function searchPattern(params: {
     const maxResults = params.maxResults || 50;
 
     // Validate regex pattern
-    const { validateRegexPattern } = await import("../utils/safeRegex.js");
     const validation = validateRegexPattern(params.pattern);
     if (!validation.safe) {
       return {
         success: false,
-        error: `Unsafe regex pattern: ${validation.issues.join(", ")}`
+        error: `Unsafe regex pattern: ${validation.issues.join(", ")}`,
       };
     }
 
@@ -166,24 +190,28 @@ export async function searchPattern(params: {
             const content = await fs.readFile(fullPath, "utf-8");
             const lines = content.split("\n");
 
-            lines.forEach(async (line, index) => {
-              if (results.length >= maxResults) return;
-              
-              // Use safe regex test with timeout
+            // CRITICAL FIX: was forEach(async ...) which is fire-and-forget
+            for (let index = 0; index < lines.length; index++) {
+              if (results.length >= maxResults) break;
+
+              const line = lines[index];
+              // Reset regex lastIndex for each line (global flag)
+              regex.lastIndex = 0;
               const testResult = await safeRegexTest(regex, line);
+
               if (testResult.timedOut) {
                 console.warn(`⚠️  Regex timeout on line ${index + 1} in ${fullPath}`);
-                return;
+                continue;
               }
-              
+
               if (testResult.matched) {
                 results.push({
                   file: fullPath,
                   line: index + 1,
                   content: line.trim(),
-              });
+                });
               }
-            });
+            }
           }
         }
       }
@@ -228,7 +256,7 @@ export async function analyzeImpact(params: {
           const ext = path.extname(entry.name);
           if (SUPPORTED_EXTENSIONS.includes(ext as any)) {
             const content = await fs.readFile(fullPath, "utf-8");
-            
+
             // Check for imports/requires
             const importPatterns = [
               new RegExp(`import.*from.*['"].*${targetFile.replace(/\.[^.]+$/, "")}`, "g"),

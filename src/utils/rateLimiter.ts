@@ -1,5 +1,5 @@
 /**
- * Rate Limiter - v3.3.0
+ * Rate Limiter - v3.4.0
  * Token bucket algorithm for DoS protection
  */
 
@@ -126,14 +126,17 @@ export class RateLimiter {
  * Operation costs (in tokens)
  */
 export const OPERATION_COSTS = {
-  get_semantic_repo_map: 50, // Expensive
+  get_semantic_repo_map: 50, // Expensive — full repo walk
   read_file_surgical: 5,
   analyze_impact: 20,
   read_file_lines: 2,
   search_code_pattern: 30,
   parse_file: 5,
-  replace_symbol: 10,
-  insert_code: 10,
+  write_file_surgical: 10,
+  insert_symbol: 10,
   remove_symbol: 10,
-  rename_symbol: 40, // Very expensive (cross-file)
+  rename_symbol: 40,  // Very expensive (cross-file)
+  rollback_file: 2,
+  clean_backups: 2,
+  get_server_stats: 1,
 } as const;

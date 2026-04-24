@@ -1,5 +1,65 @@
 # Changelog
 
+## [3.4.0] - 2026-04-24
+
+### 🔒 PRODUCTION HARDENING - Security & Infrastructure Complete
+
+**Major Update**: All utility modules integrated, critical bugs fixed, production-ready
+
+### Added
+- **Two-Phase Write Workflow**: Dry-run + confirmation tokens for all write operations
+- **Rate Limiting**: Token bucket algorithm with per-operation costs
+- **File Locking**: Prevents concurrent write conflicts with timeout protection
+- **Audit Logging**: JSON-based audit trail with query/stats API
+- **Telemetry**: Operation metrics, cache stats, Prometheus export
+- **Streaming I/O**: Memory-safe file operations for large files (>5MB)
+- **get_server_stats**: New tool exposing telemetry and audit metrics
+- **confirm_write**: New tool for two-phase write confirmation
+
+### Fixed
+- **CRITICAL**: `extractSymbol` API mismatch in read.ts (symbol extraction was 100% broken)
+- **CRITICAL**: Path traversal in 4 handlers (readLines, searchPattern, analyzeImpact, renameSymbol)
+- **CRITICAL**: ReDoS vulnerability in readLines (raw regex without timeout)
+- **CRITICAL**: `forEach(async)` bug in searchPattern (incomplete results)
+- **Security**: renameSymbol now uses SecurityValidator + atomic writes
+- **Parser**: replaceSymbol moved to BaseParser using AST indices (no more indexOf fragility)
+- **Diff**: Added MAX_DIFF_LINES=5000 guard to prevent OOM on large files
+
+### Changed
+- **BREAKING**: All tools now require `projectRoot` parameter for security
+- **Security**: SecurityValidator enforced on all 13 handlers
+- **Architecture**: Middleware pipeline (RateLimiter → FileLock → Execute → AuditLog → Telemetry)
+- **Parsers**: Removed 300+ lines of duplicated replaceSymbol code
+- **Version**: Synchronized all version strings to 3.4.0
+
+### Performance
+- Streaming I/O for files >5MB (prevents memory exhaustion)
+- LCS diff fallback for files >5000 lines (O(n) vs O(n²))
+- Rate limiter with configurable operation costs
+
+### Security
+- ✅ Path traversal protection on all handlers
+- ✅ ReDoS protection with regex timeout
+- ✅ Atomic writes with .tmp + rename pattern
+- ✅ File locking prevents concurrent corruption
+- ✅ Audit trail for all operations
+
+### Validation
+- ✅ 47/47 WASM parser tests passing (100%)
+- ✅ All security tests passing
+- ✅ All rate limiter tests passing
+- ✅ All file lock tests passing
+- ✅ All v3.4.0 feature tests passing
+- ✅ TypeScript: 0 compilation errors
+- ✅ Build: Clean production dist
+
+### Migration from v3.1.0
+- Add `projectRoot` parameter to all tool calls
+- Optional: Use `confirm: false` for dry-run, then `confirm: true` with token
+- Optional: Call `get_server_stats` to monitor operations
+
+---
+
 ## [3.1.0] - 2026-04-24
 
 ### 🚀 FEATURE COMPLETE - All 11 Tools Implemented

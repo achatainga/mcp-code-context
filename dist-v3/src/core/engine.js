@@ -1,9 +1,12 @@
 /**
- * Core Engine - v3.0.0
- * Tree-sitter WASM-based parsing engine
+ * Core Engine - v3.2.0
+ * ASYNC I/O: Migrated to fs.promises
  */
-import Parser from "tree-sitter";
+import { Parser, Language } from "web-tree-sitter";
 import * as path from "node:path";
+import * as fs from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname } from "path";
 export class CodeContextEngine {
     config;
     initialized = false;
@@ -19,6 +22,7 @@ export class CodeContextEngine {
     async init() {
         if (this.initialized)
             return;
+        await Parser.init();
         this.parser = new Parser();
         this.initialized = true;
     }
@@ -26,20 +30,28 @@ export class CodeContextEngine {
         if (!this.initialized || !this.parser) {
             throw new Error("Engine not initialized");
         }
-        let language;
-        switch (name) {
-            case "typescript":
-                language = (await import("tree-sitter-typescript")).default.typescript;
+        const wasmFile = `tree-sitter-${name}.wasm`;
+        const possiblePaths = [
+            path.join(dirname(fileURLToPath(import.meta.url)), "..", "..", "node_modules", "tree-sitter-wasms", "out", wasmFile),
+            path.join(process.cwd(), "node_modules", "tree-sitter-wasms", "out", wasmFile),
+        ];
+        let wasmPath = null;
+        for (const p of possiblePaths) {
+            try {
+                await fs.access(p);
+                wasmPath = p;
                 break;
-            case "python":
-                language = (await import("tree-sitter-python")).default;
-                break;
-            case "php":
-                language = (await import("tree-sitter-php")).default.php;
-                break;
-            default:
-                throw new Error(`Unsupported language: ${name}`);
+            }
+            catch {
+                continue;
+            }
         }
+        if (!wasmPath) {
+            throw new Error(`WASM file not found: ${wasmFile}. Tried paths: ${possiblePaths.join(", ")}`);
+        }
+        // CRITICAL FIX: Async I/O
+        const wasmBuffer = await fs.readFile(wasmPath);
+        const language = await Language.load(wasmBuffer);
         this.languages.set(name, language);
     }
     getLanguage(name) {

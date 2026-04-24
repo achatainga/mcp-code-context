@@ -1,8 +1,8 @@
 /**
- * Core Engine - v3.0.0
- * Tree-sitter WASM-based parsing engine
+ * Core Engine - v3.2.0
+ * ASYNC I/O: Migrated to fs.promises
  */
-import Parser from "tree-sitter";
+import { Parser, Language } from "web-tree-sitter";
 export interface EngineConfig {
     wasmPath?: string;
     maxCacheSize?: number;
@@ -15,7 +15,7 @@ export declare class CodeContextEngine {
     constructor(config?: EngineConfig);
     init(): Promise<void>;
     loadLanguage(name: string): Promise<void>;
-    getLanguage(name: string): any;
+    getLanguage(name: string): Language | undefined;
     createParser(): Parser;
     isInitialized(): boolean;
 }

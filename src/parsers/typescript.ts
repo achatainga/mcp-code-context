@@ -1,27 +1,31 @@
 /**
- * TypeScript Parser - v3.0.0
+ * TypeScript Parser - v3.4.0
  * Tree-sitter based TS/JS parser
+ * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
 
 import { Parser, Tree, Node } from "web-tree-sitter";
 import { BaseParser, SymbolInfo } from "./base.js";
- 
+
 export class TypeScriptParser extends BaseParser {
   constructor() {
     super("typescript");
   }
- 
+
   extractSymbol(tree: Tree, symbolName: string, className?: string): string | null {
     const cursor = tree.walk();
- 
+
     const search = (): string | null => {
       const node = cursor.currentNode;
-      
-      if (node.type === "function_declaration" || 
+
+      if (node.type === "function_declaration" ||
           node.type === "class_declaration" ||
           node.type === "interface_declaration" ||
           node.type === "type_alias_declaration" ||
-          node.type === "method_definition") {
+          node.type === "method_definition" ||
+          node.type === "lexical_declaration" ||
+          node.type === "variable_declaration" ||
+          node.type === "export_statement") {
         const nameNode = node.childForFieldName("name");
         if (nameNode && nameNode.text === symbolName) {
           if (className) {
@@ -36,7 +40,7 @@ export class TypeScriptParser extends BaseParser {
           }
         }
       }
- 
+
       if (cursor.gotoFirstChild()) {
         do {
           const result = search();
@@ -44,56 +48,38 @@ export class TypeScriptParser extends BaseParser {
         } while (cursor.gotoNextSibling());
         cursor.gotoParent();
       }
- 
+
       return null;
     };
- 
+
     return search();
   }
- 
-  replaceSymbol(
-    content: string,
-    tree: Tree,
-    symbolName: string,
-    newContent: string,
-    className?: string
-  ): string {
-    const extracted = this.extractSymbol(tree, symbolName, className);
-    if (!extracted) {
-      throw new Error(`Symbol "${symbolName}" not found`);
-    }
- 
-    const index = content.indexOf(extracted);
-    if (index === -1) {
-      throw new Error("Could not locate symbol in content");
-    }
- 
-    return content.substring(0, index) + newContent + content.substring(index + extracted.length);
-  }
- 
+
   findSymbols(tree: Tree): SymbolInfo[] {
     const symbols: SymbolInfo[] = [];
     const cursor = tree.walk();
- 
+
     const visit = () => {
       const node = cursor.currentNode;
-      
-      if (node.type === "function_declaration" || 
+
+      if (node.type === "function_declaration" ||
           node.type === "class_declaration" ||
           node.type === "interface_declaration" ||
           node.type === "type_alias_declaration" ||
           node.type === "method_definition") {
         const nameNode = node.childForFieldName("name");
         if (nameNode) {
+          const parentClass = this.findParentClass(node);
           symbols.push({
             name: nameNode.text,
             type: node.type,
             startIndex: node.startIndex,
             endIndex: node.endIndex,
+            className: parentClass?.childForFieldName("name")?.text,
           });
         }
       }
- 
+
       if (cursor.gotoFirstChild()) {
         do {
           visit();
@@ -101,11 +87,11 @@ export class TypeScriptParser extends BaseParser {
         cursor.gotoParent();
       }
     };
- 
+
     visit();
     return symbols;
   }
- 
+
   private findParentClass(node: Node): Node | null {
     let current = node.parent;
     while (current) {

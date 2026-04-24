@@ -1,7 +1,9 @@
 /**
- * Diff Engine - v3.2.0
- * LCS-based unified diff generation
+ * Diff Engine - v3.4.0
+ * LCS-based unified diff with memory safety cap
  */
+
+const MAX_DIFF_LINES = 5000;
 
 interface DiffLine {
   type: 'context' | 'add' | 'remove';
@@ -32,6 +34,7 @@ function lcs(a: string[], b: string[]): number[][] {
 
 /**
  * Generate unified diff using LCS algorithm
+ * Falls back to simple diff for large files to prevent OOM
  */
 export function generateUnifiedDiff(
   oldContent: string,
@@ -40,6 +43,11 @@ export function generateUnifiedDiff(
 ): string {
   const oldLines = oldContent.split('\n');
   const newLines = newContent.split('\n');
+
+  // SAFETY: Fall back to simple diff for large files (LCS is O(n*m) memory)
+  if (oldLines.length > MAX_DIFF_LINES || newLines.length > MAX_DIFF_LINES) {
+    return generateSimpleDiff(oldContent, newContent);
+  }
 
   const dp = lcs(oldLines, newLines);
   const diff: DiffLine[] = [];
@@ -110,7 +118,7 @@ export function generateUnifiedDiff(
 }
 
 /**
- * Simple line-by-line diff (fallback)
+ * Simple line-by-line diff (O(n) memory fallback for large files)
  */
 export function generateSimpleDiff(oldContent: string, newContent: string): string {
   const oldLines = oldContent.split('\n');

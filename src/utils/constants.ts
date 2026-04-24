@@ -1,6 +1,6 @@
 /**
  * Constants - Centralized configuration
- * v3.2.0
+ * v3.4.0
  */
 
 export const EXCLUDE_DIRS = [

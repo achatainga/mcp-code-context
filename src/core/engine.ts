@@ -1,5 +1,5 @@
 /**
- * Core Engine - v3.2.0
+ * Core Engine - v3.4.0
  * ASYNC I/O: Migrated to fs.promises
  */
 

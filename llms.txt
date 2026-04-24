@@ -1,31 +1,23 @@
-# mcp-code-context v3.1.0
+# mcp-code-context v3.4.0
 
-> A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
+> A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline.
 
-## What's New in v3.1.0
+## What's New in v3.4.0
 
-🔧 **npx Compatibility Fix**:
-- ✅ Fixed npx execution on Windows
-- ✅ Reverted to v2 build structure (dist/src/index.js)
-- ✅ Works with Claude Desktop using npx -y
+🔒 **Production Hardening**:
+- ✅ Two-phase write workflow (dry-run + confirmation token)
+- ✅ Middleware pipeline: Rate limiting → File locking → Execution → Audit logging → Telemetry
+- ✅ All 13 handlers require `projectRoot` with SecurityValidator
+- ✅ Safe regex with timeout enforcement (ReDoS protection)
+- ✅ LCS diff OOM guard (MAX_DIFF_LINES = 5000)
+- ✅ Atomic writes (write-to-tmp + rename)
+- ✅ Critical bug fix: `extractSymbol` API mismatch resolved
 
-## What's New in v3.1.0
-
-🔧 **NPM Package Optimization**:
-- ✅ Package size reduced: 658.6 kB → 105.5 kB (-84%)
-- ✅ File count reduced: 131 files → 36 files (-73%)
-- ✅ Clean dist/ structure (no nested dist/src/)
-- ✅ Excluded legacy v2 code from npm distribution
-
-## What's New in v3.1.0
-
-🚀 **Complete WASM Migration**: 100% portable architecture
-- ✅ Migrated to web-tree-sitter@0.25.1 (WASM)
+🚀 **Architecture**: 100% WASM portable
+- ✅ web-tree-sitter@0.25.1 (WASM)
 - ✅ Zero native dependencies (no Visual Studio, node-gyp, Python)
-- ✅ Works on Windows/Mac/Linux without compilation
-- ✅ Dart with full Tree-sitter AST (no regex fallback)
-- ✅ TypeScript/JavaScript/Python/PHP all use WASM parsers
-- ✅ ABI v15 support (latest language grammars)
+- ✅ Windows/Mac/Linux without compilation
+- ✅ TypeScript/JavaScript/Python/PHP/Dart all use WASM parsers
 
 ## What This Tool Does
 
@@ -42,6 +34,7 @@ This MCP server solves two problems:
 
 **Input:**
 - `directoryPath` (required): Absolute path to the repository root.
+- `projectRoot` (required): Project root for security boundary.
 - `format` (optional): `"xml"` (default) or `"markdown"`.
 
 **What it does:**
@@ -60,7 +53,9 @@ This MCP server solves two problems:
 
 **Input:**
 - `filePath` (required): Absolute path to the source file.
+- `projectRoot` (required): Project root for security boundary.
 - `symbolName` (optional): Name of a function, class, interface, method, or type to extract.
+- `className` (optional): Class name to scope the symbol search.
 
 **What it does:**
 - With `symbolName`: Parses the AST and returns only the full source code block for that symbol. Saves tokens when you only need one function from a large file.
@@ -73,7 +68,8 @@ This MCP server solves two problems:
 
 **Input:**
 - `filePath` (required): Absolute path to the file being modified.
-- `rootDir` (optional): Repository root. Auto-detected if omitted.
+- `projectRoot` (required): Project root for security boundary.
+- `rootDir` (optional): Repository root. Defaults to projectRoot.
 
 **What it does:**
 - Scans all source files for `import`, `require()`, Python `from/import`, PHP `use`/`require_once`/`include`, and Dart `import` statements.
@@ -87,6 +83,7 @@ This MCP server solves two problems:
 
 **Input:**
 - `filePath` (required): Absolute path to the source file.
+- `projectRoot` (required): Project root for security boundary.
 - `startLine` (optional): Starting line number (1-indexed).
 - `endLine` (optional): Ending line number (1-indexed).
 - `aroundPattern` (optional): Search pattern to find and return surrounding lines.
@@ -112,6 +109,7 @@ This MCP server solves two problems:
 
 **Input:**
 - `rootDir` (required): Absolute path to the repository root.
+- `projectRoot` (required): Project root for security boundary.
 - `pattern` (required): Regular expression pattern to search for.
 - `fileExtensions` (optional): Array of extensions to search (e.g., `[".ts", ".dart"]`). Defaults to common code extensions.
 - `excludeDirs` (optional): Directories to exclude (default: `["node_modules", "dist", "build"]`).
@@ -144,13 +142,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v2.2.0 Mandatory Workflow)
+### Write Tools (v3.4.0 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v2.2.0):**
+**Important Notes (v3.4.0):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 
@@ -159,6 +157,7 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Input:**
 - `filePath` (required): Absolute path to the file to modify.
+- `projectRoot` (required): Project root for security boundary.
 - `symbolName` (required): Name of the symbol to replace.
 - `newContent` (required): Complete replacement code (signature + body).
 - `confirmationToken` (optional): Token from Phase 1.
@@ -178,6 +177,7 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Input:**
 - `filePath` (required): Absolute path to the file.
+- `projectRoot` (required): Project root for security boundary.
 - `code` (required): The new code to insert.
 - `anchorSymbol` (optional): Symbol name to position relative to. If omitted, inserts at end of file.
 - `position` (optional): `"before"`, `"after"`, `"inside_start"`, `"inside_end"`. Defaults to `"after"`.
@@ -195,6 +195,7 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Input:**
 - `filePath` (required): File where the symbol is defined.
+- `projectRoot` (required): Project root for security boundary.
 - `oldName` (required): Current name.
 - `newName` (required): New name.
 - `rootDir` (optional): Repository root. Auto-detected if omitted.
@@ -214,6 +215,7 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Input:**
 - `filePath` (required): Absolute path.
+- `projectRoot` (required): Project root for security boundary.
 - `symbolName` (required): Symbol to remove.
 - `force` (optional): If true, skip dependency check. Defaults to false.
 - `confirmationToken`, `confirm` (optional): Standard Phase 2 parameters.
@@ -234,13 +236,29 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
+### Additional Tools (v3.4.0)
+
+#### 11. `parse_file`
+**Purpose:** Parse a file using Tree-sitter and extract all symbols.
+**Input:** `filePath` (required), `projectRoot` (required).
+**Returns:** JSON array of all symbols with type and name.
+
+#### 12. `clean_backups`
+**Purpose:** Remove all backup files for a project.
+**Input:** `projectRoot` (required).
+
+#### 13. `get_server_stats`
+**Purpose:** Get server telemetry, audit statistics, and health metrics.
+**Input:** None.
+**Returns:** Pending confirmations count and operational metrics.
+
 ## Technical Details
 
 - **Transport:** stdio (JSON-RPC over stdin/stdout)
 - **Runtime:** Node.js >= 18
 - **AST Engines:** web-tree-sitter@0.25.1 (WASM) for all languages
 - **Language Grammars:** tree-sitter-wasms@0.1.13 (ABI v15)
-- **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
 - **Supported languages:** TypeScript, JavaScript (all variants), PHP, Dart, Python
-- **Safety features:** Mandatory two-phase confirmation, rolling 5-version backups (`.mcp-backups/`), fuzzy symbol suggestions, dependency tracking, surgical restoration.
+- **Security:** projectRoot boundary, safe regex, rate limiting, file locking, audit logging, telemetry
+- **Write safety:** Two-phase confirmation (dry-run + token), atomic writes, syntax validation
 - **Portability:** 100% WASM - no native dependencies, works on all platforms

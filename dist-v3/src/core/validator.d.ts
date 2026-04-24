@@ -1,6 +1,6 @@
 /**
- * Security Validator - v3.0.0
- * Mandatory project boundary enforcement
+ * Security Validator - v3.2.0
+ * CRITICAL FIX: Path traversal check AFTER normalization
  */
 export interface ValidationResult {
     valid: boolean;
