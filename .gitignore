@@ -59,3 +59,5 @@ WASM_MIGRATION_PROMPT.md
 *.spec.js
 coverage/
 .nyc_output/
+stdout.txt
+stderr.txt
