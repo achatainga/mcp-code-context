@@ -12,7 +12,7 @@
     "build:tests": "tsc -p tsconfig.tests.json",
     "start": "node dist/src/index.js",
     "dev": "npm run build && node dist/src/index.js",
-    "test": "npm run build && npm run build:tests && node dist-tests/tests/test-wasm-parsers.js && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js",
+    "test": "npm run build && npm run build:tests && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js && node dist-tests/tests/test-wasm-parsers.js",
     "clean": "rimraf dist dist-tests",
     "rebuild": "npm run clean && npm run build",
     "prepublishOnly": "npm run rebuild"
