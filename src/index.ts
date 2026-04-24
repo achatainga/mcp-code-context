@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context — Semantic Code Context Server (v2.3.0 - Refactored)
+ * mcp-code-context — Semantic Code Context Server (v2.3.1 - Refactored)
  *
  * A Model Context Protocol (MCP) server that compresses any code repository
  * into LLM-ready semantic context and provides surgical code editing.
