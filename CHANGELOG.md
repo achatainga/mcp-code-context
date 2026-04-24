@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2024-01-15
+
+### Fixed
+- **analyze_impact**: Fixed import resolution for TypeScript ESM imports
+  - Now correctly strips `.js` extension from import paths
+  - Detects dependencies with `.ts`, `.tsx`, `.mts`, `.mjs` extensions
+  - Impact: `analyze_impact` now works correctly for TypeScript projects
+
 ## [2.4.0] - 2024-01-15
 
 ### 🚀 Performance (CRITICAL)

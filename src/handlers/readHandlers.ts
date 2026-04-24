@@ -508,15 +508,24 @@ function resolveImportMatch(importPath: string, targetFile: string, sourceFile: 
 
   if (normalized.startsWith(".")) {
     const sourceDir = path.dirname(sourceFile);
-    const resolved = path.resolve(sourceDir, normalized);
+    // Remove .js extension from import path (TypeScript ESM imports use .js for .ts files)
+    const cleanImportPath = normalized.replace(/\.js$/, "");
+    const resolved = path.resolve(sourceDir, cleanImportPath);
 
     const candidates = [
       resolved,
       resolved + ".ts",
+      resolved + ".tsx",
       resolved + ".js",
+      resolved + ".jsx",
+      resolved + ".mts",
+      resolved + ".mjs",
+      resolved + ".php",
       resolved + ".dart",
+      resolved + ".py",
       path.join(resolved, "index.ts"),
       path.join(resolved, "index.js"),
+      path.join(resolved, "index.mjs"),
     ];
 
     for (const candidate of candidates) {
