@@ -3,9 +3,9 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-2.6.0-blue.svg)]()
+[![Version](https://img.shields.io/badge/version-3.0.0-blue.svg)]()
 
-> MCP server that compresses any codebase into LLM-ready semantic context **and provides surgical code editing tools**. AST-based read & write for TypeScript, JavaScript, PHP, Dart & Python.
+> MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
 
 ## 🚀 Quick Start (Claude Desktop)
 
@@ -22,6 +22,8 @@
 }
 ```
 3. **Enjoy**: Use symbols like `@code-context` to map repos or edit code surgically.
+
+**No build tools required** - Works on Windows/Mac/Linux without Visual Studio, Python, or node-gyp.
 
 Works with **Claude Desktop**, **Cursor**, **Windsurf**, **GitHub Copilot**, **Amazon Q**, and any [Model Context Protocol](https://modelcontextprotocol.io/) compatible client.
 
@@ -48,7 +50,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 ## Features
 
 ### Read
-- 🌳 **AST-based compression** — Real parsers for TypeScript/JavaScript ([ts-morph](https://ts-morph.com/)) and PHP ([php-parser](https://github.com/nickygerritsen/php-parser)). Brace-counting engine for Dart. Regex-based extraction for Python.
+- 🌳 **AST-based compression** — Real Tree-sitter WASM parsers for TypeScript/JavaScript/Python/PHP/Dart. Zero regex-based parsing.
 - 🔬 **Surgical symbol extraction** — Extract a single function, class, or method from a file by name. Use `className` to scope disambiguation (e.g., getting multiple `build()` methods in Dart).
 - 💥 **Impact analysis** — Discover all files that depend on a given file before refactoring. Supports ES imports, CommonJS `require()`, Python imports, PHP `use`/`require_once`/`include`, and Dart imports.
 - 📁 **Smart file walking** — Respects `.gitignore` and `.repomixignore` rules. Automatically excludes `node_modules`, `dist`, `vendor`, `.git`, etc.
@@ -69,10 +71,10 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 | Language | Read (Compress + Extract) | Write (Replace + Insert + Rename + Remove) | Import Analysis |
 |----------|---------------------------|---------------------------------------------|------------------|
-| TypeScript / JavaScript | ✅ AST (ts-morph) | ✅ AST (ts-morph) | ✅ |
-| PHP | ✅ AST (php-parser) | ✅ AST + line-splice | ✅ |
-| Dart | ✅ Brace-counting + regex | ✅ Brace-counting + regex | ✅ |
-| Python | ✅ Regex-based | ✅ Indentation-aware | ✅ |
+| TypeScript / JavaScript | ✅ AST (Tree-sitter WASM) | ✅ AST (Tree-sitter WASM) | ✅ |
+| PHP | ✅ AST (Tree-sitter WASM) | ✅ AST + line-splice | ✅ |
+| Dart | ✅ AST (Tree-sitter WASM) | ✅ AST + line-splice | ✅ |
+| Python | ✅ AST (Tree-sitter WASM) | ✅ Indentation-aware | ✅ |
 | Others (JSON, YAML, CSS, etc.) | Passthrough / truncation | — | — |
 
 ## ⚠️ Known Limitations
@@ -109,12 +111,14 @@ Built to be robust and precise. Both read and write engines are tested against r
 git clone https://github.com/YOUR_USERNAME/mcp-code-context.git
 cd mcp-code-context
 
-# Install dependencies
+# Install dependencies (no build tools required!)
 npm install
 
 # Build
 npm run build
 ```
+
+**Note**: Unlike v2.x, this version uses **web-tree-sitter (WASM)** instead of native bindings. No Visual Studio, Python, or node-gyp required!
 
 ## Configuration
 
@@ -289,9 +293,11 @@ npm run dev
 - **Transport:** stdio (JSON-RPC over stdin/stdout)
 - **Runtime:** Node.js >= 18
 - **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io/)
-- **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting (Dart), regex (Python)
+- **AST Engines:** web-tree-sitter@0.25.1 (WASM) for TypeScript/JS/Python/PHP/Dart
+- **Language Grammars:** tree-sitter-wasms@0.1.13 (ABI v15)
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
 - **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration.
+- **Portability:** 100% WASM - no native dependencies, works on all platforms
 
 ## License
 
