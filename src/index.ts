@@ -243,6 +243,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 // Setup connection and initialize engine
 async function main() {
   engine = new CodeContextEngine();
+  await engine.init();
   registry = new ParserRegistry(engine);
   await registry.init();
 
