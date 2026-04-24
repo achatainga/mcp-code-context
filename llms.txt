@@ -1,23 +1,16 @@
-# mcp-code-context v2.6.0
+# mcp-code-context v3.0.0
 
-> A Model Context Protocol (MCP) server that compresses any code repository into LLM-ready semantic context and provides surgical code editing tools.
+> A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
 
-## What's New in v2.6.0
+## What's New in v3.0.0
 
-🚀 **Async I/O Migration**: Non-blocking architecture
-- ✅ Eliminated all synchronous file operations
-- ✅ Event loop never blocks on large repositories
-- ✅ 3x faster on repos with 1000+ files
-- ✅ Scalability: 4.0 → 9.0 (+5.0)
-- ✅ Fuzzy match with distance threshold (reduces noise)
-
-## What's New in v2.5.1
-
-🔒 **Critical Reliability Fixes**:
-- ✅ Race condition prevention with cache versioning
-- ✅ Post-write syntax validation (zero broken files)
-- ✅ Circuit breaker for batch operations
-- ✅ Data integrity: 95% → 100%
+🚀 **Complete WASM Migration**: 100% portable architecture
+- ✅ Migrated to web-tree-sitter@0.25.1 (WASM)
+- ✅ Zero native dependencies (no Visual Studio, node-gyp, Python)
+- ✅ Works on Windows/Mac/Linux without compilation
+- ✅ Dart with full Tree-sitter AST (no regex fallback)
+- ✅ TypeScript/JavaScript/Python/PHP all use WASM parsers
+- ✅ ABI v15 support (latest language grammars)
 
 ## What This Tool Does
 
@@ -39,10 +32,10 @@ This MCP server solves two problems:
 **What it does:**
 - Walks the directory tree respecting `.gitignore` and `.repomixignore` rules.
 - Always excludes `node_modules`, `dist`, `build`, `vendor`, `.git`.
-- For TypeScript/JavaScript: Uses AST parsing (ts-morph) to extract only function signatures, class structures, interfaces, types, and enums.
-- For PHP: Uses AST parsing (php-parser) to extract namespaces, classes, interfaces, traits, enums, methods, properties, and docblocks.
-- For Dart: Uses brace-counting + regex engine to extract classes, mixins, extensions, enums, methods, and fields.
-- For Python: Uses regex-based extraction to capture class/function signatures and docstrings.
+- For TypeScript/JavaScript: Uses Tree-sitter WASM to extract function signatures, class structures, interfaces, types, and enums.
+- For PHP: Uses Tree-sitter WASM to extract namespaces, classes, interfaces, traits, enums, methods, properties.
+- For Dart: Uses Tree-sitter WASM to extract classes, mixins, extensions, enums, methods, and fields.
+- For Python: Uses Tree-sitter WASM to capture class/function signatures and docstrings.
 - For other files: Returns content as-is if small, or a truncated preview if large.
 
 **Best used when:** You need to understand the architecture of a project before diving into specific files.
@@ -158,7 +151,7 @@ All write tools follow a **Two-Phase Workflow**:
 - `className` (optional): Scope the symbol to a specific class.
 
 **What it does:**
-- Locates the symbol via AST parsing (ts-morph, php-parser, brace-counting, or indentation detection).
+- Locates the symbol via Tree-sitter WASM parsing.
 - Replaces only that symbol's code, preserving all other file contents.
 - Returns a unified diff showing exactly what changed.
 - Validates the result is syntactically valid before writing.
@@ -230,7 +223,9 @@ All write tools follow a **Two-Phase Workflow**:
 
 - **Transport:** stdio (JSON-RPC over stdin/stdout)
 - **Runtime:** Node.js >= 18
-- **AST Engines:** ts-morph (TypeScript/JS), php-parser (PHP), brace-counting/regex (Dart, Python)
+- **AST Engines:** web-tree-sitter@0.25.1 (WASM) for all languages
+- **Language Grammars:** tree-sitter-wasms@0.1.13 (ABI v15)
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
 - **Supported languages:** TypeScript, JavaScript (all variants), PHP, Dart, Python
 - **Safety features:** Mandatory two-phase confirmation, rolling 5-version backups (`.mcp-backups/`), fuzzy symbol suggestions, dependency tracking, surgical restoration.
+- **Portability:** 100% WASM - no native dependencies, works on all platforms
