@@ -1,6 +1,14 @@
-# mcp-code-context v3.0.0
+# mcp-code-context v3.0.1
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
+
+## What's New in v3.0.1
+
+🔧 **NPM Package Optimization**:
+- ✅ Package size reduced: 658.6 kB → 105.5 kB (-84%)
+- ✅ File count reduced: 131 files → 36 files (-73%)
+- ✅ Clean dist/ structure (no nested dist/src/)
+- ✅ Excluded legacy v2 code from npm distribution
 
 ## What's New in v3.0.0
 

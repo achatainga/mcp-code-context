@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.0.0 - Tree-sitter WASM Edition
+ * mcp-code-context v3.0.1 - Tree-sitter WASM Edition
  * 
  * Complete rewrite with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -24,7 +24,7 @@ import { SecurityValidator } from "./core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile } from "./operations/write.js";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.0.0";
+const SERVER_VERSION = "3.0.1";
 
 // Global instances
 let engine: CodeContextEngine;

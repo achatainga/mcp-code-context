@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.0.1] - 2026-04-24
+
+### 🔧 Package Optimization
+
+**Patch release with npm package improvements**
+
+### Changed
+- **NPM Package Size**: Reduced from 658.6 kB to 105.5 kB (-84%)
+- **File Count**: Reduced from 131 files to 36 files (-73%)
+- **Build Structure**: Fixed tsconfig to compile src/ directly to dist/ (no nested dist/src/)
+- **Test Compilation**: Separated test builds to dist-tests/ (excluded from npm)
+
+### Fixed
+- Removed legacy v2 code from npm package
+- Excluded wasm/, docs/, src-v2-legacy/ from distribution
+- Clean dist/ structure without nested directories
+
+### Technical
+- Updated tsconfig.json: rootDir now "./src"
+- Created tsconfig.tests.json for separate test compilation
+- Added prepublishOnly script for safety
+- Updated .npmignore with comprehensive exclusions
+
+---
+
 ## [3.0.0] - 2026-04-24
 
 ### 🚀 COMPLETE REWRITE - Tree-sitter WASM Edition

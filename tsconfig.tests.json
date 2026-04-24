@@ -1,10 +1,27 @@
 {
-  "extends": "./tsconfig.json",
   "compilerOptions": {
+    "target": "ES2022",
+    "module": "Node16",
+    "moduleResolution": "Node16",
+    "outDir": "./dist-tests",
     "rootDir": ".",
-    "outDir": "./dist-tests"
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "sourceMap": true,
+    "baseUrl": ".",
+    "paths": {
+      "web-tree-sitter": ["node_modules/web-tree-sitter/web-tree-sitter.d.ts"]
+    }
   },
   "include": [
-    "tests/**/*"
+    "tests/test-wasm-parsers.ts",
+    "tests/manual/**/*"
+  ],
+  "exclude": [
+    "node_modules"
   ]
 }
