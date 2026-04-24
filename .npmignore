@@ -27,6 +27,12 @@ AGENT_INSTRUCTIONS.md
 PUSH_INSTRUCTIONS.md
 RELEASE_SUMMARY_*.md
 
+# Roadmaps (internal planning)
+ROADMAP_*.md
+
+# Old release notes
+RELEASE_NOTES_*.md
+
 # Validation scripts (internal use only)
 validate-release.ps1
 validate-release.sh

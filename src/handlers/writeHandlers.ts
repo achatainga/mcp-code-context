@@ -104,7 +104,7 @@ export async function handleWriteFileSurgical(args: Record<string, unknown>) {
 
   let content: string;
   try {
-    content = fs.readFileSync(resolvedPath, "utf-8");
+    content = await fs.promises.readFile(resolvedPath, "utf-8");
   } catch (error: unknown) {
     return errorResponse(`Read failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -233,7 +233,7 @@ export async function handleInsertSymbol(args: Record<string, unknown>) {
 
   let fileContent: string;
   try {
-    fileContent = fs.readFileSync(resolvedPath, "utf-8");
+    fileContent = await fs.promises.readFile(resolvedPath, "utf-8");
   } catch (error: unknown) {
     return errorResponse(`Read failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -348,7 +348,7 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
 
   let sourceContent: string;
   try {
-    sourceContent = fs.readFileSync(resolvedPath, "utf-8");
+    sourceContent = await fs.promises.readFile(resolvedPath, "utf-8");
   } catch (error: unknown) {
     return errorResponse(`Read failed: ${error instanceof Error ? error.message : String(error)}`);
   }
@@ -478,7 +478,7 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
 
   let fileContent: string;
   try {
-    fileContent = fs.readFileSync(resolvedPath, "utf-8");
+    fileContent = await fs.promises.readFile(resolvedPath, "utf-8");
   } catch (error: unknown) {
     return errorResponse(`Read failed: ${error instanceof Error ? error.message : String(error)}`);
   }

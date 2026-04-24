@@ -109,7 +109,7 @@ console.log("\n🧪 Testing search_code_pattern...\n");
 
 // Test 5: Search for pattern
 console.log("Test 5: Search for 'Calculator'");
-const result5 = searchCodePattern({
+const result5 = await searchCodePattern({
   rootDir: testDir,
   pattern: "Calculator",
   fileExtensions: [".ts"],
@@ -125,7 +125,7 @@ if (result5.success && result5.matches && result5.matches.length > 0) {
 
 // Test 6: Search with no matches
 console.log("\nTest 6: Search for non-existent pattern");
-const result6 = searchCodePattern({
+const result6 = await searchCodePattern({
   rootDir: testDir,
   pattern: "NonExistentClass123",
   fileExtensions: [".ts"],
@@ -139,7 +139,7 @@ if (result6.success && result6.totalMatches === 0) {
 
 // Test 7: Search with context
 console.log("\nTest 7: Search with context lines");
-const result7 = searchCodePattern({
+const result7 = await searchCodePattern({
   rootDir: testDir,
   pattern: "divide",
   fileExtensions: [".ts"],

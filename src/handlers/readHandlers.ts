@@ -164,7 +164,7 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
 
   let content: string;
   try {
-    content = fs.readFileSync(resolvedPath, "utf-8");
+    content = await fs.promises.readFile(resolvedPath, "utf-8");
   } catch (error: unknown) {
     const msg = error instanceof Error ? error.message : String(error);
     return errorResponse(`Failed to read file: ${msg}`);
@@ -364,7 +364,7 @@ export async function handleReadFileLines(args: Record<string, unknown>) {
 // ─── Handler: search_code_pattern ───────────────────────────────────
 
 export async function handleSearchCodePattern(args: Record<string, unknown>) {
-  const result = searchCodePattern(args as any);
+  const result = await searchCodePattern(args as any);
 
   if (!result.success) {
     return errorResponse(result.error || "Unknown error searching code");

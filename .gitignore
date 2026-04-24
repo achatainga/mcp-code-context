@@ -58,6 +58,12 @@ PUSH_INSTRUCTIONS.md
 RELEASE_SUMMARY_*.md
 PRODUCTION_READY_FINAL.md
 
+# Roadmaps (internal planning)
+ROADMAP_*.md
+
+# Old release notes (keep only CHANGELOG.md)
+RELEASE_NOTES_*.md
+
 # Release automation scripts (internal use only)
 release-to-production.ps1
 validate-release.ps1
