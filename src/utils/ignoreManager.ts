@@ -98,52 +98,49 @@ export class IgnoreManager {
 
   /**
    * Recursively walk a directory, returning absolute paths to all
-   * non-ignored files.
+   * non-ignored files. Uses async I/O to avoid blocking event loop.
    */
-  public walkDirectory(dir?: string): string[] {
+  public async walkDirectory(dir?: string, signal?: AbortSignal): Promise<string[]> {
     const baseDir = dir ? path.resolve(dir) : this.rootDir;
     const files: string[] = [];
-    this.walk(baseDir, files);
+    await this.walk(baseDir, files, signal);
     return files;
   }
 
-/**
-   * Async version of walkDirectory - non-blocking for large repos
+  /**
+   * @deprecated Use walkDirectory() instead (now async by default)
    */
   public async walkDirectoryAsync(dir?: string, signal?: AbortSignal): Promise<string[]> {
-    const baseDir = dir ? path.resolve(dir) : this.rootDir;
-    const files: string[] = [];
-    await this.walkAsync(baseDir, files, signal);
-    return files;
+    return this.walkDirectory(dir, signal);
   }
 
   /**
    * Async recursive walk implementation
    */
-  private async walkAsync(currentDir: string, collected: string[], signal?: AbortSignal): Promise<void> {
+  private async walk(currentDir: string, collected: string[], signal?: AbortSignal): Promise<void> {
     if (signal?.aborted) throw new Error("Operation cancelled");
+    
     let entries: fs.Dirent[];
     try {
       entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
     } catch {
-      return; // Permission denied, broken symlink, etc.
+      return;
     }
 
     for (const entry of entries) {
+      if (signal?.aborted) throw new Error("Operation cancelled");
+      
       const fullPath = path.join(currentDir, entry.name);
       const relativePath = path
         .relative(this.rootDir, fullPath)
         .replace(/\\/g, "/");
 
-      // Check ignore rules
       if (this.isIgnored(relativePath)) continue;
 
       if (entry.isDirectory()) {
-        // Also test with trailing slash for directory-level patterns
         if (this.isIgnored(relativePath + "/")) continue;
-        await this.walkAsync(fullPath, collected, signal);
+        await this.walk(fullPath, collected, signal);
       } else if (entry.isFile()) {
-        // Skip files that are too large
         try {
           const stat = await fs.promises.stat(fullPath);
           if (stat.size > MAX_FILE_SIZE_BYTES) continue;
@@ -152,42 +149,6 @@ export class IgnoreManager {
         }
         collected.push(fullPath);
       }
-      // Symlinks and other entries are silently skipped
-    }
-  }
-
-  private walk(currentDir: string, collected: string[]): void {
-    let entries: fs.Dirent[];
-    try {
-      entries = fs.readdirSync(currentDir, { withFileTypes: true });
-    } catch {
-      return; // Permission denied, broken symlink, etc.
-    }
-
-    for (const entry of entries) {
-      const fullPath = path.join(currentDir, entry.name);
-      const relativePath = path
-        .relative(this.rootDir, fullPath)
-        .replace(/\\/g, "/");
-
-      // Check ignore rules
-      if (this.isIgnored(relativePath)) continue;
-
-      if (entry.isDirectory()) {
-        // Also test with trailing slash for directory-level patterns
-        if (this.isIgnored(relativePath + "/")) continue;
-        this.walk(fullPath, collected);
-      } else if (entry.isFile()) {
-        // Skip files that are too large
-        try {
-          const stat = fs.statSync(fullPath);
-          if (stat.size > MAX_FILE_SIZE_BYTES) continue;
-        } catch {
-          continue;
-        }
-        collected.push(fullPath);
-      }
-      // Symlinks and other entries are silently skipped
     }
   }
 }

@@ -38,7 +38,7 @@ export interface SearchCodePatternResult {
  * Synchronous version (deprecated, use async version)
  * @deprecated Use searchCodePattern (async) instead
  */
-export function searchCodePatternSync(args: SearchCodePatternArgs): SearchCodePatternResult {
+export async function searchCodePatternSync(args: SearchCodePatternArgs): Promise<SearchCodePatternResult> {
   const {
     rootDir,
     pattern,
@@ -59,7 +59,7 @@ export function searchCodePatternSync(args: SearchCodePatternArgs): SearchCodePa
   }
 
   const ignoreManager = new IgnoreManager(resolvedRoot);
-  const allFiles = ignoreManager.walkDirectory();
+  const allFiles = await ignoreManager.walkDirectory();
 
   const matches: SearchMatch[] = [];
   let totalMatches = 0;
@@ -75,7 +75,7 @@ export function searchCodePatternSync(args: SearchCodePatternArgs): SearchCodePa
 
     let content: string;
     try {
-      content = fs.readFileSync(file, "utf-8");
+      content = await fs.promises.readFile(file, "utf-8");
     } catch {
       continue;
     }

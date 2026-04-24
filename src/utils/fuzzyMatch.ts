@@ -34,12 +34,18 @@ export function levenshteinDistance(a: string, b: string): number {
   return matrix[b.length][a.length];
 }
 
-export function findClosestSymbols(target: string, symbols: SymbolInfo[], limit = 5): SymbolInfo[] {
+export function findClosestSymbols(
+  target: string, 
+  symbols: SymbolInfo[], 
+  limit = 5,
+  maxDistance = 3
+): SymbolInfo[] {
   return symbols
     .map((sym) => ({
       ...sym,
       distance: levenshteinDistance(target.toLowerCase(), sym.name.toLowerCase()),
     }))
+    .filter(s => s.distance <= maxDistance)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, limit);
 }

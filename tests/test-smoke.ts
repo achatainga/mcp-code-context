@@ -23,7 +23,7 @@ async function main() {
   // --- Test 1: IgnoreManager ---
   console.log("─── Test 1: IgnoreManager ───");
   const ig = new IgnoreManager(PROJECT_ROOT);
-  const files = ig.walkDirectory();
+  const files = await ig.walkDirectory();
   log("Files discovered", files.length);
   log("node_modules excluded", files.every(f => !f.includes("node_modules")) ? "YES" : "FAIL");
   log("dist excluded", files.every(f => !f.includes(path.sep + "dist" + path.sep)) ? "YES" : "FAIL");
