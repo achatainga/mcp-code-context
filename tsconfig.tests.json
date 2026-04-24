@@ -19,6 +19,7 @@
   },
   "include": [
     "tests/test-wasm-parsers.ts",
+    "tests/test-security.ts",
     "tests/manual/**/*"
   ],
   "exclude": [
