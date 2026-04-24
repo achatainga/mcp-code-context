@@ -1,10 +1,12 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.0.0 - Tree-sitter Edition
+ * mcp-code-context v3.0.0 - Tree-sitter WASM Edition
  * 
  * Complete rewrite with:
- * - Tree-sitter WASM for 100% accuracy
+ * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
+ * - Zero native dependencies (no Visual Studio, node-gyp, or Python required)
+ * - 100% portable across Windows/Mac/Linux
  * - Async-first architecture
  * - Mandatory security boundaries
  */
@@ -266,7 +268,7 @@ function errorResponse(message: string) {
 }
 
 async function main(): Promise<void> {
-  console.error("🚀 Initializing mcp-code-context v3.0.0...");
+  console.error("🚀 Initializing mcp-code-context v3.0.0 (WASM)...");
 
   engine = new CodeContextEngine();
   await engine.init();
@@ -274,7 +276,7 @@ async function main(): Promise<void> {
   registry = new ParserRegistry(engine);
   await registry.init();
 
-  console.error("✅ Engine initialized with Tree-sitter");
+  console.error("✅ Engine initialized with Tree-sitter WASM (portable)");
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

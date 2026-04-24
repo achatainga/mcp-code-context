@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.0.0] - 2025-01-XX
+## [3.0.0] - 2026-04-24
 
 ### 🚀 COMPLETE REWRITE - Tree-sitter WASM Edition
 
