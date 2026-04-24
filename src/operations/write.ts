@@ -9,6 +9,7 @@ import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
 import { SecurityValidator } from "../core/validator.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
+import { generateUnifiedDiff } from "../utils/diff.js";
 
 export interface WriteResult {
   success: boolean;
@@ -335,23 +336,5 @@ export async function writeFile(filePath: string, content: string): Promise<void
  * Generate unified diff (simple line-by-line)
  */
 function generateDiff(oldContent: string, newContent: string): string {
-  const oldLines = oldContent.split("\n");
-  const newLines = newContent.split("\n");
-
-  const diff: string[] = [];
-  const maxLen = Math.max(oldLines.length, newLines.length);
-
-  for (let i = 0; i < maxLen; i++) {
-    const oldLine = oldLines[i];
-    const newLine = newLines[i];
-
-    if (oldLine === newLine) {
-      diff.push(`  ${oldLine || ""}`);
-    } else {
-      if (oldLine !== undefined) diff.push(`- ${oldLine}`);
-      if (newLine !== undefined) diff.push(`+ ${newLine}`);
-    }
-  }
-
-  return diff.join("\n");
+  return generateUnifiedDiff(oldContent, newContent, 3);
 }
