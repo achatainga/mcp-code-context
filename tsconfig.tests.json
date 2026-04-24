@@ -20,6 +20,8 @@
   "include": [
     "tests/test-wasm-parsers.ts",
     "tests/test-security.ts",
+    "tests/test-rate-limiter.ts",
+    "tests/test-file-lock.ts",
     "tests/manual/**/*"
   ],
   "exclude": [

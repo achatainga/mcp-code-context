@@ -1,12 +1,13 @@
 /**
- * Read Operations - v3.2.0
- * IMPROVEMENTS: Centralized constants
+ * Read Operations - v3.3.0
+ * IMPROVEMENTS: Safe regex with timeout, rate limiting ready
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
+import { safeRegexTest } from "../utils/safeRegex.js";
 
 export interface ReadResult {
   success: boolean;
@@ -129,10 +130,21 @@ export async function searchPattern(params: {
 }): Promise<ReadResult> {
   try {
     const results: any[] = [];
+    const maxResults = params.maxResults || 50;
+
+    // Validate regex pattern
+    const { validateRegexPattern } = await import("../utils/safeRegex.js");
+    const validation = validateRegexPattern(params.pattern);
+    if (!validation.safe) {
+      return {
+        success: false,
+        error: `Unsafe regex pattern: ${validation.issues.join(", ")}`
+      };
+    }
+
     const regex = new RegExp(params.pattern, "g");
     const extensions = params.fileExtensions || SUPPORTED_EXTENSIONS;
     const excludeDirs = params.excludeDirs || EXCLUDE_DIRS;
-    const maxResults = params.maxResults || 50;
 
     async function walkDir(dir: string) {
       if (results.length >= maxResults) return;
@@ -154,14 +166,22 @@ export async function searchPattern(params: {
             const content = await fs.readFile(fullPath, "utf-8");
             const lines = content.split("\n");
 
-            lines.forEach((line, index) => {
+            lines.forEach(async (line, index) => {
               if (results.length >= maxResults) return;
-              if (regex.test(line)) {
+              
+              // Use safe regex test with timeout
+              const testResult = await safeRegexTest(regex, line);
+              if (testResult.timedOut) {
+                console.warn(`⚠️  Regex timeout on line ${index + 1} in ${fullPath}`);
+                return;
+              }
+              
+              if (testResult.matched) {
                 results.push({
                   file: fullPath,
                   line: index + 1,
                   content: line.trim(),
-                });
+              });
               }
             });
           }

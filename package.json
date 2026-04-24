@@ -1,7 +1,7 @@
 {
   "name": "mcp-code-context",
-  "version": "3.2.0",
-  "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Enhanced security and validation. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
+  "version": "3.3.0",
+  "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
   "type": "module",
   "main": "dist/src/index.js",
   "bin": {
