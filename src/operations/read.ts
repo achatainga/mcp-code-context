@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.4.0
+ * Read Operations - v3.4.1
  * FIXES: extractSymbol args, safe regex in readLines, forEach+async → for...of
  */
 

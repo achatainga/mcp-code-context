@@ -1,5 +1,5 @@
 /**
- * Backup Manager - v3.4.0
+ * Backup Manager - v3.4.1
  * Handles rolling backups for file modifications
  */
 

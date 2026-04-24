@@ -1,5 +1,5 @@
 /**
- * Confirmation Store - v3.4.0
+ * Confirmation Store - v3.4.1
  * Two-phase write: dry-run preview → confirm with token
  * Stores pending write operations with auto-expiry
  */

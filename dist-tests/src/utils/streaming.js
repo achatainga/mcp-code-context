@@ -1,5 +1,5 @@
 /**
- * File Streaming - v3.4.0
+ * File Streaming - v3.4.1
  * Stream large files in chunks to avoid memory exhaustion
  */
 import * as fs from "node:fs";

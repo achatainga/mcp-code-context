@@ -1,5 +1,5 @@
 /**
- * Safe Regex - v3.4.0
+ * Safe Regex - v3.4.1
  * Regex execution with timeout to prevent ReDoS
  */
 

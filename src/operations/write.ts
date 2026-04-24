@@ -1,5 +1,5 @@
 /**
- * Write Operations - v3.4.0
+ * Write Operations - v3.4.1
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
  */
 
@@ -227,7 +227,7 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 
 /**
  * Rename symbol using AST-aware replacement
- * v3.4.0 - SECURITY FIX: Validates all paths + uses atomic writes
+ * v3.4.1 - SECURITY FIX: Validates all paths + uses atomic writes
  */
 export async function renameSymbol(params: {
   filePath: string;

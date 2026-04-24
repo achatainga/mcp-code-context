@@ -1,5 +1,5 @@
 /**
- * Telemetry - v3.4.0
+ * Telemetry - v3.4.1
  * Metrics collection and monitoring
  */
 export class TelemetryCollector {

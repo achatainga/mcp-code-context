@@ -1,6 +1,6 @@
 /**
  * Constants - Centralized configuration
- * v3.4.0
+ * v3.4.1
  */
 export declare const EXCLUDE_DIRS: string[];
 export declare const SUPPORTED_EXTENSIONS: string[];

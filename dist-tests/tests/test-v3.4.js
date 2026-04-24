@@ -1,5 +1,5 @@
 /**
- * Tests v3.4.0 - Telemetry, Streaming, Audit Logger
+ * Tests v3.4.1 - Telemetry, Streaming, Audit Logger
  */
 import { TelemetryCollector, trackOperation, globalTelemetry } from "../src/utils/telemetry.js";
 import { streamFile, streamLines, streamWriteFile } from "../src/utils/streaming.js";
@@ -136,7 +136,7 @@ async function testAuditLogger() {
 }
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 async function main() {
-    console.log("🚀 Running v3.4.0 Test Suite\n");
+    console.log("🚀 Running v3.4.1 Test Suite\n");
     console.log("=".repeat(60));
     await testTelemetry();
     await testStreaming();
@@ -148,7 +148,7 @@ async function main() {
     console.log(`❌ Failed: ${failed}`);
     console.log(`Success Rate: ${(passed / (passed + failed) * 100).toFixed(1)}%`);
     if (failed === 0) {
-        console.log("\n🎉 ALL v3.4.0 TESTS PASSED!");
+        console.log("\n🎉 ALL v3.4.1 TESTS PASSED!");
         process.exit(0);
     }
     else {

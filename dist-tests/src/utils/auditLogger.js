@@ -1,5 +1,5 @@
 /**
- * Audit Logger - v3.4.0
+ * Audit Logger - v3.4.1
  * Comprehensive audit trail for all operations
  */
 import * as fs from "node:fs/promises";
