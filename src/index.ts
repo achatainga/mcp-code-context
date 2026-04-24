@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.0.6 - Tree-sitter WASM Edition
+ * mcp-code-context v3.1.0 - Tree-sitter WASM Edition
  * 
  * Complete rewrite with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -21,10 +21,12 @@ import {
 import { CodeContextEngine } from "./core/engine.js";
 import { ParserRegistry } from "./parsers/registry.js";
 import { SecurityValidator } from "./core/validator.js";
-import { replaceSymbol, insertCode, removeSymbol, writeFile } from "./operations/write.js";
+import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "./operations/write.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact } from "./operations/read.js";
+import { compressRepository } from "./operations/compress.js";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.0.6";
+const SERVER_VERSION = "3.1.0";
 
 // Global instances
 let engine: CodeContextEngine;
@@ -36,6 +38,74 @@ const server = new Server(
 );
 
 const TOOLS = [
+  {
+    name: "get_semantic_repo_map",
+    description: "Generate a compressed architectural overview of an entire repository",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        directoryPath: { type: "string", description: "Absolute path to repository root" },
+        format: { type: "string", enum: ["xml", "markdown"], description: "Output format (default: xml)" },
+      },
+      required: ["directoryPath"],
+    },
+  },
+  {
+    name: "read_file_surgical",
+    description: "Read a file or extract a specific named symbol",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        symbolName: { type: "string", description: "Symbol name to extract (optional)" },
+        className: { type: "string", description: "Class name for scoping (optional)" },
+      },
+      required: ["filePath", "projectRoot"],
+    },
+  },
+  {
+    name: "analyze_impact",
+    description: "Find all files that depend on a given file",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        rootDir: { type: "string", description: "Repository root (optional, auto-detected)" },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
+    name: "read_file_lines",
+    description: "Read specific line ranges from a file",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        startLine: { type: "number", description: "Starting line number (1-indexed)" },
+        endLine: { type: "number", description: "Ending line number (1-indexed)" },
+        aroundPattern: { type: "string", description: "Search pattern to find and return surrounding lines" },
+        contextLines: { type: "number", description: "Number of lines before/after pattern (default: 5)" },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
+    name: "search_code_pattern",
+    description: "Search for code patterns across multiple files",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        rootDir: { type: "string", description: "Repository root directory" },
+        pattern: { type: "string", description: "Regular expression pattern to search" },
+        fileExtensions: { type: "array", items: { type: "string" }, description: "Extensions to search (e.g., [\".ts\", \".dart\"])" },
+        excludeDirs: { type: "array", items: { type: "string" }, description: "Directories to exclude" },
+        maxResults: { type: "number", description: "Maximum matches to return (default: 50)" },
+      },
+      required: ["rootDir", "pattern"],
+    },
+  },
   {
     name: "parse_file",
     description: "Parse a file using Tree-sitter and extract symbols",
@@ -93,6 +163,21 @@ const TOOLS = [
       required: ["filePath", "projectRoot", "symbolName"],
     },
   },
+  {
+    name: "rename_symbol",
+    description: "Rename a symbol across the entire repository",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "File where symbol is defined" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        oldName: { type: "string", description: "Current name" },
+        newName: { type: "string", description: "New name" },
+        rootDir: { type: "string", description: "Repository root (optional)" },
+      },
+      required: ["filePath", "projectRoot", "oldName", "newName"],
+    },
+  },
 ];
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
@@ -104,6 +189,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
   try {
     switch (name) {
+      case "get_semantic_repo_map":
+        return await handleGetSemanticRepoMap(args as Record<string, unknown>);
+      case "read_file_surgical":
+        return await handleReadFileSurgical(args as Record<string, unknown>);
+      case "analyze_impact":
+        return await handleAnalyzeImpact(args as Record<string, unknown>);
+      case "read_file_lines":
+        return await handleReadFileLines(args as Record<string, unknown>);
+      case "search_code_pattern":
+        return await handleSearchCodePattern(args as Record<string, unknown>);
       case "parse_file":
         return await handleParseFile(args as Record<string, unknown>);
       case "replace_symbol":
@@ -112,6 +207,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return await handleInsertCode(args as Record<string, unknown>);
       case "remove_symbol":
         return await handleRemoveSymbol(args as Record<string, unknown>);
+      case "rename_symbol":
+        return await handleRenameSymbol(args as Record<string, unknown>);
       default:
         return errorResponse(`Unknown tool: "${name}"`);
     }
@@ -120,6 +217,154 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return errorResponse(`Error in tool "${name}": ${message}`);
   }
 });
+
+async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
+  const directoryPath = args.directoryPath as string;
+  const format = (args.format as "xml" | "markdown") || "xml";
+
+  if (!directoryPath) return errorResponse("Missing: directoryPath");
+
+  const result = await compressRepository({ directoryPath, format, registry });
+
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: result.content! }],
+  };
+}
+
+async function handleReadFileSurgical(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const projectRoot = args.projectRoot as string;
+  const symbolName = args.symbolName as string | undefined;
+  const className = args.className as string | undefined;
+
+  if (!filePath) return errorResponse("Missing: filePath");
+  if (!projectRoot) return errorResponse("Missing: projectRoot");
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+
+  if (!validation.valid) {
+    return errorResponse(validation.error!);
+  }
+
+  if (!symbolName) {
+    // Return full file
+    const fs = await import("node:fs/promises");
+    const content = await fs.readFile(validation.resolvedPath!, "utf-8");
+    return {
+      content: [{ type: "text" as const, text: content }],
+    };
+  }
+
+  const path = await import("node:path");
+  const ext = path.extname(validation.resolvedPath!);
+  const parser = registry.getParser(ext);
+
+  if (!parser) {
+    return errorResponse(`No parser for: ${ext}`);
+  }
+
+  const result = await extractSymbol({ filePath: validation.resolvedPath!, projectRoot, symbolName, className, parser });
+
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: result.content! }],
+  };
+}
+
+async function handleAnalyzeImpact(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const pathModule = await import("node:path");
+  const rootDir = (args.rootDir as string) || pathModule.dirname(filePath);
+
+  if (!filePath) return errorResponse("Missing: filePath");
+
+  const result = await analyzeImpact({ filePath, rootDir });
+
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: result.content! }],
+  };
+}
+
+async function handleReadFileLines(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const startLine = args.startLine as number | undefined;
+  const endLine = args.endLine as number | undefined;
+  const aroundPattern = args.aroundPattern as string | undefined;
+  const contextLines = args.contextLines as number | undefined;
+
+  if (!filePath) return errorResponse("Missing: filePath");
+
+  const result = await readLines({ filePath, startLine, endLine, aroundPattern, contextLines });
+
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: result.content! }],
+  };
+}
+
+async function handleSearchCodePattern(args: Record<string, unknown>) {
+  const rootDir = args.rootDir as string;
+  const pattern = args.pattern as string;
+  const fileExtensions = args.fileExtensions as string[] | undefined;
+  const excludeDirs = args.excludeDirs as string[] | undefined;
+  const maxResults = args.maxResults as number | undefined;
+
+  if (!rootDir) return errorResponse("Missing: rootDir");
+  if (!pattern) return errorResponse("Missing: pattern");
+
+  const result = await searchPattern({ rootDir, pattern, fileExtensions, excludeDirs, maxResults });
+
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: result.content! }],
+  };
+}
+
+async function handleRenameSymbol(args: Record<string, unknown>) {
+  const filePath = args.filePath as string;
+  const projectRoot = args.projectRoot as string;
+  const oldName = args.oldName as string;
+  const newName = args.newName as string;
+  const rootDir = (args.rootDir as string) || projectRoot;
+
+  if (!filePath) return errorResponse("Missing: filePath");
+  if (!projectRoot) return errorResponse("Missing: projectRoot");
+  if (!oldName) return errorResponse("Missing: oldName");
+  if (!newName) return errorResponse("Missing: newName");
+
+  const path = await import("node:path");
+  const ext = path.extname(filePath);
+  const parser = registry.getParser(ext);
+  if (!parser) return errorResponse(`No parser for: ${ext}`);
+
+  const result = await renameSymbol({ filePath, projectRoot, oldName, newName, rootDir, parser });
+
+  if (!result.success) {
+    return errorResponse(result.error!);
+  }
+
+  return {
+    content: [{ type: "text" as const, text: `✅ Renamed "${oldName}" to "${newName}"\n\n${result.diff}` }],
+  };
+}
 
 async function handleParseFile(args: Record<string, unknown>) {
   const filePath = args.filePath as string;
@@ -268,7 +513,7 @@ function errorResponse(message: string) {
 }
 
 async function main(): Promise<void> {
-  console.error("🚀 Initializing mcp-code-context v3.0.6 (WASM)...");
+  console.error("🚀 Initializing mcp-code-context v3.1.0 (WASM)...");
 
   engine = new CodeContextEngine();
   await engine.init();

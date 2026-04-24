@@ -196,6 +196,80 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 /**
  * Write content to file (atomic)
  */
+export async function renameSymbol(params: {
+  filePath: string;
+  projectRoot: string;
+  oldName: string;
+  newName: string;
+  rootDir: string;
+  parser: BaseParser;
+}): Promise<WriteResult> {
+  try {
+    // Step 1: Rename in definition file
+    const content = await fs.readFile(params.filePath, "utf-8");
+    const tree = params.parser.parse(content);
+    const extracted = params.parser.extractSymbol(tree, content, params.oldName);
+
+    if (!extracted) {
+      return {
+        success: false,
+        error: `Symbol "${params.oldName}" not found in ${params.filePath}`,
+      };
+    }
+
+    const newContent = content.replace(new RegExp(`\\b${params.oldName}\\b`, "g"), params.newName);
+
+    // Step 2: Find dependent files
+    const dependents: string[] = [];
+    const targetFile = path.basename(params.filePath);
+
+    async function walkDir(dir: string) {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+
+        if (entry.isDirectory()) {
+          if (!["node_modules", "dist", "build", ".git"].includes(entry.name)) {
+            await walkDir(fullPath);
+          }
+        } else if (entry.isFile()) {
+          const ext = path.extname(entry.name);
+          if ([".ts", ".js", ".py", ".php", ".dart"].includes(ext)) {
+            const fileContent = await fs.readFile(fullPath, "utf-8");
+            if (fileContent.includes(params.oldName)) {
+              dependents.push(fullPath);
+            }
+          }
+        }
+      }
+    }
+
+    await walkDir(params.rootDir);
+
+    // Step 3: Rename in all dependent files
+    for (const depFile of dependents) {
+      const depContent = await fs.readFile(depFile, "utf-8");
+      const depNewContent = depContent.replace(new RegExp(`\\b${params.oldName}\\b`, "g"), params.newName);
+      await fs.writeFile(depFile, depNewContent, "utf-8");
+    }
+
+    // Step 4: Write definition file
+    await fs.writeFile(params.filePath, newContent, "utf-8");
+
+    return {
+      success: true,
+      newContent,
+      diff: `Renamed in ${dependents.length + 1} files`,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
 export async function writeFile(filePath: string, content: string): Promise<void> {
   const tmpPath = filePath + ".tmp";
   await fs.writeFile(tmpPath, content, "utf-8");
