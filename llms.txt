@@ -1,4 +1,4 @@
-# mcp-code-context v2.4.1
+# mcp-code-context v2.5.0
 
 > A Model Context Protocol (MCP) server that compresses any code repository into LLM-ready semantic context and provides surgical code editing tools.
 

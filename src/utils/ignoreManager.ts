@@ -110,17 +110,18 @@ export class IgnoreManager {
 /**
    * Async version of walkDirectory - non-blocking for large repos
    */
-  public async walkDirectoryAsync(dir?: string): Promise<string[]> {
+  public async walkDirectoryAsync(dir?: string, signal?: AbortSignal): Promise<string[]> {
     const baseDir = dir ? path.resolve(dir) : this.rootDir;
     const files: string[] = [];
-    await this.walkAsync(baseDir, files);
+    await this.walkAsync(baseDir, files, signal);
     return files;
   }
 
   /**
    * Async recursive walk implementation
    */
-  private async walkAsync(currentDir: string, collected: string[]): Promise<void> {
+  private async walkAsync(currentDir: string, collected: string[], signal?: AbortSignal): Promise<void> {
+    if (signal?.aborted) throw new Error("Operation cancelled");
     let entries: fs.Dirent[];
     try {
       entries = await fs.promises.readdir(currentDir, { withFileTypes: true });
@@ -140,7 +141,7 @@ export class IgnoreManager {
       if (entry.isDirectory()) {
         // Also test with trailing slash for directory-level patterns
         if (this.isIgnored(relativePath + "/")) continue;
-        await this.walkAsync(fullPath, collected);
+        await this.walkAsync(fullPath, collected, signal);
       } else if (entry.isFile()) {
         // Skip files that are too large
         try {

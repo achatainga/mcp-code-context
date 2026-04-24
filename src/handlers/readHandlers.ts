@@ -44,7 +44,7 @@ interface Dependent {
 
 // ─── Handler: get_semantic_repo_map ─────────────────────────────────
 
-export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
+export async function handleGetSemanticRepoMap(args: Record<string, unknown>, signal?: AbortSignal) {
   const directoryPath = args.directoryPath as string;
   const format = (args.format as string) || "xml";
 
@@ -59,7 +59,14 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
 
   const resolvedPath = validation.normalizedPath!;
   const ignoreManager = new IgnoreManager(resolvedPath);
-  const files = await ignoreManager.walkDirectoryAsync();
+  
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 60000);
+  
+  try {
+    if (signal?.aborted) throw new Error("Operation cancelled");
+    
+    const files = await ignoreManager.walkDirectoryAsync(resolvedPath, controller.signal);
 
   // CRITICAL: Limit files to prevent timeout
   if (files.length > MAX_FILES_FOR_REPO_MAP) {
@@ -128,14 +135,17 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
     }
   }
 
-  const output =
-    format === "markdown"
-      ? formatAsMarkdown(projectName, resolvedPath, entries, skippedCount)
-      : formatAsXml(projectName, resolvedPath, entries, skippedCount);
+    const output =
+      format === "markdown"
+        ? formatAsMarkdown(projectName, resolvedPath, entries, skippedCount)
+        : formatAsXml(projectName, resolvedPath, entries, skippedCount);
 
-  return {
-    content: [{ type: "text" as const, text: output }],
-  };
+    return {
+      content: [{ type: "text" as const, text: output }],
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ─── Handler: read_file_surgical ────────────────────────────────────

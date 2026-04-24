@@ -25,13 +25,17 @@ interface CacheEntry<T> {
 
 export class LRUCache<K, V> {
   private cache: Map<K, CacheEntry<V>>;
-  private maxSize: number;
-  private currentSize: number;
+  private maxEntries: number;
+  private maxBytes: number;
+  private currentEntries: number;
+  private currentBytes: number;
 
-  constructor(maxSize: number = 100) {
+  constructor(maxEntries: number = 100, maxBytes: number = 100 * 1024 * 1024) {
     this.cache = new Map();
-    this.maxSize = maxSize;
-    this.currentSize = 0;
+    this.maxEntries = maxEntries;
+    this.maxBytes = maxBytes;
+    this.currentEntries = 0;
+    this.currentBytes = 0;
   }
 
   get(key: K, filePath?: string): V | undefined {
@@ -45,12 +49,14 @@ export class LRUCache<K, V> {
 
         if (currentMtime !== entry.mtime) {
           this.cache.delete(key);
-          this.currentSize--;
+          this.currentEntries--;
+          this.currentBytes -= entry.size;
           return undefined;
         }
       } catch {
         this.cache.delete(key);
-        this.currentSize--;
+        this.currentEntries--;
+        this.currentBytes -= entry.size;
         return undefined;
       }
     }
@@ -71,22 +77,39 @@ export class LRUCache<K, V> {
     }
 
     if (this.cache.has(key)) {
+      const oldEntry = this.cache.get(key)!;
       this.cache.delete(key);
-      this.currentSize--;
+      this.currentEntries--;
+      this.currentBytes -= oldEntry.size;
     }
 
-    while (this.currentSize >= this.maxSize) {
+    while (this.currentBytes + estimatedSize > this.maxBytes && this.cache.size > 0) {
       const oldestKey = this.cache.keys().next().value as K;
-      if (oldestKey !== undefined) {
+      const oldEntry = this.cache.get(oldestKey);
+      if (oldEntry) {
+        this.currentBytes -= oldEntry.size;
         this.cache.delete(oldestKey);
-        this.currentSize--;
+        this.currentEntries--;
+      } else {
+        break;
+      }
+    }
+
+    while (this.currentEntries >= this.maxEntries) {
+      const oldestKey = this.cache.keys().next().value as K;
+      const oldEntry = this.cache.get(oldestKey);
+      if (oldEntry) {
+        this.currentBytes -= oldEntry.size;
+        this.cache.delete(oldestKey);
+        this.currentEntries--;
       } else {
         break;
       }
     }
 
     this.cache.set(key, { value, mtime, size: estimatedSize });
-    this.currentSize++;
+    this.currentEntries++;
+    this.currentBytes += estimatedSize;
   }
 
   has(key: K, filePath?: string): boolean {
@@ -94,21 +117,26 @@ export class LRUCache<K, V> {
   }
 
   invalidate(key: K): void {
-    if (this.cache.has(key)) {
+    const entry = this.cache.get(key);
+    if (entry) {
       this.cache.delete(key);
-      this.currentSize--;
+      this.currentEntries--;
+      this.currentBytes -= entry.size;
     }
   }
 
   clear(): void {
     this.cache.clear();
-    this.currentSize = 0;
+    this.currentEntries = 0;
+    this.currentBytes = 0;
   }
 
-  getStats(): { size: number; maxSize: number } {
+  getStats(): { entries: number; maxEntries: number; bytes: number; maxBytes: number } {
     return {
-      size: this.currentSize,
-      maxSize: this.maxSize,
+      entries: this.currentEntries,
+      maxEntries: this.maxEntries,
+      bytes: this.currentBytes,
+      maxBytes: this.maxBytes,
     };
   }
 }

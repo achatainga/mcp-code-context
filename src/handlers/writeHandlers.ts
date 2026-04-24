@@ -32,6 +32,7 @@ import {
   validateSymbolName,
 } from "../utils/validation.js";
 import { IMPORTABLE_EXTENSIONS } from "../utils/constants.js";
+import { checkSymbolUsage } from "../utils/dependencyChecker.js";
 
 // ─── Handler: write_file_surgical ───────────────────────────────────
 
@@ -497,10 +498,9 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
         
         try {
           const fContent = await fs.promises.readFile(f, "utf-8");
-          const escaped = symbolName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const regex = new RegExp(`(?<=^|[^a-zA-Z0-9_$])(${escaped})(?=[^a-zA-Z0-9_$]|$)`);
+          const isUsed = await checkSymbolUsage(f, fContent, symbolName);
           
-          if (regex.test(fContent)) {
+          if (isUsed) {
              return errorResponse(`Symbol "${symbolName}" used in ${path.relative(projectRoot, f)}. Use force: true to delete.`);
           }
         } catch {}

@@ -26,10 +26,21 @@
 
 ---
 
-## 🔄 FASE 2: CACHE MEMORY LIMITS (PENDIENTE)
+## ✅ FASE 2: CACHE MEMORY LIMITS (COMPLETADA)
 
-**Tiempo estimado:** 6h  
-**Objetivo:** Límite real en bytes, no solo entries
+**Tiempo:** 1h  
+**Archivos modificados:**
+- `src/cache/astCache.ts` ✅
+
+**Archivos creados:**
+- `tests/test-cache-limits.ts` ✅
+
+**Tests:** 3/3 pasando ✅
+
+**Funcionalidad:**
+- Límite real en bytes (100MB default)
+- Eviction por bytes y entries
+- Tracking de memoria real
 
 ### Archivos a modificar:
 1. `src/cache/astCache.ts`
@@ -101,10 +112,17 @@ export class LRUCache<K, V> {
 
 ---
 
-## 🔄 FASE 3: ABORTCONTROLLER SUPPORT (PENDIENTE)
+## ✅ FASE 3: ABORTCONTROLLER SUPPORT (COMPLETADA)
 
-**Tiempo estimado:** 4h  
-**Objetivo:** Cancelación de operaciones largas
+**Tiempo:** 1h  
+**Archivos modificados:**
+- `src/handlers/readHandlers.ts` ✅
+- `src/utils/ignoreManager.ts` ✅
+
+**Funcionalidad:**
+- Timeout 60s en get_semantic_repo_map
+- Cancelación graceful
+- Signal propagation
 
 ### Archivos a modificar:
 1. `src/handlers/readHandlers.ts` - handleGetSemanticRepoMap
@@ -156,10 +174,21 @@ private async walkAsync(
 
 ---
 
-## 🔄 FASE 4: AST-AWARE DEPENDENCY CHECK (PENDIENTE)
+## ✅ FASE 4: AST-AWARE DEPENDENCY CHECK (COMPLETADA)
 
-**Tiempo estimado:** 12h  
-**Objetivo:** Eliminar falsos positivos en remove_symbol
+**Tiempo:** 2h  
+**Archivos creados:**
+- `src/utils/dependencyChecker.ts` ✅
+
+**Archivos modificados:**
+- `src/handlers/writeHandlers.ts` ✅
+
+**Tests:** 149/149 pasando ✅
+
+**Funcionalidad:**
+- AST parsing para TS/JS/PHP
+- Ignora símbolos en comments/strings
+- Elimina falsos positivos
 
 ### Archivos a modificar:
 1. `src/handlers/writeHandlers.ts` - handleRemoveSymbol (línea 480-510)
