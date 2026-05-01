@@ -589,6 +589,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const startTime = Date.now();
   let success = false;
   let lockReleased = false;
+  let lockRelease: (() => Promise<void>) | null = null;
 
   try {
     // 1. Rate Limiting Middleware
@@ -601,10 +602,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     // 2. File Locking Middleware (for writes only)
     if (WRITE_OPS.has(name) && args && args.filePath) {
-      const lockResult = await globalLockManager.acquireLock(String(args.filePath), "mcp-client", name);
-      if (!lockResult.acquired) {
-        throw new Error(`File is locked: ${lockResult.error}`);
-      }
+      lockRelease = await globalLockManager.acquireLock(String(args.filePath));
     }
 
     // 3. Execution
@@ -652,8 +650,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const duration = Date.now() - startTime;
 
     // 4. File Lock Release
-    if (WRITE_OPS.has(name) && args && args.filePath && !lockReleased) {
-      globalLockManager.releaseLock(String(args.filePath), "mcp-client");
+    if (lockRelease && !lockReleased) {
+      await lockRelease();
       lockReleased = true;
     }
 

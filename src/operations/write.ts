@@ -11,6 +11,7 @@ import { SecurityValidator } from "../core/validator.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
 import { generateUnifiedDiff } from "../utils/diff.js";
 import { sanitizeRegexPattern } from "../utils/safeRegex.js";
+import { walkDir } from "../utils/fileWalker.js";
 
 export interface WriteResult {
   success: boolean;
@@ -283,38 +284,25 @@ export async function renameSymbol(params: {
     // Step 2: Find dependent files and cache their content (single read per file)
     const dependents: Array<{ path: string; content: string }> = [];
 
-    async function walkDir(dir: string) {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+    await walkDir(params.rootDir, {
+      extensions: SUPPORTED_EXTENSIONS,
+      excludeDirs: EXCLUDE_DIRS,
+      onFile: async (fullPath) => {
+        const depValidation = await validator.validateFilePath(fullPath);
+        if (!depValidation.valid) return;
 
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          if (!EXCLUDE_DIRS.includes(entry.name)) {
-            await walkDir(fullPath);
-          }
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-          if (SUPPORTED_EXTENSIONS.includes(ext as any)) {
-            const depValidation = await validator.validateFilePath(fullPath);
-            if (!depValidation.valid) continue;
-
-            const fileContent = await fs.readFile(fullPath, "utf-8");
-            const importPatterns = [
-              new RegExp(`import.*\\b${sanitizedOld}\\b`, "g"),
-              new RegExp(`from.*\\b${sanitizedOld}\\b`, "g"),
-              new RegExp(`require.*\\b${sanitizedOld}\\b`, "g"),
-              new RegExp(`use.*\\b${sanitizedOld}\\b`, "g"),
-            ];
-            if (importPatterns.some(p => p.test(fileContent))) {
-              dependents.push({ path: fullPath, content: fileContent });
-            }
-          }
+        const fileContent = await fs.readFile(fullPath, "utf-8");
+        const importPatterns = [
+          new RegExp(`import.*\\b${sanitizedOld}\\b`, "g"),
+          new RegExp(`from.*\\b${sanitizedOld}\\b`, "g"),
+          new RegExp(`require.*\\b${sanitizedOld}\\b`, "g"),
+          new RegExp(`use.*\\b${sanitizedOld}\\b`, "g"),
+        ];
+        if (importPatterns.some(p => p.test(fileContent))) {
+          dependents.push({ path: fullPath, content: fileContent });
         }
-      }
-    }
-
-    await walkDir(params.rootDir);
+      },
+    });
 
     // Step 3: Accumulate ALL changes in memory — NO writes in Phase 1
     const pendingWrites: Array<{ filePath: string; newContent: string }> = [];
@@ -363,5 +351,5 @@ export async function writeFile(filePath: string, content: string): Promise<void
  * Generate unified diff
  */
 function generateDiff(oldContent: string, newContent: string): string {
-  return generateUnifiedDiff(oldContent, newContent, 3);
+  return generateUnifiedDiff(oldContent, newContent);
 }

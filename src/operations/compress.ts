@@ -7,6 +7,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { ParserRegistry } from "../parsers/registry.js";
 import { EXCLUDE_DIRS, MAX_FILES_REPO_MAP, MAX_TOTAL_SIZE_BYTES } from "../utils/constants.js";
+import { walkDir } from "../utils/fileWalker.js";
 
 export interface CompressionResult {
   success: boolean;
@@ -25,52 +26,31 @@ export async function compressRepository(params: {
   try {
     const format = params.format || "xml";
     const files: any[] = [];
-    let totalSize = 0;
 
-    async function walkDir(dir: string) {
-      if (files.length >= MAX_FILES_REPO_MAP) return;
-      if (totalSize >= MAX_TOTAL_SIZE_BYTES) return;
+    await walkDir(params.directoryPath, {
+      excludeDirs: EXCLUDE_DIRS,
+      maxFiles: MAX_FILES_REPO_MAP,
+      maxSize: MAX_TOTAL_SIZE_BYTES,
+      onFile: async (fullPath) => {
+        const ext = path.extname(fullPath);
+        const parser = params.registry.getParser(ext);
 
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+        if (parser) {
+          try {
+            const content = await fs.readFile(fullPath, "utf-8");
+            const tree = parser.parse(content);
+            const symbols = parser.findSymbols(tree);
 
-      for (const entry of entries) {
-        if (files.length >= MAX_FILES_REPO_MAP) break;
-        if (totalSize >= MAX_TOTAL_SIZE_BYTES) break;
-
-        const fullPath = path.join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          if (!EXCLUDE_DIRS.includes(entry.name)) {
-            await walkDir(fullPath);
-          }
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-          const parser = params.registry.getParser(ext);
-
-          if (parser) {
-            try {
-              const stat = await fs.stat(fullPath);
-              if (totalSize + stat.size > MAX_TOTAL_SIZE_BYTES) break;
-              
-              const content = await fs.readFile(fullPath, "utf-8");
-              totalSize += stat.size;
-              
-              const tree = parser.parse(content);
-              const symbols = parser.findSymbols(tree);
-
-              files.push({
-                path: path.relative(params.directoryPath, fullPath),
-                symbols: symbols.map(s => ({ type: s.type, name: s.name })),
-              });
-            } catch (error) {
-              // Skip files that fail to parse
-            }
+            files.push({
+              path: path.relative(params.directoryPath, fullPath),
+              symbols: symbols.map(s => ({ type: s.type, name: s.name })),
+            });
+          } catch (error) {
+            // Skip files that fail to parse
           }
         }
-      }
-    }
-
-    await walkDir(params.directoryPath);
+      },
+    });
 
     if (format === "xml") {
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<repository>\n';

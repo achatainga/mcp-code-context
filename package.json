@@ -9,10 +9,14 @@
   },
   "scripts": {
     "build": "tsc",
+    "test": "npm run build && npm run build:tests && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js && node dist-tests/tests/test-wasm-parsers.js",
+    "test:ui": "vitest --ui",
+    "test:run": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest --watch",
     "build:tests": "tsc -p tsconfig.tests.json",
     "start": "node dist/src/index.js",
     "dev": "npm run build && node dist/src/index.js",
-    "test": "npm run build && npm run build:tests && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js && node dist-tests/tests/test-wasm-parsers.js",
     "clean": "rimraf dist dist-tests",
     "rebuild": "npm run clean && npm run build",
     "prepublishOnly": "npm run rebuild"
@@ -59,14 +63,21 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
+    "diff-match-patch": "^1.0.5",
     "ignore": "^6.0.2",
+    "proper-lockfile": "^4.1.2",
     "tree-sitter-wasms": "^0.1.13",
     "web-tree-sitter": "^0.25.1"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
+    "@types/diff-match-patch": "^1.0.36",
+    "@types/node": "^22.19.17",
+    "@types/proper-lockfile": "^4.1.4",
+    "@vitest/coverage-v8": "^4.1.5",
+    "@vitest/ui": "^4.1.5",
     "rimraf": "^6.0.1",
-    "typescript": "^5.7.0"
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.5"
   },
   "engines": {
     "node": ">=18.0.0"

@@ -1,154 +1,80 @@
 /**
- * File Lock Manager - v3.5.3
- * Prevents concurrent writes to same file
+ * File Lock Manager - v3.6.0
+ * Filesystem-based locks for multi-process safety
  */
 
-interface LockInfo {
-  clientId: string;
-  operation: string;
-  timestamp: number;
-  timeout: NodeJS.Timeout;
-}
+import lockfile from 'proper-lockfile';
+import { tmpdir } from 'os';
+import { mkdirSync, existsSync } from 'fs';
+import path from 'path';
+import crypto from 'crypto';
 
 export class FileLockManager {
-  private locks: Map<string, LockInfo> = new Map();
-  private readonly lockTimeout: number;
+  private lockDir: string;
+  private activeLocks: Map<string, () => Promise<void>> = new Map();
 
-  constructor(lockTimeoutMs: number = 30000) {
-    this.lockTimeout = lockTimeoutMs;
+  constructor() {
+    const projectHash = crypto.createHash('md5')
+      .update(process.cwd())
+      .digest('hex')
+      .substring(0, 8);
+    
+    this.lockDir = path.join(tmpdir(), `mcp-locks-${projectHash}`);
+    
+    if (!existsSync(this.lockDir)) {
+      mkdirSync(this.lockDir, { recursive: true });
+    }
   }
 
-  /**
-   * Acquire lock on file
-   */
-  async acquireLock(
-    filePath: string,
-    clientId: string,
-    operation: string
-  ): Promise<{ acquired: boolean; error?: string; lockedBy?: string }> {
-    const normalizedPath = this.normalizePath(filePath);
-    const existingLock = this.locks.get(normalizedPath);
+  async acquireLock(filePath: string, timeoutMs: number = 30000): Promise<() => Promise<void>> {
+    const normalizedPath = path.resolve(filePath);
+    
+    try {
+      const release = await lockfile.lock(normalizedPath, {
+        stale: timeoutMs,
+        retries: {
+          retries: 10,
+          minTimeout: 100,
+          maxTimeout: 1000,
+          factor: 2
+        },
+        lockfilePath: path.join(
+          this.lockDir,
+          `${crypto.createHash('md5').update(normalizedPath).digest('hex')}.lock`
+        )
+      });
 
-    if (existingLock) {
-      return {
-        acquired: false,
-        error: `File locked by ${existingLock.operation} (client: ${existingLock.clientId})`,
-        lockedBy: existingLock.clientId,
+      this.activeLocks.set(normalizedPath, release);
+
+      return async () => {
+        await release();
+        this.activeLocks.delete(normalizedPath);
       };
+    } catch (error: any) {
+      throw new Error(`Could not acquire lock for ${filePath}: ${error.message}`);
     }
-
-    // Create lock with auto-release timeout
-    const timeout = setTimeout(() => {
-      this.releaseLock(filePath, clientId);
-      console.warn(`⚠️  Lock auto-released for ${normalizedPath} (timeout)`);
-    }, this.lockTimeout);
-
-    this.locks.set(normalizedPath, {
-      clientId,
-      operation,
-      timestamp: Date.now(),
-      timeout,
-    });
-
-    return { acquired: true };
   }
 
-  /**
-   * Release lock on file
-   */
-  releaseLock(filePath: string, clientId: string): boolean {
-    const normalizedPath = this.normalizePath(filePath);
-    const lock = this.locks.get(normalizedPath);
-
-    if (!lock) {
-      return false; // No lock exists
+  async isLocked(filePath: string): Promise<boolean> {
+    const normalizedPath = path.resolve(filePath);
+    
+    try {
+      const lockfilePath = path.join(
+        this.lockDir,
+        `${crypto.createHash('md5').update(normalizedPath).digest('hex')}.lock`
+      );
+      
+      return await lockfile.check(normalizedPath, { lockfilePath });
+    } catch {
+      return false;
     }
-
-    if (lock.clientId !== clientId) {
-      return false; // Lock owned by different client
-    }
-
-    clearTimeout(lock.timeout);
-    this.locks.delete(normalizedPath);
-    return true;
   }
 
-  /**
-   * Check if file is locked
-   */
-  isLocked(filePath: string): boolean {
-    const normalizedPath = this.normalizePath(filePath);
-    return this.locks.has(normalizedPath);
-  }
-
-  /**
-   * Get lock info
-   */
-  getLockInfo(filePath: string): LockInfo | null {
-    const normalizedPath = this.normalizePath(filePath);
-    return this.locks.get(normalizedPath) || null;
-  }
-
-  /**
-   * Force release lock (admin only)
-   */
-  forceRelease(filePath: string): boolean {
-    const normalizedPath = this.normalizePath(filePath);
-    const lock = this.locks.get(normalizedPath);
-
-    if (lock) {
-      clearTimeout(lock.timeout);
-      this.locks.delete(normalizedPath);
-      return true;
-    }
-
-    return false;
-  }
-
-  /**
-   * Release all locks for client
-   */
-  releaseAllForClient(clientId: string): number {
-    let count = 0;
-    for (const [path, lock] of this.locks.entries()) {
-      if (lock.clientId === clientId) {
-        clearTimeout(lock.timeout);
-        this.locks.delete(path);
-        count++;
-      }
-    }
-    return count;
-  }
-
-  /**
-   * Get all active locks
-   */
-  getActiveLocks(): Array<{ path: string; info: LockInfo }> {
-    return Array.from(this.locks.entries()).map(([path, info]) => ({
-      path,
-      info,
-    }));
-  }
-
-  /**
-   * Clear all locks
-   */
-  clearAll(): void {
-    for (const lock of this.locks.values()) {
-      clearTimeout(lock.timeout);
-    }
-    this.locks.clear();
-  }
-
-  /**
-   * Normalize path for consistent comparison
-   */
-  private normalizePath(filePath: string): string {
-    return filePath.replace(/\\/g, '/').toLowerCase();
+  async releaseAll(): Promise<void> {
+    const releases = Array.from(this.activeLocks.values());
+    await Promise.all(releases.map(release => release()));
+    this.activeLocks.clear();
   }
 }
 
-/**
- * Global lock manager instance
- */
 export const globalLockManager = new FileLockManager();

@@ -8,6 +8,7 @@ import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
 import { safeRegexFindFirst, safeRegexMultiFileBatchTest, validateRegexPattern } from "../utils/safeRegex.js";
+import { walkDir } from "../utils/fileWalker.js";
 
 export interface ReadResult {
   success: boolean;
@@ -170,27 +171,14 @@ export async function searchPattern(params: {
     // Step 1: Collect all files and their lines
     const fileEntries: Array<{ path: string; lines: string[] }> = [];
 
-    async function walkDir(dir: string) {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-
-        if (entry.isDirectory()) {
-          if (!(excludeDirs as readonly string[]).includes(entry.name)) {
-            await walkDir(fullPath);
-          }
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-          if ((extensions as readonly string[]).includes(ext)) {
-            const content = await fs.readFile(fullPath, "utf-8");
-            fileEntries.push({ path: fullPath, lines: content.split("\n") });
-          }
-        }
-      }
-    }
-
-    await walkDir(params.rootDir);
+    await walkDir(params.rootDir, {
+      extensions,
+      excludeDirs,
+      onFile: async (fullPath) => {
+        const content = await fs.readFile(fullPath, "utf-8");
+        fileEntries.push({ path: fullPath, lines: content.split("\n") });
+      },
+    });
 
     // CRITICAL: Prevent OOM in large monorepos
     const MAX_FILES = 2000;
@@ -248,37 +236,24 @@ export async function analyzeImpact(params: {
     const dependents: string[] = [];
     const targetFile = path.basename(params.filePath);
 
-    async function walkDir(dir: string) {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
+    await walkDir(params.rootDir, {
+      extensions: SUPPORTED_EXTENSIONS,
+      excludeDirs: EXCLUDE_DIRS,
+      onFile: async (fullPath) => {
+        const content = await fs.readFile(fullPath, "utf-8");
 
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
+        // Check for imports/requires
+        const importPatterns = [
+          new RegExp(`import.*from.*['"].*${targetFile.replace(/\.[^.]+$/, "")}`, "g"),
+          new RegExp(`require\\(['"].*${targetFile}`, "g"),
+          new RegExp(`from.*${targetFile.replace(/\.[^.]+$/, "")}.*import`, "g"),
+        ];
 
-        if (entry.isDirectory()) {
-          if (!EXCLUDE_DIRS.includes(entry.name)) {
-            await walkDir(fullPath);
-          }
-        } else if (entry.isFile()) {
-          const ext = path.extname(entry.name);
-          if (SUPPORTED_EXTENSIONS.includes(ext as any)) {
-            const content = await fs.readFile(fullPath, "utf-8");
-
-            // Check for imports/requires
-            const importPatterns = [
-              new RegExp(`import.*from.*['"].*${targetFile.replace(/\.[^.]+$/, "")}`, "g"),
-              new RegExp(`require\\(['"].*${targetFile}`, "g"),
-              new RegExp(`from.*${targetFile.replace(/\.[^.]+$/, "")}.*import`, "g"),
-            ];
-
-            if (importPatterns.some(pattern => pattern.test(content))) {
-              dependents.push(fullPath);
-            }
-          }
+        if (importPatterns.some(pattern => pattern.test(content))) {
+          dependents.push(fullPath);
         }
-      }
-    }
-
-    await walkDir(params.rootDir);
+      },
+    });
 
     return {
       success: true,
