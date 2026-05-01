@@ -5,14 +5,31 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 import { BaseParser } from "../parsers/base.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS, MAX_FILES_SEARCH, OPERATION_TIMEOUT_MS } from "../utils/constants.js";
 import { safeRegexFindFirst, safeRegexMultiFileBatchTest, validateRegexPattern } from "../utils/safeRegex.js";
 import { walkDir } from "../utils/fileWalker.js";
+import { CacheManager } from "../core/cacheManager.js";
 
 const DEFAULT_MAX_RESULTS = 50;
 const SCAN_TIMEOUT_BASE_MS = 1000;
 const SCAN_TIMEOUT_PER_FILE_MS = 10;
+
+// Global cache instance per project
+const cacheInstances = new Map<string, CacheManager>();
+
+function getCacheManager(projectRoot: string): CacheManager {
+  if (!cacheInstances.has(projectRoot)) {
+    cacheInstances.set(projectRoot, new CacheManager(projectRoot));
+  }
+  return cacheInstances.get(projectRoot)!;
+}
+
+async function getFileHash(filePath: string): Promise<string> {
+  const content = await fs.readFile(filePath, 'utf-8');
+  return crypto.createHash('md5').update(content).digest('hex');
+}
 
 export interface ReadResult {
   success: boolean;
@@ -30,12 +47,52 @@ export async function extractSymbol(params: {
   symbolName: string;
   className?: string;
   parser: BaseParser;
+  useCache?: boolean;
 }): Promise<ReadResult> {
   try {
+    const useCache = params.useCache !== false;
+    const cache = useCache ? getCacheManager(params.projectRoot) : null;
+    
+    // Try cache first
+    if (cache) {
+      const hash = await getFileHash(params.filePath);
+      const cached = await cache.get(params.filePath, hash);
+      
+      if (cached) {
+        const symbol = cached.symbols.find(s => 
+          s.name === params.symbolName && (!params.className || s.className === params.className)
+        );
+        
+        if (symbol) {
+          const content = await fs.readFile(params.filePath, "utf-8");
+          const tree = params.parser.parse(content);
+          const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
+          
+          if (extracted) {
+            return { success: true, content: extracted };
+          }
+        }
+      }
+    }
+    
+    // Cache miss - parse file
     const content = await fs.readFile(params.filePath, "utf-8");
     const tree = params.parser.parse(content);
+    const symbols = params.parser.findSymbols(tree);
+    
+    // Update cache
+    if (cache) {
+      const hash = await getFileHash(params.filePath);
+      const stat = await fs.stat(params.filePath);
+      await cache.set({
+        filePath: params.filePath,
+        hash,
+        symbols,
+        lastModified: stat.mtimeMs,
+        cachedAt: Date.now(),
+      });
+    }
 
-    // CRITICAL FIX: args were (tree, content, symbolName) — content was passed as symbolName
     const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
 
     if (!extracted) {

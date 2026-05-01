@@ -32,6 +32,7 @@ import { RateLimiter, OPERATION_COSTS } from "./utils/rateLimiter.js";
 import { globalLockManager } from "./utils/fileLock.js";
 import { streamFile } from "./utils/streaming.js";
 import { BackupManager } from "./utils/backupManager.js";
+import { CacheManager } from "./core/cacheManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
@@ -41,6 +42,14 @@ const SERVER_VERSION = "3.5.3";
 let engine: CodeContextEngine;
 let registry: ParserRegistry;
 const rateLimiter = new RateLimiter();
+const cacheManagers = new Map<string, CacheManager>();
+
+function getCacheManager(projectRoot: string): CacheManager {
+  if (!cacheManagers.has(projectRoot)) {
+    cacheManagers.set(projectRoot, new CacheManager(projectRoot));
+  }
+  return cacheManagers.get(projectRoot)!;
+}
 
 // Write operations that require file locking and two-phase workflow
 const WRITE_OPS = new Set(["replace_symbol", "insert_symbol", "remove_symbol", "rename_symbol"]);
@@ -228,6 +237,28 @@ const TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {},
+    },
+  },
+  {
+    name: "get_cache_stats",
+    description: "Get cache statistics (entries, size, hit rate)",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root directory" },
+      },
+      required: ["projectRoot"],
+    },
+  },
+  {
+    name: "clear_cache",
+    description: "Clear all cached parse results for a project",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root directory" },
+      },
+      required: ["projectRoot"],
     },
   },
 ];
@@ -585,10 +616,29 @@ async function handleCleanBackups(args: Record<string, unknown>) {
 async function handleGetServerStats() {
   const stats = {
     pendingConfirmations: globalConfirmationStore.getPendingCount(),
-    // Telemetry and audit stats can be exposed here later
   };
   return {
     content: [{ type: "text", text: JSON.stringify(stats, null, 2) }],
+  };
+}
+
+async function handleGetCacheStats(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+  const cache = getCacheManager(projectRoot);
+  const stats = await cache.getStats();
+  
+  return {
+    content: [{ type: "text", text: JSON.stringify(stats, null, 2) }],
+  };
+}
+
+async function handleClearCache(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+  const cache = getCacheManager(projectRoot);
+  await cache.clear();
+  
+  return {
+    content: [{ type: "text", text: "Cache cleared successfully" }],
   };
 }
 
@@ -661,6 +711,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await handleCleanBackups(args as Record<string, unknown>); break;
       case "get_server_stats":
         result = await handleGetServerStats(); break;
+      case "get_cache_stats":
+        result = await handleGetCacheStats(args as Record<string, unknown>); break;
+      case "clear_cache":
+        result = await handleClearCache(args as Record<string, unknown>); break;
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
