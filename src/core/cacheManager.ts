@@ -10,6 +10,7 @@ import * as path from 'path';
 import * as crypto from 'node:crypto';
 import { tmpdir } from 'os';
 import { logger } from '../utils/logger.js';
+import { FileWatcher } from '../utils/fileWatcher.js';
 
 export interface CachedFile {
   filePath: string;
@@ -26,8 +27,11 @@ export class CacheManager {
   private isDirty = false;
   private persistTimer: NodeJS.Timeout | null = null;
   private initPromise: Promise<void>;
+  private watcher: FileWatcher | null = null;
+  private projectRoot: string;
 
   constructor(projectRoot: string) {
+    this.projectRoot = projectRoot;
     const projectHash = crypto.createHash('md5')
       .update(projectRoot)
       .digest('hex')
@@ -245,6 +249,11 @@ export class CacheManager {
   }
 
   async close(): Promise<void> {
+    if (this.watcher) {
+      this.watcher.stop();
+      this.watcher = null;
+    }
+    
     if (this.persistTimer) {
       clearTimeout(this.persistTimer);
       this.persistTimer = null;
@@ -254,5 +263,34 @@ export class CacheManager {
       this.db.close();
       this.db = null;
     }
+  }
+
+  startWatcher(debounceMs: number = 500): void {
+    if (this.watcher) {
+      logger.warn({ projectRoot: this.projectRoot }, 'Watcher already started');
+      return;
+    }
+
+    this.watcher = new FileWatcher({
+      debounceMs,
+      ignored: [],
+      onFileChange: async (filePath) => {
+        await this.invalidate(filePath);
+        logger.debug({ filePath }, 'Cache invalidated by file watcher');
+      },
+    });
+
+    this.watcher.start(this.projectRoot);
+  }
+
+  stopWatcher(): void {
+    if (this.watcher) {
+      this.watcher.stop();
+      this.watcher = null;
+    }
+  }
+
+  getWatcherStatus(): { isWatching: boolean; watchedFiles: number } {
+    return this.watcher ? this.watcher.getStatus() : { isWatching: false, watchedFiles: 0 };
   }
 }

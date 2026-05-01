@@ -261,6 +261,30 @@ const TOOLS = [
       required: ["projectRoot"],
     },
   },
+  {
+    name: "configure_file_watcher",
+    description: "Start/stop file watcher for auto-cache invalidation",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root directory" },
+        action: { type: "string", enum: ["start", "stop"], description: "Action to perform" },
+        debounceMs: { type: "number", description: "Debounce delay in ms (default: 500)" },
+      },
+      required: ["projectRoot", "action"],
+    },
+  },
+  {
+    name: "get_file_watcher_status",
+    description: "Get file watcher status for a project",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root directory" },
+      },
+      required: ["projectRoot"],
+    },
+  },
 ];
 
 const server = new Server(
@@ -642,6 +666,38 @@ async function handleClearCache(args: Record<string, unknown>) {
   };
 }
 
+async function handleConfigureFileWatcher(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+  const action = String(args.action);
+  const debounceMs = args.debounceMs ? Number(args.debounceMs) : 500;
+  
+  const cache = getCacheManager(projectRoot);
+  
+  if (action === "start") {
+    cache.startWatcher(debounceMs);
+    return {
+      content: [{ type: "text", text: `File watcher started with ${debounceMs}ms debounce` }],
+    };
+  } else if (action === "stop") {
+    cache.stopWatcher();
+    return {
+      content: [{ type: "text", text: "File watcher stopped" }],
+    };
+  } else {
+    throw new Error(`Invalid action: ${action}`);
+  }
+}
+
+async function handleGetFileWatcherStatus(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+  const cache = getCacheManager(projectRoot);
+  const status = cache.getWatcherStatus();
+  
+  return {
+    content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
+  };
+}
+
 // -----------------------------------------------------------------------------
 // PIPELINE & MAIN EXECUTION
 // -----------------------------------------------------------------------------
@@ -715,6 +771,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await handleGetCacheStats(args as Record<string, unknown>); break;
       case "clear_cache":
         result = await handleClearCache(args as Record<string, unknown>); break;
+      case "configure_file_watcher":
+        result = await handleConfigureFileWatcher(args as Record<string, unknown>); break;
+      case "get_file_watcher_status":
+        result = await handleGetFileWatcherStatus(args as Record<string, unknown>); break;
       default:
         throw new Error(`Unknown tool: ${name}`);
     }
