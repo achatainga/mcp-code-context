@@ -4,8 +4,10 @@
  */
 
 import DiffMatchPatch from 'diff-match-patch';
+import { DIFF_MAX_FILE_LINES } from './constants.js';
 
 const dmp = new DiffMatchPatch();
+const COMPACT_DIFF_THRESHOLD = 2048;
 
 export interface DiffLine {
   type: 'add' | 'remove' | 'context';
@@ -17,7 +19,7 @@ export function generateUnifiedDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
 
-  if (oldLines.length > 5000 || newLines.length > 5000) {
+  if (oldLines.length > DIFF_MAX_FILE_LINES || newLines.length > DIFF_MAX_FILE_LINES) {
     return generateSimpleDiff(oldText, newText);
   }
 
@@ -61,7 +63,7 @@ export function generateCompactDiff(oldText: string, newText: string): string {
 export function generateSmartDiff(oldText: string, newText: string): string {
   const fullDiff = generateUnifiedDiff(oldText, newText);
   
-  if (fullDiff.length > 2048) {
+  if (fullDiff.length > COMPACT_DIFF_THRESHOLD) {
     return generateCompactDiff(oldText, newText);
   }
   
@@ -73,7 +75,7 @@ export function lcs(lines1: string[], lines2: string[]): string[] {
   const n = lines2.length;
   
   if (m === 0 || n === 0) return [];
-  if (m > 5000 || n > 5000) return [];
+  if (m > DIFF_MAX_FILE_LINES || n > DIFF_MAX_FILE_LINES) return [];
 
   const dp: number[][] = Array(m + 1).fill(null).map(() => Array(n + 1).fill(0));
 

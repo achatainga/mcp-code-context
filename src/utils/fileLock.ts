@@ -8,6 +8,7 @@ import { tmpdir } from 'os';
 import { mkdirSync, existsSync } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import { LOCK_TIMEOUT_MS, LOCK_RETRY_COUNT, LOCK_RETRY_MIN_MS, LOCK_RETRY_MAX_MS, LOCK_RETRY_FACTOR, HASH_LENGTH } from './constants.js';
 
 export class FileLockManager {
   private lockDir: string;
@@ -17,7 +18,7 @@ export class FileLockManager {
     const projectHash = crypto.createHash('md5')
       .update(process.cwd())
       .digest('hex')
-      .substring(0, 8);
+      .substring(0, HASH_LENGTH);
     
     this.lockDir = path.join(tmpdir(), `mcp-locks-${projectHash}`);
     
@@ -26,17 +27,17 @@ export class FileLockManager {
     }
   }
 
-  async acquireLock(filePath: string, timeoutMs: number = 30000): Promise<() => Promise<void>> {
+  async acquireLock(filePath: string, timeoutMs: number = LOCK_TIMEOUT_MS): Promise<() => Promise<void>> {
     const normalizedPath = path.resolve(filePath);
     
     try {
       const release = await lockfile.lock(normalizedPath, {
         stale: timeoutMs,
         retries: {
-          retries: 10,
-          minTimeout: 100,
-          maxTimeout: 1000,
-          factor: 2
+          retries: LOCK_RETRY_COUNT,
+          minTimeout: LOCK_RETRY_MIN_MS,
+          maxTimeout: LOCK_RETRY_MAX_MS,
+          factor: LOCK_RETRY_FACTOR
         },
         lockfilePath: path.join(
           this.lockDir,

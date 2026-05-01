@@ -8,9 +8,10 @@ import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { tmpdir } from "os";
 import { existsSync, mkdirSync } from "fs";
+import { MAX_BACKUPS_PER_FILE, HASH_LENGTH } from './constants.js';
 
 export class BackupManager {
-  private static readonly MAX_BACKUPS = 5;
+  private static readonly MAX_BACKUPS = MAX_BACKUPS_PER_FILE;
   private static backupRootCache = new Map<string, string>();
 
   private static getBackupRoot(projectRoot: string): string {
@@ -21,7 +22,7 @@ export class BackupManager {
     const projectHash = crypto.createHash('md5')
       .update(projectRoot)
       .digest('hex')
-      .substring(0, 8);
+      .substring(0, HASH_LENGTH);
     
     const backupRoot = path.join(tmpdir(), 'mcp-backups', projectHash);
     
@@ -47,7 +48,7 @@ export class BackupManager {
     }
 
     const relativePath = path.relative(projectRoot, filePath);
-    const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, 8) + "_" + path.basename(filePath);
+    const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
     
     const timestamp = Date.now();
     const backupFileName = `${safeName}_${timestamp}.bak`;
@@ -61,7 +62,7 @@ export class BackupManager {
     try {
       const backupDir = this.getBackupRoot(projectRoot);
       const relativePath = path.relative(projectRoot, filePath);
-      const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, 8) + "_" + path.basename(filePath);
+      const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
 
       let files: string[];
       try {
@@ -141,7 +142,7 @@ export class BackupManager {
     try {
       const backupDir = this.getBackupRoot(projectRoot);
       const relativePath = path.relative(projectRoot, filePath);
-      const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, 8) + "_" + path.basename(filePath);
+      const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
 
       const files = await fs.readdir(backupDir);
       return files

@@ -6,9 +6,13 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import { BaseParser } from "../parsers/base.js";
-import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
+import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS, MAX_FILES_SEARCH, OPERATION_TIMEOUT_MS } from "../utils/constants.js";
 import { safeRegexFindFirst, safeRegexMultiFileBatchTest, validateRegexPattern } from "../utils/safeRegex.js";
 import { walkDir } from "../utils/fileWalker.js";
+
+const DEFAULT_MAX_RESULTS = 50;
+const SCAN_TIMEOUT_BASE_MS = 1000;
+const SCAN_TIMEOUT_PER_FILE_MS = 10;
 
 export interface ReadResult {
   success: boolean;
@@ -153,7 +157,7 @@ export async function searchPattern(params: {
   maxResults?: number;
 }): Promise<ReadResult> {
   try {
-    const maxResults = params.maxResults || 50;
+    const maxResults = params.maxResults || DEFAULT_MAX_RESULTS;
 
     // Validate regex pattern
     const validation = validateRegexPattern(params.pattern);
@@ -181,16 +185,15 @@ export async function searchPattern(params: {
     });
 
     // CRITICAL: Prevent OOM in large monorepos
-    const MAX_FILES = 2000;
-    if (fileEntries.length > MAX_FILES) {
+    if (fileEntries.length > MAX_FILES_SEARCH) {
       return {
         success: false,
-        error: `Too many files to search (${fileEntries.length}). Maximum: ${MAX_FILES}. Try narrowing your search with fileExtensions or excludeDirs.`
+        error: `Too many files to search (${fileEntries.length}). Maximum: ${MAX_FILES_SEARCH}. Try narrowing your search with fileExtensions or excludeDirs.`
       };
     }
 
     // Step 2: ONE worker for ALL files — eliminates N worker spawns
-    const scanTimeout = Math.min(30000, 1000 + fileEntries.length * 10);
+    const scanTimeout = Math.min(OPERATION_TIMEOUT_MS, SCAN_TIMEOUT_BASE_MS + fileEntries.length * SCAN_TIMEOUT_PER_FILE_MS);
     const batchResult = await safeRegexMultiFileBatchTest(regex, fileEntries, scanTimeout);
 
     if (batchResult.timedOut) {
