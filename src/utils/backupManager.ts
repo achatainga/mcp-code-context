@@ -10,6 +10,10 @@ import { tmpdir } from "os";
 import { existsSync, mkdirSync } from "fs";
 import { MAX_BACKUPS_PER_FILE, HASH_LENGTH } from './constants.js';
 
+/**
+ * Manages file backups with automatic rotation.
+ * Backups are stored in OS temp directory to prevent hot-reload loops.
+ */
 export class BackupManager {
   private static readonly MAX_BACKUPS = MAX_BACKUPS_PER_FILE;
   private static backupRootCache = new Map<string, string>();
@@ -34,6 +38,13 @@ export class BackupManager {
     return backupRoot;
   }
 
+  /**
+   * Creates a backup of a file before modification.
+   * Automatically enforces backup limit per file.
+   * 
+   * @param filePath - Absolute path to file to backup
+   * @param projectRoot - Project root directory
+   */
   static async createBackup(filePath: string, projectRoot: string): Promise<void> {
     try {
       await fs.access(filePath);
@@ -58,6 +69,14 @@ export class BackupManager {
     await this.enforceBackupLimit(backupDir, safeName);
   }
 
+  /**
+   * Restores a file from backup.
+   * 
+   * @param filePath - Absolute path to file to restore
+   * @param projectRoot - Project root directory
+   * @param steps - Number of versions to roll back (default: 1)
+   * @returns Result with success status and restored backup name
+   */
   static async rollback(filePath: string, projectRoot: string, steps: number = 1): Promise<{ success: boolean; error?: string; restoredFrom?: string }> {
     try {
       const backupDir = this.getBackupRoot(projectRoot);
@@ -91,6 +110,12 @@ export class BackupManager {
     }
   }
 
+  /**
+   * Removes all backups for a project.
+   * 
+   * @param projectRoot - Project root directory
+   * @returns Result with success status and count of deleted files
+   */
   static async clean(projectRoot: string): Promise<{ success: boolean; error?: string; deletedCount?: number }> {
     try {
       const backupDir = this.getBackupRoot(projectRoot);
@@ -138,6 +163,13 @@ export class BackupManager {
     }
   }
 
+  /**
+   * Lists all available backups for a file.
+   * 
+   * @param filePath - Absolute path to file
+   * @param projectRoot - Project root directory
+   * @returns Array of backup file paths, sorted newest first
+   */
   static async listBackups(filePath: string, projectRoot: string): Promise<string[]> {
     try {
       const backupDir = this.getBackupRoot(projectRoot);

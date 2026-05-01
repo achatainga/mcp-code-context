@@ -15,6 +15,14 @@ export interface DiffLine {
   lineNumber?: number;
 }
 
+/**
+ * Generates a unified diff using Myers algorithm.
+ * Falls back to simple diff for files exceeding line limit.
+ * 
+ * @param oldText - Original file content
+ * @param newText - Modified file content
+ * @returns Unified diff in patch format
+ */
 export function generateUnifiedDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
@@ -30,6 +38,13 @@ export function generateUnifiedDiff(oldText: string, newText: string): string {
   return dmp.patch_toText(patch);
 }
 
+/**
+ * Generates a simple diff summary for large files.
+ * 
+ * @param oldText - Original file content
+ * @param newText - Modified file content
+ * @returns Simple line count summary
+ */
 export function generateSimpleDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
@@ -40,6 +55,13 @@ New: ${newLines.length} lines
 Changed: ${Math.abs(oldLines.length - newLines.length)} lines`;
 }
 
+/**
+ * Generates a compact diff showing only changes (no context).
+ * 
+ * @param oldText - Original file content
+ * @param newText - Modified file content
+ * @returns Compact diff with + and - prefixes
+ */
 export function generateCompactDiff(oldText: string, newText: string): string {
   const diffs = dmp.diff_main(oldText, newText);
   dmp.diff_cleanupSemantic(diffs);
@@ -60,6 +82,13 @@ export function generateCompactDiff(oldText: string, newText: string): string {
   return compactLines.join('\n');
 }
 
+/**
+ * Automatically selects compact or full diff based on size.
+ * 
+ * @param oldText - Original file content
+ * @param newText - Modified file content
+ * @returns Compact diff if full diff exceeds threshold, otherwise full diff
+ */
 export function generateSmartDiff(oldText: string, newText: string): string {
   const fullDiff = generateUnifiedDiff(oldText, newText);
   

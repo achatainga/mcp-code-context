@@ -20,7 +20,12 @@ export interface WalkOptions {
 }
 
 /**
- * Walk directory tree with filtering
+ * Recursively walks a directory tree with filtering options.
+ * Supports extension filtering, directory exclusion, and size/count limits.
+ * 
+ * @param dir - Root directory to walk
+ * @param options - Filtering and callback options
+ * @param state - Internal state for tracking counts (do not pass manually)
  */
 export async function walkDir(
   dir: string,
