@@ -1,5 +1,5 @@
 /**
- * Dart Tree-sitter Parser - v3.5.2
+ * Dart Tree-sitter Parser - v3.5.3
  * 100% AST accuracy via WASM
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */

@@ -1,5 +1,5 @@
 /**
- * File Lock Manager - v3.5.2
+ * File Lock Manager - v3.5.3
  * Prevents concurrent writes to same file
  */
 

@@ -1,6 +1,6 @@
 {
   "name": "mcp-code-context",
-  "version": "3.5.2",
+  "version": "3.5.3",
   "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with streaming, telemetry, audit logging, rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
   "type": "module",
   "main": "dist/src/index.js",
@@ -36,11 +36,26 @@
     "dart",
     "python"
   ],
-  "author": "",
+  "author": "Alejandro Chataing <a.chataing.a@gmail.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/achatainga/mcp-code-context.git"
+  },
+  "funding": [
+    {
+      "type": "ko-fi",
+      "url": "https://ko-fi.com/achatainga"
+    },
+    {
+      "type": "paypal",
+      "url": "https://paypal.me/achatainga"
+    }
+  ],
+  "homepage": "https://github.com/achatainga/mcp-code-context#readme",
+  "bugs": {
+    "url": "https://github.com/achatainga/mcp-code-context/issues",
+    "email": "a.chataing.a@gmail.com"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",

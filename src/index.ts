@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.5.2 - Tree-sitter WASM Edition
+ * mcp-code-context v3.5.3 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -35,7 +35,7 @@ import { BackupManager } from "./utils/backupManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.5.2";
+const SERVER_VERSION = "3.5.3";
 
 // Global instances
 let engine: CodeContextEngine;

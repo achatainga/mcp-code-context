@@ -1,5 +1,5 @@
 /**
- * Tests v3.5.2 - Telemetry, Streaming, Audit Logger
+ * Tests v3.5.3 - Telemetry, Streaming, Audit Logger
  */
 
 import { TelemetryCollector, trackOperation, globalTelemetry } from "../src/utils/telemetry.js";
@@ -172,7 +172,7 @@ async function testAuditLogger(): Promise<void> {
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 
 async function main(): Promise<void> {
-  console.log("🚀 Running v3.5.2 Test Suite\n");
+  console.log("🚀 Running v3.5.3 Test Suite\n");
   console.log("=".repeat(60));
 
   await testTelemetry();
@@ -187,7 +187,7 @@ async function main(): Promise<void> {
   console.log(`Success Rate: ${(passed / (passed + failed) * 100).toFixed(1)}%`);
 
   if (failed === 0) {
-    console.log("\n🎉 ALL v3.5.2 TESTS PASSED!");
+    console.log("\n🎉 ALL v3.5.3 TESTS PASSED!");
     process.exit(0);
   } else {
     console.error(`\n💥 ${failed} TESTS FAILED`);

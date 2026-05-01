@@ -1,5 +1,5 @@
 /**
- * Diff Engine - v3.5.2
+ * Diff Engine - v3.5.3
  * LCS-based unified diff with memory safety cap
  */
 

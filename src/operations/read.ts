@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.5.2
+ * Read Operations - v3.5.3
  * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 
@@ -191,6 +191,15 @@ export async function searchPattern(params: {
     }
 
     await walkDir(params.rootDir);
+
+    // CRITICAL: Prevent OOM in large monorepos
+    const MAX_FILES = 2000;
+    if (fileEntries.length > MAX_FILES) {
+      return {
+        success: false,
+        error: `Too many files to search (${fileEntries.length}). Maximum: ${MAX_FILES}. Try narrowing your search with fileExtensions or excludeDirs.`
+      };
+    }
 
     // Step 2: ONE worker for ALL files — eliminates N worker spawns
     const scanTimeout = Math.min(30000, 1000 + fileEntries.length * 10);

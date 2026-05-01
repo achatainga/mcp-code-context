@@ -1,8 +1,8 @@
-# mcp-code-context v3.5.2
+# mcp-code-context v3.5.3
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline.
 
-## What's New in v3.5.2
+## What's New in v3.5.3
 
 🔒 **Production Hardening**:
 - ✅ Two-phase write workflow (dry-run + confirmation token)
@@ -142,13 +142,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.5.2 Two-Phase Workflow)
+### Write Tools (v3.5.3 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.5.2):**
+**Important Notes (v3.5.3):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 
@@ -236,7 +236,7 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-### Additional Tools (v3.5.2)
+### Additional Tools (v3.5.3)
 
 #### 11. `parse_file`
 **Purpose:** Parse a file using Tree-sitter and extract all symbols.

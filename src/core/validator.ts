@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.5.2
+ * Security Validator - v3.5.3
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 
@@ -23,8 +23,8 @@ export class SecurityValidator {
     // Resolve FIRST, then check
     const resolved = path.resolve(filePath);
 
-    // CRITICAL: Check boundary AFTER normalization
-    if (!resolved.startsWith(this.projectRoot)) {
+    // CRITICAL: Check boundary AFTER normalization (with path separator)
+    if (resolved !== this.projectRoot && !resolved.startsWith(this.projectRoot + path.sep)) {
       return { valid: false, error: "Path outside project boundary" };
     }
 

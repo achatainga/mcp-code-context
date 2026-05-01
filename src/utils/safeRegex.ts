@@ -1,5 +1,5 @@
 /**
- * Safe Regex - v3.5.2
+ * Safe Regex - v3.5.3
  * CRITICAL FIX: Real ReDoS protection via worker_threads
  *
  * Problem: setTimeout cannot interrupt regex.test() in Node.js single-threaded event loop.

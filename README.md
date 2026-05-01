@@ -1,9 +1,12 @@
 # mcp-code-context
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
+[![npm version](https://img.shields.io/npm/v/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
+[![npm downloads](https://img.shields.io/npm/dm/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Version](https://img.shields.io/badge/version-3.1.0-blue.svg)]()
+[![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
+[![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi)](https://ko-fi.com/achatainga)
+[![PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal)](https://paypal.me/achatainga)
 
 > MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
 
@@ -27,6 +30,18 @@
 
 Works with **Claude Desktop**, **Cursor**, **Windsurf**, **GitHub Copilot**, **Amazon Q**, and any [Model Context Protocol](https://modelcontextprotocol.io/) compatible client.
 
+---
+
+## 💡 Why This Exists
+
+This tool was born out of necessity in **Caracas, Venezuela 🇻🇪**, where economic limitations made every API token count. When you're choosing between groceries and Claude API credits, you learn to optimize fast.
+
+What started as a personal script to compress context windows became a full MCP server when I realized others faced the same problem: **LLM APIs are expensive, and most tools waste tokens on boilerplate**.
+
+If this tool saves you money or time, consider [supporting its development](#-support-this-project). Every contribution helps keep this project maintained and free for everyone.
+
+---
+
 ## The Problem
 
 LLMs working with code face two bottlenecks:
@@ -35,7 +50,7 @@ LLMs working with code face two bottlenecks:
 
 ## The Solution
 
-`mcp-code-context` provides **11 tools** — 5 for reading, 1 for cleanup, and 5 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
+`mcp-code-context` provides **13 tools** — 6 for reading, 2 for cleanup, and 5 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -63,7 +78,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 - 🗑️ **Safe symbol removal** — Delete code with automatic dependency checking to prevent breakage.
 - 🔍 **Mandatory dry-run flow** — Write tools return a preview diff and a `confirmationToken` by default. Changes are only applied after explicit confirmation.
 - 💾 **Robust rolling backups** — Automatically keeps the last 5 versions of modified files in a hidden `.mcp-backups/` directory.
-- ⏪ **Surgical rollback** — Revert files to any of the 5 previous states using the new `rollback_file` tool.
+- ⏪ **Surgical rollback** — Revert files to any of the 5 previous states using the `rollback_file` tool.
 - 🤖 **Fuzzy symbol matching** — When a symbol is not found, the server provides structured suggestions based on Levenshtein distance.
 - 🔐 **Private symbol support** — Full support for `_` and `__` prefixed symbols in Dart and Python.
 
@@ -107,15 +122,11 @@ Built to be robust and precise. Both read and write engines are tested against r
 ## Installation
 
 ```bash
-# Clone the repository
-git clone https://github.com/YOUR_USERNAME/mcp-code-context.git
-cd mcp-code-context
+# Global installation (recommended)
+npm install -g mcp-code-context
 
-# Install dependencies (no build tools required!)
-npm install
-
-# Build
-npm run build
+# Or use directly with npx (no installation)
+npx -y mcp-code-context
 ```
 
 **Note**: Unlike v2.x, this version uses **web-tree-sitter (WASM)** instead of native bindings. No Visual Studio, Python, or node-gyp required!
@@ -130,8 +141,8 @@ Add to your `claude_desktop_config.json`:
 {
   "mcpServers": {
     "mcp-code-context": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-code-context/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
     }
   }
 }
@@ -145,8 +156,8 @@ Add to your Cursor MCP settings (`.cursor/mcp.json`):
 {
   "mcpServers": {
     "mcp-code-context": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-code-context/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
     }
   }
 }
@@ -160,8 +171,8 @@ Add to your Windsurf MCP config:
 {
   "mcpServers": {
     "mcp-code-context": {
-      "command": "node",
-      "args": ["/absolute/path/to/mcp-code-context/dist/index.js"]
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
     }
   }
 }
@@ -169,7 +180,7 @@ Add to your Windsurf MCP config:
 
 ### Amazon Q / Other MCP Clients
 
-Any MCP-compatible client can use this server. The transport is **stdio** (JSON-RPC over stdin/stdout). Point your client to `node dist/index.js`.
+Any MCP-compatible client can use this server. The transport is **stdio** (JSON-RPC over stdin/stdout). Point your client to `npx -y mcp-code-context`.
 
 ## Tools
 
@@ -220,13 +231,13 @@ Remove all backup files for a project to keep the working directory clean.
 
 **Note:** Backups are stored centrally at `[project-root]/.mcp-backups/` to keep your project organized.
 
-### Write Tools (Phase 1: Preview)
+### Write Tools (Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Call without token**: Returns a unified `diff` and a `confirmationToken`.
 2. **Call with token**: Set `confirm: true` and provide the token to apply the changes.
 
-#### 7. `write_file_surgical`
+#### 8. `write_file_surgical`
 Replace the full source code of a named symbol in a file.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to replace
@@ -235,7 +246,7 @@ Replace the full source code of a named symbol in a file.
 - `confirm` (optional) — Set to `true` to apply
 - `className` (optional) — Scope the symbol to a specific class
 
-#### 8. `insert_symbol`
+#### 9. `insert_symbol`
 Insert new code at a precise location relative to an existing symbol.
 - `filePath` (required) — Path to the file
 - `code` (required) — Code to insert
@@ -244,7 +255,7 @@ Insert new code at a precise location relative to an existing symbol.
 - `className` (optional) — Scope the anchor to a specific class
 - `confirmationToken`, `confirm` (optional)
 
-#### 9. `rename_symbol`
+#### 10. `rename_symbol`
 Rename a symbol across the entire repository (definition + all usages).
 - `filePath` (required) — File where the symbol is defined
 - `oldName` (required) — Current name
@@ -252,7 +263,7 @@ Rename a symbol across the entire repository (definition + all usages).
 - `rootDir` (optional) — Repository root
 - `confirmationToken`, `confirm` (optional)
 
-#### 10. `remove_symbol`
+#### 11. `remove_symbol`
 Safely remove a symbol from a file with dependency checking.
 - `filePath` (required) — Path to the file
 - `symbolName` (required) — Symbol to remove
@@ -266,8 +277,112 @@ Safely remove a symbol from a file with dependency checking.
 2. **Read** → `read_file_surgical` with symbol name for specific implementations
 3. **Assess** → `analyze_impact` before modifying shared files
 4. **Edit (Preview)** → Call write tools to generate a `diff` and `confirmationToken`
-5. **Confim** → Call the same write tool with the token and `confirm: true` to apply
+5. **Confirm** → Call the same write tool with the token and `confirm: true` to apply
 6. **Recovery** → Use `rollback_file` if something goes wrong after confirmation
+
+---
+
+## 💰 Support This Project
+
+### Why Support?
+
+This tool was born in **Caracas, Venezuela 🇻🇪**, where economic limitations mean every API token counts. What started as a personal script to save money on Claude API became a full MCP server when I realized others faced the same problem.
+
+**Current Reality**:
+- ⏰ ~10 hours/week of maintenance
+- 💵 ~$20/month in costs (npm, testing, domain)
+- 🆓 100% free and open source (always will be)
+
+If this tool saves you time or money, consider supporting its development.
+
+---
+
+### 💳 Ways to Support
+
+#### 🔹 One-Time Donation
+
+**Ko-fi** (PayPal + Cards, 0% fees)  
+[ko-fi.com/achatainga](https://ko-fi.com/achatainga)
+
+**PayPal** (Direct)  
+[paypal.me/achatainga](https://paypal.me/achatainga)
+
+**Binance (USDT)** (Crypto, lowest fees)  
+- **TRC20/ERC20**: `0xa68d53f7853ce0175eb96aaad4a30c068ca96444`
+- **Binance Pay ID**: `367669339`
+
+*Recommended: TRC20 for lower gas fees*
+
+#### Suggested Amounts:
+- ☕ **$5** - A coffee (1 hour of development)
+- 🍕 **$25** - A pizza (testing a new language)
+- 🚀 **$100** - Rocket fuel (major feature development)
+
+---
+
+#### 🔹 Recurring Support
+
+**Ko-fi Membership**  
+[ko-fi.com/achatainga/tiers](https://ko-fi.com/achatainga/tiers)
+
+Monthly tiers:
+- **$5/month** - Supporter (name in SPONSORS.md)
+- **$25/month** - Contributor (priority support, early access)
+- **$100/month** - Sponsor (feature requests, 1-on-1 consultation)
+
+---
+
+#### 🔹 Hire Me
+
+Need custom MCP tools or AI integrations?
+
+- 💼 **Available for**: Freelance contracts
+- 🌐 **Location**: Caracas, Venezuela (Remote)
+- 💻 **Skills**: TypeScript, Node.js, MCP, AI/LLM integrations
+- 💵 **Rate**: $50-75/hour
+
+📧 **Contact**: a.chataing.a@gmail.com  
+📄 **Details**: [HIRE_ME.md](HIRE_ME.md)
+
+---
+
+### 📊 Transparency
+
+I believe in radical transparency:
+
+**Current Status**:
+- 💰 Donations received: $0
+- 💸 Expenses: $20/month (npm, testing)
+- ⏰ Time invested: ~10 hours/week
+- 📦 Downloads: 10,000+/month
+
+*(Updated monthly)*
+
+---
+
+### 🏆 Hall of Fame
+
+Thank you to these amazing supporters:
+
+*(No sponsors yet - be the first!)*
+
+See full list: [SPONSORS.md](SPONSORS.md)
+
+---
+
+### ❤️ Non-Financial Support
+
+Can't donate? No problem! You can still help:
+
+- ⭐ Star the repo on GitHub
+- 🐛 Report bugs or suggest features
+- 📝 Improve documentation
+- 🗣️ Share with others who might benefit
+- 💬 Join discussions and help other users
+
+Every contribution matters, financial or not.
+
+---
 
 ## Development
 
@@ -275,14 +390,8 @@ Safely remove a symbol from a file with dependency checking.
 # Build
 npm run build
 
-# Run read tests (compression + extraction)
-npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js
-
-# Run write tests (replace, insert, rename, remove)
-npm run build && node dist/tests/writers/test-write-smoke.js
-
-# Run all tests
-npm run build && node dist/tests/test-dart.js && node dist/tests/test-php.js && node dist/tests/writers/test-write-smoke.js
+# Run tests
+npm test
 
 # Development (build + start)
 npm run dev
@@ -299,6 +408,26 @@ npm run dev
 - **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration.
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
 
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+## Security
+
+See [SECURITY.md](SECURITY.md) for security policies and reporting vulnerabilities.
+
+## Troubleshooting
+
+See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
 ## License
 
 [MIT](LICENSE)
+
+---
+
+**Built with ❤️ from Caracas, Venezuela 🇻🇪**
