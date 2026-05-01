@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.5.3 - Tree-sitter WASM Edition
+ * mcp-code-context v3.6.0 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -9,6 +9,11 @@
  * - Two-phase write workflow (dry-run + confirmation token)
  * - Middleware pipeline: rate limiting, file locking, audit logging, telemetry
  * - Mandatory security boundaries on ALL handlers
+ * - Persistent WASM SQLite cache with <100ms hits
+ * - Structured logging with pino (JSON to stderr, MCP-safe)
+ * - File watcher with chokidar for auto cache invalidation
+ * - Fuzzy search with fuse.js + pagination
+ * - Token optimization: compact diffs, auto-optimize output
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -36,7 +41,7 @@ import { CacheManager } from "./core/cacheManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.5.3";
+const SERVER_VERSION = "3.6.0";
 
 // Global instances
 let engine: CodeContextEngine;

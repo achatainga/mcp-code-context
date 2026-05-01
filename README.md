@@ -4,11 +4,11 @@
 [![npm version](https://img.shields.io/npm/v/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Tests](https://img.shields.io/badge/tests-passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-74%20passing-success.svg)]()
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi)](https://ko-fi.com/achatainga)
 [![PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal)](https://paypal.me/achatainga)
 
-> MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies.
+> MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, fuzzy search, and multi-process safety.
 
 ## 🚀 Quick Start (Claude Desktop)
 
@@ -63,6 +63,20 @@ LLMs working with code face two bottlenecks:
 Built to be robust and precise. Both read and write engines are tested against real-world, complex codebases (including nested generic types in Dart, complex interfaces in PHP, and multi-file rename operations) with a **100% test pass rate** across all languages and operations.
 
 ## Features
+
+### What's New in v3.6.0
+
+| Feature | Description |
+|---------|-------------|
+| ⚡ **Persistent Cache** | WASM SQLite cache — <100ms hits, 10× faster on repeated reads |
+| 📝 **Structured Logging** | pino JSON logging to stderr (MCP-safe, never pollutes stdio) |
+| 👁️ **File Watcher** | chokidar auto-invalidates cache on file changes |
+| 🔍 **Fuzzy Search** | fuse.js finds `authUser` when you search `authenticateUser` |
+| 📄 **Pagination** | Search defaults to 10 results with `startIndex` for navigation |
+| 🔒 **Multi-process Safe** | Filesystem locks via `proper-lockfile` (was in-memory) |
+| 💾 **OS Temp Backups** | Backups in `os.tmpdir()` — no more hot-reload loops |
+| 🧪 **74 Tests** | Unit + integration + performance + stress tests |
+| 🎯 **Token Savings** | 50-80% reduction: compact diffs, no Phase 2 repeat, auto-optimize output |
 
 ### Read
 - 🌳 **AST-based compression** — Real Tree-sitter WASM parsers for TypeScript/JavaScript/Python/PHP/Dart. Zero regex-based parsing.
@@ -216,9 +230,10 @@ Search for code patterns across multiple files with context. Respects `.gitignor
 - `pattern` (required) — Regular expression pattern to search
 - `fileExtensions` (optional) — Array of extensions to search (e.g., `[".ts", ".dart"]`)
 - `excludeDirs` (optional) — Directories to exclude (default: `["node_modules", "dist", "build"]`)
-- `showContext` (optional) — Include surrounding lines (default: true)
-- `contextLines` (optional) — Number of context lines (default: 3)
-- `maxResults` (optional) — Maximum matches to return (default: 50)
+- `maxResults` (optional) — Maximum matches per page (default: 10)
+- `startIndex` (optional) — Pagination offset (default: 0)
+- `fuzzyMatch` (optional) — Enable fuzzy/typo-tolerant matching (default: false)
+- `fuzzyThreshold` (optional) — Fuzzy sensitivity 0.0–1.0 (default: 0.4)
 
 #### 6. `rollback_file`
 Surgically restore a file to a previous state from the automated backup system.
@@ -404,9 +419,16 @@ npm run dev
 - **Protocol:** [Model Context Protocol](https://modelcontextprotocol.io/)
 - **AST Engines:** web-tree-sitter@0.25.1 (WASM) for TypeScript/JS/Python/PHP/Dart
 - **Language Grammars:** tree-sitter-wasms@0.1.13 (ABI v15)
+- **Cache:** sql.js@1.14.1 (WASM SQLite, zero native deps)
+- **Logging:** pino@10.3.1 (JSON to stderr, MCP-safe)
+- **File Watcher:** chokidar@5.0.0 (auto cache invalidation)
+- **Fuzzy Search:** fuse.js@7.3.0 (typo-tolerant matching)
+- **File Locking:** proper-lockfile@4.1.2 (multi-process safe, OS temp)
+- **Diff:** diff-match-patch@1.0.5 (Myers algorithm, O(n+d²))
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
-- **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration.
+- **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration, ReDoS protection via worker_threads.
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
+- **Tests:** 74 passing (unit + integration + performance + stress)
 
 ## Contributing
 

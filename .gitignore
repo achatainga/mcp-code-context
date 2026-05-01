@@ -44,6 +44,9 @@ src/debug-*.ts
 */*/*/*/.mcp-backups/
 */*/*/*/*/.mcp-backups/
 
+# Audit logs (written to project dir by AuditLogger — should not be committed)
+.mcp-audit-logs/
+
 # Roadmaps & Plans (internal)
 ROADMAP_*.md
 PLAN_*.md
