@@ -408,16 +408,43 @@ async function handleTwoPhaseWrite(
     const pendingOp = globalConfirmationStore.consumePending(token);
     if (!pendingOp) throw new Error(`Invalid or expired confirmation token: ${token}`);
     
-    if (pendingOp.pendingWrites && pendingOp.pendingWrites.length > 0) {
-      // Multi-file rename: backup and write ALL files atomically
-      for (const pw of pendingOp.pendingWrites) {
-        await BackupManager.createBackup(pw.filePath, String(args.projectRoot));
-        await writeFile(pw.filePath, pw.newContent);
+    // SECURITY: Validate paths in Phase 2 (defense in depth)
+    const projectRoot = String(args.projectRoot);
+    const validator = new SecurityValidator(projectRoot);
+    
+    // CRITICAL: Re-acquire lock in Phase 2 to prevent race conditions
+    // Lock is released after Phase 1, so another agent could modify file between Phase 1 and Phase 2
+    const lockReleases: Array<() => Promise<void>> = [];
+    
+    try {
+      if (pendingOp.pendingWrites && pendingOp.pendingWrites.length > 0) {
+        // Multi-file rename: validate, lock, and write ALL files atomically
+        for (const pw of pendingOp.pendingWrites) {
+          const validation = await validator.validateFilePath(pw.filePath);
+          if (!validation.valid) throw new Error(validation.error);
+          const release = await globalLockManager.acquireLock(validation.resolvedPath!);
+          lockReleases.push(release);
+        }
+        for (let i = 0; i < pendingOp.pendingWrites.length; i++) {
+          const pw = pendingOp.pendingWrites[i];
+          const validation = await validator.validateFilePath(pw.filePath);
+          await BackupManager.createBackup(validation.resolvedPath!, projectRoot);
+          await writeFile(validation.resolvedPath!, pw.newContent);
+        }
+      } else {
+        // Single-file operation: validate, lock, then write
+        const validation = await validator.validateFilePath(pendingOp.filePath);
+        if (!validation.valid) throw new Error(validation.error);
+        const release = await globalLockManager.acquireLock(validation.resolvedPath!);
+        lockReleases.push(release);
+        await BackupManager.createBackup(validation.resolvedPath!, projectRoot);
+        await writeFile(validation.resolvedPath!, pendingOp.newContent);
       }
-    } else {
-      // Single-file operation
-      await BackupManager.createBackup(pendingOp.filePath, String(args.projectRoot));
-      await writeFile(pendingOp.filePath, pendingOp.newContent);
+    } finally {
+      // Release all locks
+      for (const release of lockReleases) {
+        await release();
+      }
     }
 
     const fileCount = pendingOp.pendingWrites?.length || 1;
