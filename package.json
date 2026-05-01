@@ -66,6 +66,7 @@
     "@types/chokidar": "^1.7.5",
     "chokidar": "^5.0.0",
     "diff-match-patch": "^1.0.5",
+    "fuse.js": "^7.3.0",
     "ignore": "^6.0.2",
     "pino": "^10.3.1",
     "pino-pretty": "^13.1.3",

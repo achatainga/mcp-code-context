@@ -11,8 +11,9 @@ import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS, MAX_FILES_SEARCH, OPERATION_TIMEOUT
 import { safeRegexFindFirst, safeRegexMultiFileBatchTest, validateRegexPattern } from "../utils/safeRegex.js";
 import { walkDir } from "../utils/fileWalker.js";
 import { CacheManager } from "../core/cacheManager.js";
+import { fuzzySearch } from "../utils/fuzzySearch.js";
 
-const DEFAULT_MAX_RESULTS = 50;
+const DEFAULT_MAX_RESULTS = 10; // Changed from 50 for pagination
 const SCAN_TIMEOUT_BASE_MS = 1000;
 const SCAN_TIMEOUT_PER_FILE_MS = 10;
 
@@ -212,6 +213,9 @@ export async function searchPattern(params: {
   showContext?: boolean;
   contextLines?: number;
   maxResults?: number;
+  startIndex?: number;
+  fuzzyMatch?: boolean;
+  fuzzyThreshold?: number;
 }): Promise<ReadResult> {
   try {
     const maxResults = params.maxResults || DEFAULT_MAX_RESULTS;
@@ -262,20 +266,44 @@ export async function searchPattern(params: {
       return { success: false, error: batchResult.error };
     }
 
-    // Step 3: Collect results up to maxResults
-    const results: any[] = [];
-    for (const match of batchResult.results!) {
-      if (results.length >= maxResults) break;
-      results.push({
-        file: match.file,
-        line: match.index + 1,
-        content: match.content,
+    // Step 3: Collect results with pagination
+    const startIdx = params.startIndex || 0;
+    const maxRes = params.maxResults || DEFAULT_MAX_RESULTS;
+    const allMatches = batchResult.results!;
+    
+    // Apply fuzzy filtering if requested
+    let filteredMatches = allMatches;
+    if (params.fuzzyMatch) {
+      const fuzzyThreshold = params.fuzzyThreshold ?? 0.4;
+      const searchItems = allMatches.map(m => ({
+        ...m,
+        searchText: `${m.file} ${m.content}`,
+      }));
+      
+      const fuzzyResults = fuzzySearch(searchItems, params.pattern, {
+        threshold: fuzzyThreshold,
+        keys: ['searchText'],
       });
+      
+      filteredMatches = fuzzyResults.map(r => r.item);
     }
+    
+    // Paginate results
+    const paginatedMatches = filteredMatches.slice(startIdx, startIdx + maxRes);
+    const results: any[] = paginatedMatches.map(match => ({
+      file: match.file,
+      line: match.index + 1,
+      content: match.content,
+    }));
+    
+    // Add pagination footer
+    const totalResults = filteredMatches.length;
+    const hasMore = startIdx + maxRes < totalResults;
+    const footer = `\n\nShowing ${startIdx + 1}-${startIdx + results.length} of ${totalResults} results${hasMore ? ' (use startIndex to see more)' : ''}`;
 
     return {
       success: true,
-      content: JSON.stringify(results, null, 2),
+      content: JSON.stringify(results, null, 2) + footer,
     };
   } catch (error) {
     return {

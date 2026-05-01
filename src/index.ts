@@ -122,7 +122,10 @@ const TOOLS = [
         pattern: { type: "string", description: "Regular expression pattern to search" },
         fileExtensions: { type: "array", items: { type: "string" }, description: "Extensions to search" },
         excludeDirs: { type: "array", items: { type: "string" }, description: "Directories to exclude" },
-        maxResults: { type: "number", description: "Maximum matches to return (default: 50)" },
+        maxResults: { type: "number", description: "Maximum matches to return (default: 10)" },
+        startIndex: { type: "number", description: "Start index for pagination (default: 0)" },
+        fuzzyMatch: { type: "boolean", description: "Enable fuzzy matching (default: false)" },
+        fuzzyThreshold: { type: "number", description: "Fuzzy match threshold 0-1 (default: 0.4)" },
       },
       required: ["rootDir", "projectRoot", "pattern"],
     },
@@ -418,6 +421,9 @@ async function handleSearchCodePattern(args: Record<string, unknown>) {
     fileExtensions: args.fileExtensions as string[] | undefined,
     excludeDirs: args.excludeDirs as string[] | undefined,
     maxResults: args.maxResults as number | undefined,
+    startIndex: args.startIndex as number | undefined,
+    fuzzyMatch: args.fuzzyMatch as boolean | undefined,
+    fuzzyThreshold: args.fuzzyThreshold as number | undefined,
   });
 
   if (!result.success) throw new Error(result.error);
