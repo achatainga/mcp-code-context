@@ -2,6 +2,7 @@ import { BackupManager } from "../src/utils/backupManager.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
+import * as crypto from "node:crypto";
 
 async function runTests() {
   console.log("🚀 Running Backup Manager Test Suite\n");
@@ -12,13 +13,19 @@ async function runTests() {
 
   const testFile = path.join(projectRoot, "test.txt");
   
+  // Calculate backup directory location (OS temp)
+  const projectHash = crypto.createHash('md5')
+    .update(projectRoot)
+    .digest('hex')
+    .substring(0, 8);
+  const backupDir = path.join(os.tmpdir(), 'mcp-backups', projectHash);
+  
   try {
     // 1. Create file and backup
     console.log("🧪 Testing Basic Backup...");
     await fs.writeFile(testFile, "v1", "utf-8");
     await BackupManager.createBackup(testFile, projectRoot);
     
-    const backupDir = path.join(projectRoot, ".mcp-backups");
     const backups = await fs.readdir(backupDir);
     if (backups.length !== 1) throw new Error("Backup not created");
     console.log("✅ Basic Backup Test PASSED");

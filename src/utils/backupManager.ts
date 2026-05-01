@@ -87,7 +87,7 @@ export class BackupManager {
       try {
         files = await fs.readdir(backupDir);
       } catch {
-        return { success: false, error: "No backups found for this project." };
+        return { success: false, error: `No backups directory found for project "${projectRoot}"` };
       }
 
       const fileBackups = files
@@ -95,7 +95,7 @@ export class BackupManager {
         .sort((a, b) => b.localeCompare(a));
 
       if (fileBackups.length === 0) {
-        return { success: false, error: `No backups found for file: ${path.basename(filePath)}` };
+        return { success: false, error: `No backups found for file "${path.basename(filePath)}" in project "${projectRoot}"` };
       }
 
       const targetIndex = Math.min(steps - 1, fileBackups.length - 1);

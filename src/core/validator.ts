@@ -25,17 +25,20 @@ export class SecurityValidator {
 
     // CRITICAL: Check boundary AFTER normalization (with path separator)
     if (resolved !== this.projectRoot && !resolved.startsWith(this.projectRoot + path.sep)) {
-      return { valid: false, error: "Path outside project boundary" };
+      return { 
+        valid: false, 
+        error: `Security: Path "${filePath}" is outside project boundary "${this.projectRoot}"` 
+      };
     }
-
-    // NOTE: Path traversal already caught by startsWith check above.
-    // Removed dead code that duplicated the boundary check (unreachable condition).
 
     // Existence check
     try {
       await fs.access(resolved);
     } catch {
-      return { valid: false, error: "File does not exist" };
+      return { 
+        valid: false, 
+        error: `File not found: "${filePath}" (resolved to "${resolved}")` 
+      };
     }
 
     return { valid: true, resolvedPath: resolved };
@@ -45,11 +48,19 @@ export class SecurityValidator {
     try {
       const stat = await fs.stat(filePath);
       if (stat.size > maxSize) {
-        return { valid: false, error: `File too large: ${(stat.size / 1024 / 1024).toFixed(2)}MB` };
+        const sizeMB = (stat.size / 1024 / 1024).toFixed(2);
+        const maxMB = (maxSize / 1024 / 1024).toFixed(2);
+        return { 
+          valid: false, 
+          error: `File too large: ${sizeMB}MB exceeds maximum ${maxMB}MB` 
+        };
       }
       return { valid: true };
     } catch (error) {
-      return { valid: false, error: `Failed to check file size: ${error}` };
+      return { 
+        valid: false, 
+        error: `Failed to check file size for "${filePath}": ${error instanceof Error ? error.message : String(error)}` 
+      };
     }
   }
 }

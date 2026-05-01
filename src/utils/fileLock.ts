@@ -68,7 +68,7 @@ export class FileLockManager {
         this.activeLocks.delete(normalizedPath);
       };
     } catch (error: any) {
-      throw new Error(`Could not acquire lock for ${filePath}: ${error.message}`);
+      throw new Error(`Failed to acquire lock for "${filePath}": ${error.message || String(error)}`);
     }
   }
 
