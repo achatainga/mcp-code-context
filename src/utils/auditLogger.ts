@@ -5,6 +5,7 @@
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { LOG_DIR } from './logger.js';
 
 export interface AuditEntry {
   timestamp: number;
@@ -37,7 +38,7 @@ export class AuditLogger {
 
   constructor(config: Partial<AuditLogConfig> = {}) {
     this.config = {
-      logDir: config.logDir || "./.mcp-audit-logs",
+      logDir: config.logDir || LOG_DIR,
       maxFileSize: config.maxFileSize || 10 * 1024 * 1024, // 10MB
       maxFiles: config.maxFiles || 10,
       enableConsole: config.enableConsole ?? true,
