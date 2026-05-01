@@ -4,6 +4,7 @@ node_modules/
 # Build output
 dist/
 dist-v3/
+dist-tests/
 
 # TypeScript build info
 *.tsbuildinfo
