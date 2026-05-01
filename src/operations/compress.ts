@@ -22,10 +22,13 @@ export async function compressRepository(params: {
   directoryPath: string;
   format?: "xml" | "markdown";
   registry: ParserRegistry;
+  maxDepth?: number;
+  includeSymbols?: boolean;
 }): Promise<CompressionResult> {
   try {
     const format = params.format || "xml";
     const files: any[] = [];
+    let totalSymbols = 0;
 
     await walkDir(params.directoryPath, {
       excludeDirs: EXCLUDE_DIRS,
@@ -40,6 +43,7 @@ export async function compressRepository(params: {
             const content = await fs.readFile(fullPath, "utf-8");
             const tree = parser.parse(content);
             const symbols = parser.findSymbols(tree);
+            totalSymbols += symbols.length;
 
             files.push({
               path: path.relative(params.directoryPath, fullPath),
@@ -51,27 +55,45 @@ export async function compressRepository(params: {
         }
       },
     });
+    
+    // Auto-optimize: disable symbols if >100 files or >1000 symbols
+    const includeSymbols = params.includeSymbols !== false && files.length <= 100 && totalSymbols <= 1000;
 
     if (format === "xml") {
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<repository>\n';
       for (const file of files) {
-        xml += `  <file path="${file.path}">\n`;
-        for (const symbol of file.symbols) {
-          xml += `    <symbol type="${symbol.type}" name="${symbol.name}" />\n`;
+        xml += `  <file path="${file.path}"`;
+        if (includeSymbols && file.symbols.length > 0) {
+          xml += '>\n';
+          for (const symbol of file.symbols) {
+            xml += `    <symbol type="${symbol.type}" name="${symbol.name}" />\n`;
+          }
+          xml += `  </file>\n`;
+        } else {
+          xml += ' />\n';
         }
-        xml += `  </file>\n`;
       }
       xml += '</repository>';
+      
+      if (!includeSymbols) {
+        xml += `\n\n<!-- Symbols omitted: ${files.length} files, ${totalSymbols} symbols (auto-optimized for token efficiency) -->`;
+      }
 
       return { success: true, content: xml };
     } else {
       let md = `# Repository Map\n\n`;
       for (const file of files) {
-        md += `## ${file.path}\n\n`;
-        for (const symbol of file.symbols) {
-          md += `- **${symbol.type}**: \`${symbol.name}\`\n`;
+        md += `## ${file.path}\n`;
+        if (includeSymbols && file.symbols.length > 0) {
+          for (const symbol of file.symbols) {
+            md += `- **${symbol.type}**: \`${symbol.name}\`\n`;
+          }
         }
         md += `\n`;
+      }
+      
+      if (!includeSymbols) {
+        md += `\n---\n*Symbols omitted: ${files.length} files, ${totalSymbols} symbols (auto-optimized for token efficiency)*\n`;
       }
 
       return { success: true, content: md };

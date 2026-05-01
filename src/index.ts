@@ -510,7 +510,7 @@ async function handleTwoPhaseWrite(
 
     const fileCount = pendingOp.pendingWrites?.length || 1;
     return {
-      content: [{ type: "text", text: `Success. Changes applied to ${fileCount} file(s).\n\nDiff:\n${pendingOp.diff}` }],
+      content: [{ type: "text", text: `✅ Success. Changes applied to ${fileCount} file(s).` }],
     };
   }
 

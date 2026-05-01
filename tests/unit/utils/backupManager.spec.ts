@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { BackupManager } from '@/utils/backupManager';
-import { writeFileSync, readFileSync, existsSync, unlinkSync, mkdirSync, rmSync } from 'fs';
+import { writeFileSync, readFileSync, existsSync, mkdirSync, rmSync } from 'fs';
 import path from 'path';
 import { tmpdir } from 'os';
 
@@ -26,8 +26,7 @@ describe('BackupManager', () => {
   describe('createBackup', () => {
     it('should create backup successfully', async () => {
       await BackupManager.createBackup(testFile, projectRoot);
-      
-      // Backup should exist
+
       const backups = await BackupManager.listBackups(testFile, projectRoot);
       expect(backups.length).toBe(1);
     });
@@ -35,12 +34,12 @@ describe('BackupManager', () => {
     it('should preserve file content in backup', async () => {
       const originalContent = 'test content';
       writeFileSync(testFile, originalContent);
-      
+
       await BackupManager.createBackup(testFile, projectRoot);
-      
+
       const backups = await BackupManager.listBackups(testFile, projectRoot);
       const backupContent = readFileSync(backups[0], 'utf-8');
-      
+
       expect(backupContent).toBe(originalContent);
     });
 
@@ -50,7 +49,7 @@ describe('BackupManager', () => {
       await BackupManager.createBackup(testFile, projectRoot);
       writeFileSync(testFile, 'modified 2');
       await BackupManager.createBackup(testFile, projectRoot);
-      
+
       const backups = await BackupManager.listBackups(testFile, projectRoot);
       expect(backups.length).toBe(3);
     });
@@ -61,43 +60,46 @@ describe('BackupManager', () => {
       const originalContent = 'original';
       writeFileSync(testFile, originalContent);
       await BackupManager.createBackup(testFile, projectRoot);
-      
+
       writeFileSync(testFile, 'modified');
-      
-      await BackupManager.rollback(testFile, projectRoot);
-      
+
+      const result = await BackupManager.rollback(testFile, projectRoot);
+      expect(result.success).toBe(true);
+
       const restoredContent = readFileSync(testFile, 'utf-8');
       expect(restoredContent).toBe(originalContent);
     });
 
-    it('should throw error if no backups exist', async () => {
-      await expect(
-        BackupManager.rollback(testFile, projectRoot)
-      ).rejects.toThrow();
+    it('should return failure if no backups exist', async () => {
+      // BackupManager returns { success: false } rather than throwing
+      const result = await BackupManager.rollback(testFile, projectRoot);
+      expect(result.success).toBe(false);
+      expect(result.error).toBeDefined();
     });
   });
 
   describe('enforceBackupLimit', () => {
     it('should keep only 5 most recent backups', async () => {
-      // Create 7 backups
       for (let i = 0; i < 7; i++) {
         writeFileSync(testFile, `content ${i}`);
         await BackupManager.createBackup(testFile, projectRoot);
-        await new Promise(resolve => setTimeout(resolve, 10)); // Ensure different timestamps
+        await new Promise(resolve => setTimeout(resolve, 10));
       }
-      
+
       const backups = await BackupManager.listBackups(testFile, projectRoot);
       expect(backups.length).toBeLessThanOrEqual(5);
     });
   });
 
   describe('clean', () => {
-    it('should remove all backups for file', async () => {
+    it('should remove all backups for project', async () => {
       await BackupManager.createBackup(testFile, projectRoot);
       await BackupManager.createBackup(testFile, projectRoot);
-      
-      await BackupManager.clean(testFile, projectRoot);
-      
+
+      // API is clean(projectRoot) — removes all backups for the project
+      const result = await BackupManager.clean(projectRoot);
+      expect(result.success).toBe(true);
+
       const backups = await BackupManager.listBackups(testFile, projectRoot);
       expect(backups.length).toBe(0);
     });
