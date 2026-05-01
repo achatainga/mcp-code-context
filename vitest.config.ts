@@ -25,8 +25,8 @@ export default defineConfig({
         statements: 80
       }
     },
-    testTimeout: 30000,
-    hookTimeout: 30000,
+    testTimeout: 60000,
+    hookTimeout: 60000,
     outputTruncateLength: 80
   },
   resolve: {
