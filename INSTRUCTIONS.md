@@ -108,7 +108,7 @@ newContent: "return `Hello, ${name}`;"
   maxResults: 10
 ```
 
-### Fuzzy Search (v3.6.0)
+### Fuzzy Search (v3.6.1)
 ```
 @mcp-code-context/search_code_pattern
   rootDir: /project/root
@@ -253,7 +253,7 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.6.0 Features
+## 🚀 v3.6.1 Features
 
 - ✅ **Fuzzy Search**: Find similar patterns with typo tolerance
 - ✅ **Pagination**: Default 10 results, use `startIndex` for more
@@ -270,5 +270,5 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.6.0  
+**Version**: 3.6.1  
 **Last Updated**: May 1, 2026

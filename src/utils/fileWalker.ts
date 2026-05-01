@@ -1,5 +1,5 @@
 /**
- * File Walker Utility - v3.6.0
+ * File Walker Utility - v3.6.1
  * Centralized directory traversal with filtering
  */
 

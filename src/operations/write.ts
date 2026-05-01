@@ -1,11 +1,12 @@
 /**
- * Write Operations - v3.6.0
+ * Write Operations - v3.6.1
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
  * CRITICAL: renameSymbol Phase 1 is now pure-functional (no disk writes)
  */
 
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
+import { createHash } from "node:crypto";
 import { BaseParser } from "../parsers/base.js";
 import { SecurityValidator } from "../core/validator.js";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
@@ -18,6 +19,7 @@ export interface WriteResult {
   newContent?: string;
   error?: string;
   diff?: string;
+  originalHash?: string;
   /** Multi-file changes for rename operations (Phase 1 accumulation) */
   pendingWrites?: Array<{ filePath: string; newContent: string }>;
 }
@@ -79,6 +81,7 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
 
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
+    const originalHash = createHash('md5').update(content).digest('hex');
     const tree = parser.parse(content);
 
     // Use AST-based replacement
@@ -104,6 +107,7 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
       success: true,
       newContent: result,
       diff,
+      originalHash,
     };
   } catch (error) {
     return {
@@ -127,6 +131,7 @@ export async function insertCode(options: InsertOptions): Promise<WriteResult> {
 
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
+    const originalHash = createHash('md5').update(content).digest('hex');
     const tree = parser.parse(content);
 
     let insertIndex: number;
@@ -178,6 +183,7 @@ export async function insertCode(options: InsertOptions): Promise<WriteResult> {
       success: true,
       newContent: result,
       diff,
+      originalHash,
     };
   } catch (error) {
     return {
@@ -333,7 +339,7 @@ function generateRenameChanges(
 
 /**
  * Rename symbol using AST-aware replacement
- * v3.6.0 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
+ * v3.6.1 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
  * All changes are accumulated in pendingWrites for Phase 2 confirmation.
  */
 export async function renameSymbol(params: {

@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.6.0
+ * Read Operations - v3.6.1
  * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 
@@ -17,16 +17,6 @@ import { searchWithNativeTool } from "../utils/searchTools.js";
 const DEFAULT_MAX_RESULTS = 10; // Changed from 50 for pagination
 const SCAN_TIMEOUT_BASE_MS = 1000;
 const SCAN_TIMEOUT_PER_FILE_MS = 10;
-
-// Global cache instance per project
-const cacheInstances = new Map<string, CacheManager>();
-
-function getCacheManager(projectRoot: string): CacheManager {
-  if (!cacheInstances.has(projectRoot)) {
-    cacheInstances.set(projectRoot, new CacheManager(projectRoot));
-  }
-  return cacheInstances.get(projectRoot)!;
-}
 
 async function getFileHash(filePath: string): Promise<string> {
   const content = await fs.readFile(filePath, 'utf-8');
@@ -50,10 +40,10 @@ export async function extractSymbol(params: {
   className?: string;
   parser: BaseParser;
   useCache?: boolean;
+  cache?: CacheManager | null;
 }): Promise<ReadResult> {
   try {
-    const useCache = params.useCache !== false;
-    const cache = useCache ? getCacheManager(params.projectRoot) : null;
+    const cache = params.cache;
     
     // Try cache first
     if (cache) {

@@ -1,5 +1,5 @@
 /**
- * Confirmation Store - v3.6.0
+ * Confirmation Store - v3.6.1
  * Two-phase write: dry-run preview → confirm with token
  * Stores pending write operations with auto-expiry
  */
@@ -15,6 +15,7 @@ export interface PendingOperation {
   diff: string;
   createdAt: number;
   expiresAt: number;
+  originalHash?: string;
   /** Multi-file pending writes for rename operations */
   pendingWrites?: Array<{ filePath: string; newContent: string }>;
 }
@@ -36,6 +37,7 @@ class ConfirmationStore {
     symbolName?: string;
     newContent: string;
     diff: string;
+    originalHash?: string;
     pendingWrites?: Array<{ filePath: string; newContent: string }>;
   }): string {
     this.cleanup();
@@ -72,6 +74,7 @@ class ConfirmationStore {
       diff: params.diff,
       createdAt: now,
       expiresAt: now + EXPIRY_MS,
+      originalHash: params.originalHash,
       pendingWrites: params.pendingWrites,
     });
 

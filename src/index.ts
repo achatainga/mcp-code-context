@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.6.0 - Tree-sitter WASM Edition
+ * mcp-code-context v3.6.1 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -23,6 +23,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 
 import { CodeContextEngine } from "./core/engine.js";
 import { ParserRegistry } from "./parsers/registry.js";
@@ -41,7 +42,7 @@ import { CacheManager } from "./core/cacheManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.6.0";
+const SERVER_VERSION = "3.6.1";
 
 // Global instances
 let engine: CodeContextEngine;
@@ -388,7 +389,14 @@ async function handleReadFileSurgical(args: Record<string, unknown>) {
     const ext = path.extname(filePath);
     const parser = registry.getParser(ext);
     if (!parser) throw new Error(`No parser available for ${ext} files`);
-    const result = await extractSymbol({ filePath: validation.resolvedPath!, projectRoot, symbolName, className, parser });
+    const result = await extractSymbol({ 
+      filePath: validation.resolvedPath!, 
+      projectRoot, 
+      symbolName, 
+      className, 
+      parser,
+      cache: getCacheManager(projectRoot)
+    });
     if (!result.success) throw new Error(result.error);
     content = result.content!;
   } else {
@@ -514,6 +522,17 @@ async function handleTwoPhaseWrite(
     const lockReleases: Array<() => Promise<void>> = [];
     
     try {
+      // TOCTOU CHECK: Verify file hasn't been modified since Phase 1
+      if (pendingOp.originalHash) {
+        const validation = await validator.validateFilePath(pendingOp.filePath);
+        if (!validation.valid) throw new Error(validation.error);
+        const currentContent = await fs.readFile(validation.resolvedPath!, "utf-8");
+        const currentHash = crypto.createHash('md5').update(currentContent).digest('hex');
+        if (currentHash !== pendingOp.originalHash) {
+          throw new Error("File was modified by another process after Phase 1. Please repeat the operation to prevent data loss.");
+        }
+      }
+      
       if (pendingOp.pendingWrites && pendingOp.pendingWrites.length > 0) {
         // CRITICAL: Sort paths alphabetically to prevent deadlocks (Dining Philosophers)
         const sortedWrites = [...pendingOp.pendingWrites].sort((a, b) => 
@@ -567,6 +586,7 @@ async function handleTwoPhaseWrite(
     symbolName: args.symbolName ? String(args.symbolName) : undefined,
     newContent: result.newContent!,
     diff: result.diff!,
+    originalHash: result.originalHash,
     pendingWrites: result.pendingWrites,
   });
 
@@ -859,6 +879,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     });
   }
 });
+
+// Global shutdown hook - persist all active caches on exit
+const shutdownHandler = () => {
+  for (const entry of cacheManagers.values()) {
+    entry.cache.persistOnExit();
+  }
+};
+
+process.on('SIGINT', shutdownHandler);
+process.on('SIGTERM', shutdownHandler);
+process.on('exit', shutdownHandler);
 
 main().catch((error) => {
   console.error("Server error:", error);

@@ -1,5 +1,5 @@
 /**
- * Cache Manager - v3.6.0
+ * Cache Manager - v3.6.1
  * WASM SQLite cache with debounced persistence
  */
 
@@ -42,11 +42,6 @@ export class CacheManager {
     
     // Initialize on construction
     this.initPromise = this.init();
-    
-    // Persist on process exit
-    process.on('SIGINT', () => this.persistSync());
-    process.on('SIGTERM', () => this.persistSync());
-    process.on('exit', () => this.persistSync());
   }
 
   private async init(): Promise<void> {
@@ -235,19 +230,6 @@ export class CacheManager {
     }
   }
 
-  private persistSync(): void {
-    if (!this.isDirty || !this.db) return;
-
-    try {
-      const data = this.db.export();
-      const buffer = Buffer.from(data);
-      writeFileSync(this.dbPath, buffer);
-      this.isDirty = false;
-    } catch (error) {
-      console.error('Failed to persist cache on exit:', error);
-    }
-  }
-
   async close(): Promise<void> {
     if (this.watcher) {
       this.watcher.stop();
@@ -262,6 +244,23 @@ export class CacheManager {
     if (this.db) {
       this.db.close();
       this.db = null;
+    }
+  }
+
+  /**
+   * Synchronous persist for process exit handlers
+   * CRITICAL: Only call from global shutdown hooks
+   */
+  persistOnExit(): void {
+    if (!this.isDirty || !this.db) return;
+
+    try {
+      const data = this.db.export();
+      const buffer = Buffer.from(data);
+      writeFileSync(this.dbPath, buffer);
+      this.isDirty = false;
+    } catch (error) {
+      console.error('Failed to persist cache on exit:', error);
     }
   }
 
