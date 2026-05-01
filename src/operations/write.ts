@@ -238,6 +238,100 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 }
 
 /**
+ * Validate rename parameters and return validated paths
+ */
+async function validateRenameParams(params: {
+  filePath: string;
+  projectRoot: string;
+  oldName: string;
+}): Promise<{ valid: boolean; error?: string; resolvedPath?: string; sanitizedOld?: string }> {
+  const validator = new SecurityValidator(params.projectRoot);
+  
+  // Validate definition file path
+  const defValidation = await validator.validateFilePath(params.filePath);
+  if (!defValidation.valid) {
+    return { valid: false, error: defValidation.error };
+  }
+  
+  // Sanitize to prevent regex injection
+  const sanitizedOld = sanitizeRegexPattern(params.oldName);
+  
+  return { 
+    valid: true, 
+    resolvedPath: defValidation.resolvedPath!, 
+    sanitizedOld 
+  };
+}
+
+/**
+ * Find all files that depend on the symbol being renamed
+ */
+async function findDependentFiles(
+  rootDir: string,
+  sanitizedOldName: string,
+  projectRoot: string
+): Promise<Array<{ path: string; content: string }>> {
+  const dependents: Array<{ path: string; content: string }> = [];
+  const validator = new SecurityValidator(projectRoot);
+  
+  await walkDir(rootDir, {
+    extensions: SUPPORTED_EXTENSIONS,
+    excludeDirs: EXCLUDE_DIRS,
+    onFile: async (fullPath) => {
+      const depValidation = await validator.validateFilePath(fullPath);
+      if (!depValidation.valid) return;
+      
+      const fileContent = await fs.readFile(fullPath, "utf-8");
+      const importPatterns = [
+        new RegExp(`import.*\\b${sanitizedOldName}\\b`, "g"),
+        new RegExp(`from.*\\b${sanitizedOldName}\\b`, "g"),
+        new RegExp(`require.*\\b${sanitizedOldName}\\b`, "g"),
+        new RegExp(`use.*\\b${sanitizedOldName}\\b`, "g"),
+      ];
+      if (importPatterns.some(p => p.test(fileContent))) {
+        dependents.push({ path: fullPath, content: fileContent });
+      }
+    },
+  });
+  
+  return dependents;
+}
+
+/**
+ * Generate all rename changes (definition + dependents) and consolidated diff
+ */
+function generateRenameChanges(
+  oldName: string,
+  newName: string,
+  sanitizedOld: string,
+  definitionPath: string,
+  definitionContent: string,
+  definitionNewContent: string,
+  dependents: Array<{ path: string; content: string }>
+): { pendingWrites: Array<{ filePath: string; newContent: string }>; diff: string } {
+  const pendingWrites: Array<{ filePath: string; newContent: string }> = [];
+  const diffParts: string[] = [];
+  
+  // Accumulate dependent file changes (reuse cached content — no second read)
+  for (const dep of dependents) {
+    const depNewContent = dep.content.replace(
+      new RegExp(`\\b${sanitizedOld}\\b`, "g"),
+      newName
+    );
+    pendingWrites.push({ filePath: dep.path, newContent: depNewContent });
+    diffParts.push(`--- ${dep.path}\n${generateDiff(dep.content, depNewContent)}`);
+  }
+  
+  // Accumulate definition file change
+  pendingWrites.push({ filePath: definitionPath, newContent: definitionNewContent });
+  diffParts.push(`--- ${definitionPath}\n${generateDiff(definitionContent, definitionNewContent)}`);
+  
+  const consolidatedDiff = `Renamed "${oldName}" \u2192 "${newName}" in ${pendingWrites.length} files\n\n${diffParts.join("\n\n")}`;
+  
+  return { pendingWrites, diff: consolidatedDiff };
+}
+
+/**
  * Rename symbol using AST-aware replacement
  * v3.6.0 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
  * All changes are accumulated in pendingWrites for Phase 2 confirmation.
@@ -251,22 +345,24 @@ export async function renameSymbol(params: {
   parser: BaseParser;
 }): Promise<WriteResult> {
   try {
-    const validator = new SecurityValidator(params.projectRoot);
-
-    // Validate definition file path
-    const defValidation = await validator.validateFilePath(params.filePath);
-    if (!defValidation.valid) {
-      return { success: false, error: defValidation.error };
+    // Step 1: Validate parameters
+    const validation = await validateRenameParams({
+      filePath: params.filePath,
+      projectRoot: params.projectRoot,
+      oldName: params.oldName,
+    });
+    
+    if (!validation.valid) {
+      return { success: false, error: validation.error };
     }
-
-    // Sanitize to prevent regex injection
-    const sanitizedOld = sanitizeRegexPattern(params.oldName);
-
-    // Step 1: Rename in definition file using AST
-    const content = await fs.readFile(defValidation.resolvedPath!, "utf-8");
+    
+    const { resolvedPath, sanitizedOld } = validation;
+    
+    // Step 2: Rename in definition file using AST
+    const content = await fs.readFile(resolvedPath!, "utf-8");
     const tree = params.parser.parse(content);
     const symbols = params.parser.findSymbols(tree);
-
+    
     const targetSymbol = symbols.find(s => s.name === params.oldName);
     if (!targetSymbol) {
       return {
@@ -274,60 +370,35 @@ export async function renameSymbol(params: {
         error: `Symbol "${params.oldName}" not found in ${params.filePath}`,
       };
     }
-
+    
     // Replace only in symbol definition (AST-based)
     const newContent = content.substring(0, targetSymbol.startIndex) +
       content.substring(targetSymbol.startIndex, targetSymbol.endIndex)
         .replace(new RegExp(`\\b${sanitizedOld}\\b`, "g"), params.newName) +
       content.substring(targetSymbol.endIndex);
-
-    // Step 2: Find dependent files and cache their content (single read per file)
-    const dependents: Array<{ path: string; content: string }> = [];
-
-    await walkDir(params.rootDir, {
-      extensions: SUPPORTED_EXTENSIONS,
-      excludeDirs: EXCLUDE_DIRS,
-      onFile: async (fullPath) => {
-        const depValidation = await validator.validateFilePath(fullPath);
-        if (!depValidation.valid) return;
-
-        const fileContent = await fs.readFile(fullPath, "utf-8");
-        const importPatterns = [
-          new RegExp(`import.*\\b${sanitizedOld}\\b`, "g"),
-          new RegExp(`from.*\\b${sanitizedOld}\\b`, "g"),
-          new RegExp(`require.*\\b${sanitizedOld}\\b`, "g"),
-          new RegExp(`use.*\\b${sanitizedOld}\\b`, "g"),
-        ];
-        if (importPatterns.some(p => p.test(fileContent))) {
-          dependents.push({ path: fullPath, content: fileContent });
-        }
-      },
-    });
-
-    // Step 3: Accumulate ALL changes in memory — NO writes in Phase 1
-    const pendingWrites: Array<{ filePath: string; newContent: string }> = [];
-    const diffParts: string[] = [];
-
-    // Accumulate dependent file changes (reuse cached content — no second read)
-    for (const dep of dependents) {
-      const depNewContent = dep.content.replace(
-        new RegExp(`\\b${sanitizedOld}\\b`, "g"),
-        params.newName
-      );
-      pendingWrites.push({ filePath: dep.path, newContent: depNewContent });
-      diffParts.push(`--- ${dep.path}\n${generateDiff(dep.content, depNewContent)}`);
-    }
-
-    // Accumulate definition file change
-    pendingWrites.push({ filePath: defValidation.resolvedPath!, newContent });
-    diffParts.push(`--- ${defValidation.resolvedPath!}\n${generateDiff(content, newContent)}`);
-
-    const consolidatedDiff = `Renamed "${params.oldName}" \u2192 "${params.newName}" in ${pendingWrites.length} files\n\n${diffParts.join("\n\n")}`;
-
+    
+    // Step 3: Find dependent files
+    const dependents = await findDependentFiles(
+      params.rootDir,
+      sanitizedOld!,
+      params.projectRoot
+    );
+    
+    // Step 4: Generate all changes and consolidated diff
+    const { pendingWrites, diff } = generateRenameChanges(
+      params.oldName,
+      params.newName,
+      sanitizedOld!,
+      resolvedPath!,
+      content,
+      newContent,
+      dependents
+    );
+    
     return {
       success: true,
       newContent,
-      diff: consolidatedDiff,
+      diff,
       pendingWrites,
     };
   } catch (error) {

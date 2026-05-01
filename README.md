@@ -446,6 +446,33 @@ See [SECURITY.md](SECURITY.md) for security policies and reporting vulnerabiliti
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for common issues and solutions.
 
+### Viewing Logs
+
+Because MCP uses `stdout` for protocol communication, all logs are safely routed to `stderr`. You can view them in your client's log files:
+
+- **Claude Desktop (macOS)**: `~/Library/Logs/Claude/mcp-server-mcp-code-context.log`
+- **Claude Desktop (Windows)**: `%APPDATA%\Claude\logs\mcp-server-mcp-code-context.log`
+- **Cursor**: `Output` panel → Select `mcp-code-context` from the dropdown
+
+**Environment Variables** (optional):
+
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"],
+      "env": {
+        "NODE_ENV": "development",
+        "LOG_LEVEL": "debug"
+      }
+    }
+  }
+}
+```
+
+Supported `LOG_LEVEL` values: `fatal`, `error`, `warn`, `info`, `debug`, `trace` (default: `info`).
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
