@@ -47,13 +47,44 @@ const SERVER_VERSION = "3.6.0";
 let engine: CodeContextEngine;
 let registry: ParserRegistry;
 const rateLimiter = new RateLimiter();
-const cacheManagers = new Map<string, CacheManager>();
+
+// LRU cache for CacheManagers (max 5 projects to prevent FD exhaustion)
+const cacheManagers = new Map<string, { cache: CacheManager; lastUsed: number }>();
+const MAX_CACHE_MANAGERS = 5;
 
 function getCacheManager(projectRoot: string): CacheManager {
-  if (!cacheManagers.has(projectRoot)) {
-    cacheManagers.set(projectRoot, new CacheManager(projectRoot));
+  const now = Date.now();
+  
+  // Update last used time if exists
+  if (cacheManagers.has(projectRoot)) {
+    const entry = cacheManagers.get(projectRoot)!;
+    entry.lastUsed = now;
+    return entry.cache;
   }
-  return cacheManagers.get(projectRoot)!;
+  
+  // Evict LRU if at capacity
+  if (cacheManagers.size >= MAX_CACHE_MANAGERS) {
+    let oldestKey: string | null = null;
+    let oldestTime = Infinity;
+    
+    for (const [key, entry] of cacheManagers.entries()) {
+      if (entry.lastUsed < oldestTime) {
+        oldestTime = entry.lastUsed;
+        oldestKey = key;
+      }
+    }
+    
+    if (oldestKey) {
+      const evicted = cacheManagers.get(oldestKey)!;
+      evicted.cache.close(); // CRITICAL: Close watcher and free WASM heap
+      cacheManagers.delete(oldestKey);
+    }
+  }
+  
+  // Create new cache manager
+  const cache = new CacheManager(projectRoot);
+  cacheManagers.set(projectRoot, { cache, lastUsed: now });
+  return cache;
 }
 
 // Write operations that require file locking and two-phase workflow
@@ -484,15 +515,19 @@ async function handleTwoPhaseWrite(
     
     try {
       if (pendingOp.pendingWrites && pendingOp.pendingWrites.length > 0) {
+        // CRITICAL: Sort paths alphabetically to prevent deadlocks (Dining Philosophers)
+        const sortedWrites = [...pendingOp.pendingWrites].sort((a, b) => 
+          a.filePath.localeCompare(b.filePath)
+        );
+        
         // Multi-file rename: validate, lock, and write ALL files atomically
-        for (const pw of pendingOp.pendingWrites) {
+        for (const pw of sortedWrites) {
           const validation = await validator.validateFilePath(pw.filePath);
           if (!validation.valid) throw new Error(validation.error);
           const release = await globalLockManager.acquireLock(validation.resolvedPath!);
           lockReleases.push(release);
         }
-        for (let i = 0; i < pendingOp.pendingWrites.length; i++) {
-          const pw = pendingOp.pendingWrites[i];
+        for (const pw of sortedWrites) {
           const validation = await validator.validateFilePath(pw.filePath);
           await BackupManager.createBackup(validation.resolvedPath!, projectRoot);
           await writeFile(validation.resolvedPath!, pw.newContent);
@@ -649,8 +684,13 @@ async function handleCleanBackups(args: Record<string, unknown>) {
 }
 
 async function handleGetServerStats() {
+  const telemetry = globalTelemetry.getSummary();
+  const audit = globalAuditLogger.getStats();
+  
   const stats = {
     pendingConfirmations: globalConfirmationStore.getPendingCount(),
+    telemetry,
+    audit,
   };
   return {
     content: [{ type: "text", text: JSON.stringify(stats, null, 2) }],

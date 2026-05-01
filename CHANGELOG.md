@@ -47,14 +47,14 @@
 - Search (20 files): <2000ms ✅
 - Token savings: 50-80% ✅
 
-### Migration from v3.5.3
+### Migration from v3.6.0
 - Zero breaking changes
 - New optional parameters: `fuzzyMatch`, `fuzzyThreshold`, `startIndex`, `maxDepth`, `includeSymbols`
 - New tools: `configure_file_watcher`, `get_file_watcher_status`, `get_cache_stats`, `clear_cache`
 
 ---
 
-## [3.5.3] - 2026-04-24
+## [3.6.0] - 2026-04-24
 
 ### 🔒 PRODUCTION HARDENING - Security & Infrastructure Complete
 
@@ -84,7 +84,7 @@
 - **Security**: SecurityValidator enforced on all 13 handlers
 - **Architecture**: Middleware pipeline (RateLimiter → FileLock → Execute → AuditLog → Telemetry)
 - **Parsers**: Removed 300+ lines of duplicated replaceSymbol code
-- **Version**: Synchronized all version strings to 3.5.3
+- **Version**: Synchronized all version strings to 3.6.0
 
 ### Performance
 - Streaming I/O for files >5MB (prevents memory exhaustion)
@@ -103,7 +103,7 @@
 - ✅ All security tests passing
 - ✅ All rate limiter tests passing
 - ✅ All file lock tests passing
-- ✅ All v3.5.3 feature tests passing
+- ✅ All v3.6.0 feature tests passing
 - ✅ TypeScript: 0 compilation errors
 - ✅ Build: Clean production dist
 

@@ -30,6 +30,8 @@
 
 Works with **Claude Desktop**, **Cursor**, **Windsurf**, **GitHub Copilot**, **Amazon Q**, and any [Model Context Protocol](https://modelcontextprotocol.io/) compatible client.
 
+📖 **For AI Agents**: See [INSTRUCTIONS.md](INSTRUCTIONS.md) for essential usage patterns and best practices.
+
 ---
 
 ## 💡 Why This Exists
@@ -120,6 +122,8 @@ Built to be robust and precise. Both read and write engines are tested against r
 - **Alternative**: Use `write_file_surgical` to rename within a single file
 
 **TypeScript, JavaScript, PHP**: Fully supported with AST-aware renaming ✅
+
+**Note**: While the definition file uses pure AST replacement, dependent files (imports) are updated using regex word-boundaries. Review the generated diffs carefully to ensure strings or comments sharing the same name aren't unintentionally modified.
 
 ### `get_semantic_repo_map` Tool
 

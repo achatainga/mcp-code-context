@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.5.3
+ * Security Validator - v3.6.0
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 

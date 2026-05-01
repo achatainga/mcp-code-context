@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.5.3
+ * Read Operations - v3.6.0
  * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 
@@ -12,6 +12,7 @@ import { safeRegexFindFirst, safeRegexMultiFileBatchTest, validateRegexPattern }
 import { walkDir } from "../utils/fileWalker.js";
 import { CacheManager } from "../core/cacheManager.js";
 import { fuzzySearch } from "../utils/fuzzySearch.js";
+import { searchWithNativeTool } from "../utils/searchTools.js";
 
 const DEFAULT_MAX_RESULTS = 10; // Changed from 50 for pagination
 const SCAN_TIMEOUT_BASE_MS = 1000;
@@ -220,7 +221,23 @@ export async function searchPattern(params: {
   try {
     const maxResults = params.maxResults || DEFAULT_MAX_RESULTS;
 
-    // Validate regex pattern
+    // Try native tools first (ripgrep > ugrep > ag > findstr/grep)
+    const nativeResult = await searchWithNativeTool(params.pattern, params.rootDir, maxResults, 10000);
+    if (nativeResult && !nativeResult.timedOut) {
+      const startIdx = params.startIndex || 0;
+      const paginatedMatches = nativeResult.matches.slice(startIdx, startIdx + maxResults);
+      const results = paginatedMatches.map(m => ({
+        file: m.file,
+        line: m.line,
+        content: m.content,
+      }));
+      const totalResults = nativeResult.matches.length;
+      const hasMore = startIdx + maxResults < totalResults;
+      const footer = `\n\nShowing ${startIdx + 1}-${startIdx + results.length} of ${totalResults} results (via ${nativeResult.tool})${hasMore ? ' (use startIndex to see more)' : ''}`;
+      return { success: true, content: JSON.stringify(results, null, 2) + footer };
+    }
+
+    // Fallback to regex-based search
     const validation = validateRegexPattern(params.pattern);
     if (!validation.safe) {
       return {
