@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.6.2
+ * Read Operations - v3.6.3
  * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 
@@ -155,7 +155,7 @@ export async function readLines(params: {
       const context = params.contextLines || 5;
       const start = Math.max(0, matchIndex - context);
       const end = Math.min(lines.length, matchIndex + context + 1);
-      const matchLine = matchIndex + 1; // 1-indexed for display
+      const matchLine = matchIndex + 1;
 
       return {
         success: true,
@@ -164,19 +164,23 @@ export async function readLines(params: {
     }
 
     if (params.startLine !== undefined && params.endLine !== undefined) {
-      const start = params.startLine - 1;
-      const end = params.endLine;
+      const start = Math.max(0, params.startLine - 1);
+      // Clamp endLine to actual file length instead of erroring
+      const clampedEnd = Math.min(params.endLine, lines.length);
+      const clampWarning = params.endLine > lines.length
+        ? `\n⚠️ endLine ${params.endLine} clamped to ${lines.length} (file has ${lines.length} lines)\n`
+        : "";
 
-      if (start < 0 || end > lines.length) {
+      if (start >= lines.length) {
         return {
           success: false,
-          error: `Invalid line range: ${params.startLine}-${params.endLine} (file has ${lines.length} lines)`,
+          error: `startLine ${params.startLine} exceeds file length (${lines.length} lines)`,
         };
       }
 
       return {
         success: true,
-        content: lines.slice(start, end).join("\n"),
+        content: clampWarning + lines.slice(start, clampedEnd).join("\n"),
       };
     }
 

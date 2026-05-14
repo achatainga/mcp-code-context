@@ -1,23 +1,19 @@
-# mcp-code-context v3.6.2
+# mcp-code-context v3.6.3
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline.
 
-## What's New in v3.6.2
+## What's New in v3.6.3
 
-🔒 **Production Hardening**:
-- ✅ Two-phase write workflow (dry-run + confirmation token)
-- ✅ Middleware pipeline: Rate limiting → File locking → Execution → Audit logging → Telemetry
-- ✅ All 13 handlers require `projectRoot` with SecurityValidator
-- ✅ Safe regex with timeout enforcement (ReDoS protection)
-- ✅ LCS diff OOM guard (MAX_DIFF_LINES = 5000)
-- ✅ Atomic writes (write-to-tmp + rename)
-- ✅ Critical bug fix: `extractSymbol` API mismatch resolved
-
-🚀 **Architecture**: 100% WASM portable
-- ✅ web-tree-sitter@0.25.1 (WASM)
-- ✅ Zero native dependencies (no Visual Studio, node-gyp, Python)
-- ✅ Windows/Mac/Linux without compilation
-- ✅ TypeScript/JavaScript/Python/PHP/Dart all use WASM parsers
+🚀 **LLM Agent Experience Release**:
+- ✅ 4 new tools: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
+- ✅ `diffFormat` parameter on all write tools (`unified`, `compact`, `summary`, `none`)
+- ✅ Phase 2 no longer requires `newContent`/`code` — server stores content from Phase 1
+- ✅ `aroundPattern` now includes match line number in output
+- ✅ `get_server_stats` includes rate limiter token balance and operation costs
+- ✅ `get_cache_stats` includes hit rate percentage
+- ✅ `get_file_watcher_status` includes list of watched paths
+- ✅ `read_file_lines` clamps `endLine` to file length instead of erroring
+- ✅ CVE fix: `@modelcontextprotocol/sdk` updated from 1.12.0 to 1.29.0
 
 ## What This Tool Does
 
@@ -142,13 +138,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.6.2 Two-Phase Workflow)
+### Write Tools (v3.6.3 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.6.2):**
+**Important Notes (v3.6.3):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 
@@ -236,12 +232,12 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-### Additional Tools (v3.6.2)
+### Additional Tools (v3.6.3)
 
 #### 11. `parse_file`
 **Purpose:** Parse a file using Tree-sitter and extract all symbols.
 **Input:** `filePath` (required), `projectRoot` (required).
-**Returns:** JSON array of all symbols with type and name.
+**Returns:** JSON array of all symbols with type, name, `startLine`, and `endLine`.
 
 #### 12. `clean_backups`
 **Purpose:** Remove all backup files for a project.
@@ -250,7 +246,27 @@ All write tools follow a **Two-Phase Workflow**:
 #### 13. `get_server_stats`
 **Purpose:** Get server telemetry, audit statistics, and health metrics.
 **Input:** None.
-**Returns:** Pending confirmations count and operational metrics.
+**Returns:** Pending confirmations, rate limiter token balance, operation costs, and operational metrics.
+
+#### 14. `search_symbols`
+**Purpose:** Search symbols by name across the repo using AST (not text search).
+**Input:** `rootDir` (required), `projectRoot` (required), `query` (required), `types` (optional), `fuzzy` (optional), `fileExtensions` (optional), `maxResults` (optional).
+**Returns:** Matching symbols with file path, line numbers, and type.
+
+#### 15. `explain_symbol`
+**Purpose:** Get signature, location, and callers of a symbol in one call.
+**Input:** `filePath` (required), `projectRoot` (required), `symbolName` (required), `className` (optional), `rootDir` (optional).
+**Returns:** Symbol definition + list of files that call it. Replaces `read_file_surgical` + `analyze_impact` in one round-trip.
+
+#### 16. `batch_read`
+**Purpose:** Read N symbols from N files in a single call.
+**Input:** `reads` (required): array of `{filePath, symbolName, className?}`. `projectRoot` (required).
+**Returns:** All requested symbols in one response. Eliminates N round-trips.
+
+#### 17. `get_rate_limit_status`
+**Purpose:** Get current token balance and operation costs.
+**Input:** None.
+**Returns:** `tokensAvailable`, `maxTokens`, `refillRate`, and `canAfford` map per operation. Lets autonomous agents plan their budget.
 
 ## Technical Details
 

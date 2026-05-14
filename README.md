@@ -66,7 +66,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ## Features
 
-### What's New in v3.6.2
+### What's New in v3.6.3
 
 | Feature | Description |
 |---------|-------------|
@@ -112,18 +112,14 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### `rename_symbol` Tool
 
-**Dart and Python**: Cross-file rename is **NOT supported** for `.dart`, `.py`, and `.pyi` files.
+**All languages**: The definition file is renamed using **AST (Tree-sitter)** — safe and precise. ✅
 
-- **Reason**: No AST parser available for safe cross-file refactoring
-- **Risk**: Regex-based rename may corrupt strings, comments, or unrelated code
-- **Recommendation**: Use IDE refactoring tools instead:
-  - **Dart**: VS Code with Dart extension (F2 key) or IntelliJ IDEA
-  - **Python**: PyCharm, VS Code with Pylance (F2 key)
-- **Alternative**: Use `write_file_surgical` to rename within a single file
+**Cross-file rename (dependent files)**: Updated using **regex word-boundaries** for all languages, including TypeScript, JavaScript, and PHP.
 
-**TypeScript, JavaScript, PHP**: Fully supported with AST-aware renaming ✅
-
-**Note**: While the definition file uses pure AST replacement, dependent files (imports) are updated using regex word-boundaries. Review the generated diffs carefully to ensure strings or comments sharing the same name aren't unintentionally modified.
+- **Risk**: Regex may match strings, comments, or unrelated identifiers sharing the same name
+- **Dart and Python**: Higher risk — import syntax (`import 'package:...'`, `from module import name`) is less reliably matched by the current regex patterns
+- **Recommendation**: Always review the generated diff carefully before confirming
+- **Alternative**: Use `write_file_surgical` to rename within a single file safely
 
 ### `get_semantic_repo_map` Tool
 

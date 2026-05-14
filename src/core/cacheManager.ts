@@ -1,5 +1,5 @@
 /**
- * Cache Manager - v3.6.2
+ * Cache Manager - v3.6.3
  * WASM SQLite cache with debounced persistence
  */
 

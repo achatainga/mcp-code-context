@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.6.2 - Tree-sitter WASM Edition
+ * mcp-code-context v3.6.3 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -42,7 +42,7 @@ import { CacheManager } from "./core/cacheManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.6.2";
+const SERVER_VERSION = "3.6.3";
 
 // Global instances
 let engine: CodeContextEngine;
@@ -250,7 +250,7 @@ const TOOLS = [
       required: ["filePath", "projectRoot", "oldName", "newName"],
     },
   },
-  // ── NEW TOOLS v3.6.2 ──────────────────────────────────────────────────────
+  // ── NEW TOOLS v3.6.3 ──────────────────────────────────────────────────────
   {
     name: "search_symbols",
     description: "Search symbols by name across the repo using AST (not text search). Finds classes, functions, methods by approximate name.",

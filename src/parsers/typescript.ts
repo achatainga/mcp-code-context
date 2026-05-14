@@ -1,5 +1,5 @@
 /**
- * TypeScript Parser - v3.6.2
+ * TypeScript Parser - v3.6.3
  * Tree-sitter based TS/JS parser
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */

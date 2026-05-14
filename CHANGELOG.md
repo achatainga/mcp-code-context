@@ -1,6 +1,6 @@
 # Changelog
 
-## [3.6.2] - 2026-05-14
+## [3.6.3] - 2026-05-14
 
 ### 🚀 ROADMAP COMPLETO — LLM Agent Experience Release
 
@@ -53,7 +53,7 @@ Esta versión implementa el roadmap completo de mejoras para agentes LLM, basado
 
 ---
 
-## [3.6.0] - 2026-04-30
+## [3.6.2] - 2026-04-30
 
 ### Added
 
@@ -96,14 +96,14 @@ Esta versión implementa el roadmap completo de mejoras para agentes LLM, basado
 - Search (20 files): <2000ms ✅
 - Token savings: 50-80% ✅
 
-### Migration from v3.6.2
+### Migration from v3.6.1
 - Zero breaking changes
 - New optional parameters: `fuzzyMatch`, `fuzzyThreshold`, `startIndex`, `maxDepth`, `includeSymbols`
 - New tools: `configure_file_watcher`, `get_file_watcher_status`, `get_cache_stats`, `clear_cache`
 
 ---
 
-## [3.6.2] - 2026-04-24
+## [3.6.1] - 2026-04-24
 
 ### 🔒 PRODUCTION HARDENING - Security & Infrastructure Complete
 
@@ -133,7 +133,7 @@ Esta versión implementa el roadmap completo de mejoras para agentes LLM, basado
 - **Security**: SecurityValidator enforced on all 13 handlers
 - **Architecture**: Middleware pipeline (RateLimiter → FileLock → Execute → AuditLog → Telemetry)
 - **Parsers**: Removed 300+ lines of duplicated replaceSymbol code
-- **Version**: Synchronized all version strings to 3.6.2
+- **Version**: Synchronized all version strings to 3.6.3
 
 ### Performance
 - Streaming I/O for files >5MB (prevents memory exhaustion)
@@ -152,7 +152,7 @@ Esta versión implementa el roadmap completo de mejoras para agentes LLM, basado
 - ✅ All security tests passing
 - ✅ All rate limiter tests passing
 - ✅ All file lock tests passing
-- ✅ All v3.6.2 feature tests passing
+- ✅ All v3.6.3 feature tests passing
 - ✅ TypeScript: 0 compilation errors
 - ✅ Build: Clean production dist
 

@@ -108,7 +108,7 @@ newContent: "return `Hello, ${name}`;"
   maxResults: 10
 ```
 
-### Fuzzy Search (v3.6.2)
+### Fuzzy Search (v3.6.2+)
 ```
 @mcp-code-context/search_code_pattern
   rootDir: /project/root
@@ -253,14 +253,19 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.6.2 Features
+## 🚀 v3.6.3 Features
 
+- ✅ **4 New Tools**: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
+- ✅ **`diffFormat`**: Control diff verbosity on all write tools (`unified`, `compact`, `summary`, `none`)
+- ✅ **Phase 2 optimized**: No need to resend `newContent`/`code` — server stores it from Phase 1
+- ✅ **`aroundPattern` line number**: Output now shows `Match found at line N`
+- ✅ **Rate limiter in stats**: `get_server_stats` includes token balance and operation costs
+- ✅ **Cache hit rate**: `get_cache_stats` includes `hits`, `misses`, `hitRate`
+- ✅ **Watcher paths**: `get_file_watcher_status` includes list of watched files
 - ✅ **Fuzzy Search**: Find similar patterns with typo tolerance
 - ✅ **Pagination**: Default 10 results, use `startIndex` for more
-- ✅ **Token Optimization**: Phase 2 no longer repeats diff (97% savings)
-- ✅ **Auto-Optimize**: Large repos automatically disable symbols
-- ✅ **File Watcher**: Auto-invalidate cache on file changes
 - ✅ **Persistent Cache**: 10x faster with sql.js WASM SQLite
+- ✅ **File Watcher**: Auto-invalidate cache on file changes
 
 ---
 
@@ -270,5 +275,5 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.6.2  
+**Version**: 3.6.3  
 **Last Updated**: May 1, 2026

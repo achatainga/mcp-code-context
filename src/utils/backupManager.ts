@@ -1,5 +1,5 @@
 /**
- * Backup Manager - v3.6.2
+ * Backup Manager - v3.6.3
  * Handles rolling backups in OS temp directory
  */
 

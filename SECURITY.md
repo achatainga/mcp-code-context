@@ -1,6 +1,6 @@
-# Security Policy - mcp-code-context v3.6.2
+# Security Policy - mcp-code-context v3.6.3
 
-## 🔒 Security Improvements in v3.6.2
+## 🔒 Security Improvements in v3.6.3
 
 This release addresses **all critical security vulnerabilities** from comprehensive adversarial audit, implements full middleware pipeline, and hardens all 13 tool handlers.
 
@@ -10,11 +10,11 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ### 1. Path Traversal (HIGH)
 **CVSS Score**: 8.1 (High)
-**Status**: ✅ FIXED in v3.2.0, **hardened in v3.6.2**
+**Status**: ✅ FIXED in v3.2.0, **hardened in v3.6.3**
 
 **Description**: Path traversal check occurred BEFORE path normalization, allowing bypass with absolute paths.
 
-**Fix**: Check boundary AFTER `path.resolve()` normalization. In v3.6.2, **all 13 handlers** now require `projectRoot` and validate via `SecurityValidator`.
+**Fix**: Check boundary AFTER `path.resolve()` normalization. In v3.6.3, **all 13 handlers** now require `projectRoot` and validate via `SecurityValidator`.
 
 ---
 
@@ -40,7 +40,7 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ### 4. ReDoS in searchPattern and readLines (MEDIUM)
 **CVSS Score**: 5.3 (Medium)
-**Status**: ✅ FIXED in v3.6.2
+**Status**: ✅ FIXED in v3.6.3
 
 **Description**: User-provided regex patterns could cause catastrophic backtracking.
 
@@ -58,7 +58,7 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ### 6. extractSymbol API Mismatch (CRITICAL)
 **CVSS Score**: 9.0 (Critical)
-**Status**: ✅ FIXED in v3.6.2
+**Status**: ✅ FIXED in v3.6.3
 
 **Description**: `read.ts` passed `content` as `symbolName` and real `symbolName` as `className`. Symbol extraction was 100% broken.
 
@@ -68,7 +68,7 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ### 7. Handlers Without Path Validation (HIGH)
 **CVSS Score**: 8.5 (High)
-**Status**: ✅ FIXED in v3.6.2
+**Status**: ✅ FIXED in v3.6.3
 
 **Description**: `readLines`, `searchPattern`, `analyzeImpact`, `getSemanticRepoMap` had no path boundary check.
 
@@ -78,7 +78,7 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ### 8. renameSymbol Arbitrary Write (HIGH)
 **CVSS Score**: 8.0 (High)
-**Status**: ✅ FIXED in v3.6.2
+**Status**: ✅ FIXED in v3.6.3
 
 **Description**: `renameSymbol` wrote dependent files without SecurityValidator check, using non-atomic writes.
 
@@ -88,7 +88,7 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ### 9. LCS Diff OOM (MEDIUM)
 **CVSS Score**: 5.0 (Medium)
-**Status**: ✅ FIXED in v3.6.2
+**Status**: ✅ FIXED in v3.6.3
 
 **Description**: LCS diff algorithm is O(n²) memory — 10K-line files cause OOM.
 
@@ -101,16 +101,16 @@ This release addresses **all critical security vulnerabilities** from comprehens
 ### Defense in Depth
 
 1. **Input Validation**
-   - Path boundary enforcement on ALL handlers (v3.6.2)
+   - Path boundary enforcement on ALL handlers (v3.6.3)
    - File size limits (10MB per file, 50MB total)
    - Regex sanitization + timeout (1s limit)
 
-2. **Two-Phase Write Workflow** (v3.6.2)
+2. **Two-Phase Write Workflow** (v3.6.3)
    - Phase 1: Dry-run returns diff + confirmation token
    - Phase 2: Apply with token (5-minute expiry)
    - Max 50 pending operations
 
-3. **Middleware Pipeline** (v3.6.2)
+3. **Middleware Pipeline** (v3.6.3)
    - Rate limiting (token bucket per operation)
    - File locking (prevents concurrent writes)
    - Audit logging (persistent `.mcp-audit-logs/`)
@@ -160,7 +160,7 @@ node dist-tests/tests/test-security.js
 - [x] Syntax validation
 - [x] Bounded memory in compress
 
-### v3.6.2 ✅
+### v3.6.3 ✅
 - [x] Regex timeout enforcement (safeRegexTest)
 - [x] Rate limiting (token bucket)
 - [x] File locking (concurrent write prevention)
@@ -174,4 +174,4 @@ node dist-tests/tests/test-security.js
 ---
 
 **Last Updated**: 2026-04-24
-**Version**: 3.6.2
+**Version**: 3.6.3

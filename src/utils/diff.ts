@@ -1,5 +1,5 @@
 /**
- * Diff Utilities - v3.6.2
+ * Diff Utilities - v3.6.3
  * Uses diff-match-patch for efficient diffing
  */
 
