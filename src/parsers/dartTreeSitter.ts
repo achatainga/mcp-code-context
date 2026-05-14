@@ -1,5 +1,5 @@
 /**
- * Dart Tree-sitter Parser - v3.6.1
+ * Dart Tree-sitter Parser - v3.6.2
  * 100% AST accuracy via WASM
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
@@ -53,6 +53,9 @@ export class DartTreeSitterParser extends BaseParser {
   findSymbols(tree: Tree): SymbolInfo[] {
     const symbols: SymbolInfo[] = [];
     const cursor = tree.walk();
+    const src = tree.rootNode.text;
+
+    const offsetToLine = (offset: number) => src.substring(0, offset).split('\n').length;
 
     const visit = () => {
       const node = cursor.currentNode;
@@ -68,6 +71,8 @@ export class DartTreeSitterParser extends BaseParser {
             type: node.type,
             startIndex: node.startIndex,
             endIndex: node.endIndex,
+            startLine: offsetToLine(node.startIndex),
+            endLine: offsetToLine(node.endIndex),
             className: parentClass?.childForFieldName("name")?.text,
           });
         }

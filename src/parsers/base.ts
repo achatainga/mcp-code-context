@@ -1,5 +1,5 @@
 /**
- * Base Parser - v3.6.1
+ * Base Parser - v3.6.2
  * Abstract base for all language parsers
  * IMPROVEMENT: replaceSymbol moved here using AST indices (eliminates indexOf fragility)
  */
@@ -16,6 +16,8 @@ export interface SymbolInfo {
   type: string;
   startIndex: number;
   endIndex: number;
+  startLine?: number;
+  endLine?: number;
   className?: string;
 }
 

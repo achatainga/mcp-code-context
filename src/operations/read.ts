@@ -1,5 +1,5 @@
 /**
- * Read Operations - v3.6.1
+ * Read Operations - v3.6.2
  * FIXES: extractSymbol args, batch regex (worker_threads) in readLines/searchPattern
  */
 
@@ -123,7 +123,6 @@ export async function readLines(params: {
     const lines = content.split("\n");
 
     if (params.aroundPattern) {
-      // CRITICAL FIX: validate pattern before use (was raw new RegExp)
       const validation = validateRegexPattern(params.aroundPattern);
       if (!validation.safe) {
         return {
@@ -134,7 +133,6 @@ export async function readLines(params: {
 
       const regex = new RegExp(params.aroundPattern);
 
-      // Batch: send all lines to one worker, find first match
       const findResult = await safeRegexFindFirst(regex, lines);
       if (findResult.timedOut) {
         return {
@@ -157,15 +155,16 @@ export async function readLines(params: {
       const context = params.contextLines || 5;
       const start = Math.max(0, matchIndex - context);
       const end = Math.min(lines.length, matchIndex + context + 1);
+      const matchLine = matchIndex + 1; // 1-indexed for display
 
       return {
         success: true,
-        content: lines.slice(start, end).join("\n"),
+        content: `Match found at line ${matchLine} (showing lines ${start + 1}-${end}):\n${lines.slice(start, end).join("\n")}`,
       };
     }
 
     if (params.startLine !== undefined && params.endLine !== undefined) {
-      const start = params.startLine - 1; // Convert to 0-indexed
+      const start = params.startLine - 1;
       const end = params.endLine;
 
       if (start < 0 || end > lines.length) {
@@ -353,6 +352,211 @@ export async function analyzeImpact(params: {
     return {
       success: true,
       content: JSON.stringify({ file: params.filePath, dependents }, null, 2),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * NEW-02: Search symbols by name across the repo (AST-aware, not text search)
+ */
+export async function searchSymbols(params: {
+  rootDir: string;
+  query: string;
+  projectRoot: string;
+  fuzzy?: boolean;
+  types?: string[];
+  fileExtensions?: string[];
+  excludeDirs?: string[];
+  maxResults?: number;
+}): Promise<ReadResult> {
+  try {
+    const { ParserRegistry } = await import('../parsers/registry.js');
+    const { CodeContextEngine } = await import('../core/engine.js');
+
+    const engine = new CodeContextEngine();
+    await engine.init();
+    const registry = new ParserRegistry(engine);
+    await registry.init();
+
+    const extensions = params.fileExtensions || SUPPORTED_EXTENSIONS;
+    const excludeDirs = params.excludeDirs || EXCLUDE_DIRS;
+    const maxResults = params.maxResults || 20;
+    const results: Array<{ name: string; type: string; file: string; startLine?: number; endLine?: number; className?: string }> = [];
+
+    await walkDir(params.rootDir, {
+      extensions,
+      excludeDirs,
+      onFile: async (fullPath) => {
+        if (results.length >= maxResults * 3) return; // over-collect for fuzzy filtering
+        const ext = path.extname(fullPath);
+        const parser = registry.getParser(ext);
+        if (!parser) return;
+
+        const content = await fs.readFile(fullPath, 'utf-8');
+        const tree = parser.parse(content);
+        const symbols = parser.findSymbols(tree);
+
+        for (const sym of symbols) {
+          if (params.types && params.types.length > 0 && !params.types.includes(sym.type)) continue;
+          results.push({
+            name: sym.name,
+            type: sym.type,
+            file: fullPath,
+            startLine: sym.startLine,
+            endLine: sym.endLine,
+            className: sym.className,
+          });
+        }
+      },
+    });
+
+    // Filter by query
+    let filtered = results;
+    if (params.fuzzy) {
+      const fuzzyResults = fuzzySearch(results, params.query, {
+        threshold: 0.4,
+        keys: ['name'],
+      });
+      filtered = fuzzyResults.map(r => r.item);
+    } else {
+      const q = params.query.toLowerCase();
+      filtered = results.filter(r => r.name.toLowerCase().includes(q));
+    }
+
+    const paginated = filtered.slice(0, maxResults);
+    const hasMore = filtered.length > maxResults;
+    const footer = `\n\nShowing ${paginated.length} of ${filtered.length} symbols${hasMore ? ' (increase maxResults to see more)' : ''}`;
+
+    return {
+      success: true,
+      content: JSON.stringify(paginated, null, 2) + footer,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * NEW-03: Explain a symbol — signature + callers + callees in one call
+ */
+export async function explainSymbol(params: {
+  filePath: string;
+  projectRoot: string;
+  symbolName: string;
+  className?: string;
+  parser: BaseParser;
+  rootDir: string;
+}): Promise<ReadResult> {
+  try {
+    const content = await fs.readFile(params.filePath, 'utf-8');
+    const tree = params.parser.parse(content);
+    const symbols = params.parser.findSymbols(tree);
+
+    const sym = symbols.find(s =>
+      s.name === params.symbolName && (!params.className || s.className === params.className)
+    );
+
+    if (!sym) {
+      return {
+        success: false,
+        error: `Symbol "${params.symbolName}" not found. Available: ${symbols.map(s => s.name).join(', ')}`,
+      };
+    }
+
+    const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
+
+    // Extract signature (first line of the symbol)
+    const signature = extracted ? extracted.split('\n')[0].trim() : '';
+
+    // Find callers (files that reference this symbol name)
+    const callers: string[] = [];
+    await walkDir(params.rootDir, {
+      extensions: SUPPORTED_EXTENSIONS,
+      excludeDirs: EXCLUDE_DIRS,
+      onFile: async (fullPath) => {
+        if (fullPath === params.filePath) return;
+        const c = await fs.readFile(fullPath, 'utf-8');
+        if (c.includes(params.symbolName)) callers.push(fullPath);
+      },
+    });
+
+    const result = {
+      name: sym.name,
+      type: sym.type,
+      className: sym.className,
+      signature,
+      startLine: sym.startLine,
+      endLine: sym.endLine,
+      file: params.filePath,
+      callers: callers.slice(0, 10), // cap at 10
+      callerCount: callers.length,
+    };
+
+    return {
+      success: true,
+      content: JSON.stringify(result, null, 2),
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+/**
+ * NEW-05: Batch read multiple symbols in one call
+ */
+export async function batchRead(params: {
+  reads: Array<{ filePath: string; symbolName: string; className?: string }>;
+  projectRoot: string;
+  parser: (ext: string) => BaseParser | null;
+}): Promise<ReadResult> {
+  try {
+    const results: Array<{
+      filePath: string;
+      symbolName: string;
+      className?: string;
+      content?: string;
+      error?: string;
+    }> = [];
+
+    for (const read of params.reads) {
+      const ext = path.extname(read.filePath);
+      const parser = params.parser(ext);
+      if (!parser) {
+        results.push({ ...read, error: `No parser for ${ext}` });
+        continue;
+      }
+
+      const r = await extractSymbol({
+        filePath: read.filePath,
+        projectRoot: params.projectRoot,
+        symbolName: read.symbolName,
+        className: read.className,
+        parser,
+      });
+
+      results.push({
+        filePath: read.filePath,
+        symbolName: read.symbolName,
+        className: read.className,
+        content: r.content,
+        error: r.error,
+      });
+    }
+
+    return {
+      success: true,
+      content: JSON.stringify(results, null, 2),
     };
   } catch (error) {
     return {

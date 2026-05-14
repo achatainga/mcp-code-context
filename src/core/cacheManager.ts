@@ -1,5 +1,5 @@
 /**
- * Cache Manager - v3.6.1
+ * Cache Manager - v3.6.2
  * WASM SQLite cache with debounced persistence
  */
 
@@ -29,6 +29,8 @@ export class CacheManager {
   private initPromise: Promise<void>;
   private watcher: FileWatcher | null = null;
   private projectRoot: string;
+  private hits = 0;
+  private misses = 0;
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
@@ -97,11 +99,11 @@ export class CacheManager {
         'SELECT * FROM file_cache WHERE file_path = ? AND hash = ?'
       );
       stmt.bind([filePath, currentHash]);
-      
+
       if (stmt.step()) {
         const row = stmt.getAsObject();
         stmt.free();
-        
+        this.hits++;
         return {
           filePath: row.file_path as string,
           hash: row.hash as string,
@@ -110,8 +112,9 @@ export class CacheManager {
           cachedAt: row.cached_at as number,
         };
       }
-      
+
       stmt.free();
+      this.misses++;
       return null;
     } catch (error) {
       logger.error({ error, filePath }, 'Cache get failed');
@@ -174,40 +177,49 @@ export class CacheManager {
   async getStats(): Promise<{
     totalEntries: number;
     totalSize: number;
+    hits: number;
+    misses: number;
+    hitRate: string;
     oldestEntry: number | null;
     newestEntry: number | null;
   }> {
     await this.initPromise;
     if (!this.db) {
-      return { totalEntries: 0, totalSize: 0, oldestEntry: null, newestEntry: null };
+      return { totalEntries: 0, totalSize: 0, hits: 0, misses: 0, hitRate: '0%', oldestEntry: null, newestEntry: null };
     }
 
     try {
       const stmt = this.db.prepare(`
-        SELECT 
+        SELECT
           COUNT(*) as count,
           MIN(cached_at) as oldest,
           MAX(cached_at) as newest
         FROM file_cache
       `);
-      
+
       stmt.step();
       const row = stmt.getAsObject();
       stmt.free();
-      
+
       const totalSize = existsSync(this.dbPath)
         ? (await fs.stat(this.dbPath)).size
         : 0;
-      
+
+      const total = this.hits + this.misses;
+      const hitRate = total > 0 ? `${Math.round((this.hits / total) * 100)}%` : '0%';
+
       return {
         totalEntries: row.count as number,
         totalSize,
+        hits: this.hits,
+        misses: this.misses,
+        hitRate,
         oldestEntry: row.oldest as number | null,
         newestEntry: row.newest as number | null,
       };
     } catch (error) {
       logger.error({ error }, 'Failed to get cache stats');
-      return { totalEntries: 0, totalSize: 0, oldestEntry: null, newestEntry: null };
+      return { totalEntries: 0, totalSize: 0, hits: 0, misses: 0, hitRate: '0%', oldestEntry: null, newestEntry: null };
     }
   }
 

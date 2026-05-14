@@ -1,5 +1,5 @@
 /**
- * Write Operations - v3.6.1
+ * Write Operations - v3.6.2
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
  * CRITICAL: renameSymbol Phase 1 is now pure-functional (no disk writes)
  */
@@ -339,7 +339,7 @@ function generateRenameChanges(
 
 /**
  * Rename symbol using AST-aware replacement
- * v3.6.1 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
+ * v3.6.2 - CRITICAL FIX: Pure-functional Phase 1 (no writes to disk)
  * All changes are accumulated in pendingWrites for Phase 2 confirmation.
  */
 export async function renameSymbol(params: {

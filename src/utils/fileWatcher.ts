@@ -1,5 +1,5 @@
 /**
- * File Watcher - v3.6.1
+ * File Watcher - v3.6.2
  * Auto-invalidate cache on file changes with chokidar
  */
 
@@ -68,10 +68,19 @@ export class FileWatcher {
     logger.info('File watcher stopped');
   }
 
-  getStatus(): { isWatching: boolean; watchedFiles: number } {
+  getStatus(): { isWatching: boolean; watchedFiles: number; paths: string[] } {
+    if (!this.watcher) return { isWatching: false, watchedFiles: 0, paths: [] };
+    const watched = this.watcher.getWatched();
+    const paths: string[] = [];
+    for (const [dir, files] of Object.entries(watched)) {
+      for (const file of files as string[]) {
+        paths.push(file ? `${dir}/${file}` : dir);
+      }
+    }
     return {
       isWatching: this.isWatching,
-      watchedFiles: this.watcher ? Object.keys(this.watcher.getWatched()).length : 0,
+      watchedFiles: paths.length,
+      paths: paths.slice(0, 50), // cap at 50 to avoid token explosion
     };
   }
 

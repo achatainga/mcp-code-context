@@ -66,7 +66,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ## Features
 
-### What's New in v3.6.1
+### What's New in v3.6.2
 
 | Feature | Description |
 |---------|-------------|

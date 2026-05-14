@@ -1,5 +1,5 @@
 /**
- * TypeScript Parser - v3.6.1
+ * TypeScript Parser - v3.6.2
  * Tree-sitter based TS/JS parser
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
@@ -58,6 +58,9 @@ export class TypeScriptParser extends BaseParser {
   findSymbols(tree: Tree): SymbolInfo[] {
     const symbols: SymbolInfo[] = [];
     const cursor = tree.walk();
+    const src = tree.rootNode.text;
+
+    const offsetToLine = (offset: number) => src.substring(0, offset).split('\n').length;
 
     const visit = () => {
       const node = cursor.currentNode;
@@ -70,14 +73,16 @@ export class TypeScriptParser extends BaseParser {
         const nameNode = node.childForFieldName("name");
         if (nameNode) {
           const parentClass = this.findParentClass(node);
-          // If wrapped in export_statement, use parent indices so replaceSymbol
-          // includes the "export" keyword — otherwise replacement leaves it orphaned
           const exportParent = node.parent?.type === "export_statement" ? node.parent : null;
+          const startIndex = exportParent ? exportParent.startIndex : node.startIndex;
+          const endIndex = exportParent ? exportParent.endIndex : node.endIndex;
           symbols.push({
             name: nameNode.text,
             type: node.type,
-            startIndex: exportParent ? exportParent.startIndex : node.startIndex,
-            endIndex: exportParent ? exportParent.endIndex : node.endIndex,
+            startIndex,
+            endIndex,
+            startLine: offsetToLine(startIndex),
+            endLine: offsetToLine(endIndex),
             className: parentClass?.childForFieldName("name")?.text,
           });
         }

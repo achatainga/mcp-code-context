@@ -1,5 +1,5 @@
 /**
- * PHP Parser - v3.6.1
+ * PHP Parser - v3.6.2
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
 
@@ -50,6 +50,9 @@ export class PHPParser extends BaseParser {
   findSymbols(tree: Tree): SymbolInfo[] {
     const symbols: SymbolInfo[] = [];
     const cursor = tree.walk();
+    const src = tree.rootNode.text;
+
+    const offsetToLine = (offset: number) => src.substring(0, offset).split('\n').length;
 
     const visit = () => {
       const node = cursor.currentNode;
@@ -63,6 +66,8 @@ export class PHPParser extends BaseParser {
             type: node.type,
             startIndex: node.startIndex,
             endIndex: node.endIndex,
+            startLine: offsetToLine(node.startIndex),
+            endLine: offsetToLine(node.endIndex),
             className: parentClass?.childForFieldName("name")?.text,
           });
         }

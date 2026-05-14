@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.6.1 - Tree-sitter WASM Edition
+ * mcp-code-context v3.6.2 - Tree-sitter WASM Edition
  * 
  * Production-ready with:
  * - Tree-sitter WASM for 100% AST accuracy (TypeScript, Python, PHP, Dart)
@@ -29,7 +29,7 @@ import { CodeContextEngine } from "./core/engine.js";
 import { ParserRegistry } from "./parsers/registry.js";
 import { SecurityValidator } from "./core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "./operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact } from "./operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, explainSymbol, batchRead } from "./operations/read.js";
 import { compressRepository } from "./operations/compress.js";
 import { globalConfirmationStore } from "./operations/confirmationStore.js";
 import { globalAuditLogger } from "./utils/auditLogger.js";
@@ -42,7 +42,7 @@ import { CacheManager } from "./core/cacheManager.js";
 import * as fs from "node:fs/promises";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.6.1";
+const SERVER_VERSION = "3.6.2";
 
 // Global instances
 let engine: CodeContextEngine;
@@ -188,12 +188,13 @@ const TOOLS = [
         filePath: { type: "string", description: "Absolute path to file" },
         projectRoot: { type: "string", description: "Project root (REQUIRED)" },
         symbolName: { type: "string", description: "Symbol to replace" },
-        newContent: { type: "string", description: "New code" },
+        newContent: { type: "string", description: "New code (Phase 1 only — omit in Phase 2, server uses stored content)" },
         className: { type: "string", description: "Class name (optional, for scoping)" },
-        confirm: { type: "boolean", description: "Set true to apply a pending operation" },
-        confirmationToken: { type: "string", description: "Token from Phase 1 dry-run" },
+        confirm: { type: "boolean", description: "Set true to apply a pending operation (Phase 2)" },
+        confirmationToken: { type: "string", description: "Token from Phase 1 dry-run (Phase 2 only)" },
+        diffFormat: { type: "string", enum: ["unified", "compact", "summary", "none"], description: "Diff verbosity in Phase 1 output (default: unified). Use none to skip diff and save tokens." },
       },
-      required: ["filePath", "projectRoot", "symbolName", "newContent"],
+      required: ["filePath", "projectRoot", "symbolName"],
     },
   },
   {
@@ -204,14 +205,15 @@ const TOOLS = [
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
         projectRoot: { type: "string", description: "Project root (REQUIRED)" },
-        code: { type: "string", description: "Code to insert" },
+        code: { type: "string", description: "Code to insert (Phase 1 only — omit in Phase 2, server uses stored content)" },
         anchorSymbol: { type: "string", description: "Symbol to position relative to" },
         position: { type: "string", enum: ["before", "after", "inside_start", "inside_end"], description: "Where to insert" },
         className: { type: "string", description: "Class name (optional)" },
-        confirm: { type: "boolean", description: "Set true to apply a pending operation" },
-        confirmationToken: { type: "string", description: "Token from Phase 1 dry-run" },
+        confirm: { type: "boolean", description: "Set true to apply a pending operation (Phase 2)" },
+        confirmationToken: { type: "string", description: "Token from Phase 1 dry-run (Phase 2 only)" },
+        diffFormat: { type: "string", enum: ["unified", "compact", "summary", "none"], description: "Diff verbosity in Phase 1 output (default: unified). Use none to skip diff and save tokens." },
       },
-      required: ["filePath", "projectRoot", "code"],
+      required: ["filePath", "projectRoot"],
     },
   },
   {
@@ -248,6 +250,74 @@ const TOOLS = [
       required: ["filePath", "projectRoot", "oldName", "newName"],
     },
   },
+  // ── NEW TOOLS v3.6.2 ──────────────────────────────────────────────────────
+  {
+    name: "search_symbols",
+    description: "Search symbols by name across the repo using AST (not text search). Finds classes, functions, methods by approximate name.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        rootDir: { type: "string", description: "Directory to search in" },
+        projectRoot: { type: "string", description: "Project root for security boundary" },
+        query: { type: "string", description: "Symbol name or partial name to search" },
+        fuzzy: { type: "boolean", description: "Enable fuzzy name matching (default: false)" },
+        types: { type: "array", items: { type: "string" }, description: "Filter by symbol types: class_declaration, function_declaration, method_definition, etc." },
+        fileExtensions: { type: "array", items: { type: "string" }, description: "Extensions to search (default: all supported)" },
+        excludeDirs: { type: "array", items: { type: "string" }, description: "Directories to exclude" },
+        maxResults: { type: "number", description: "Maximum results (default: 20)" },
+      },
+      required: ["rootDir", "projectRoot", "query"],
+    },
+  },
+  {
+    name: "explain_symbol",
+    description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        symbolName: { type: "string", description: "Symbol to explain" },
+        className: { type: "string", description: "Class name (optional, for scoping)" },
+        rootDir: { type: "string", description: "Root dir for caller search (optional, defaults to projectRoot)" },
+      },
+      required: ["filePath", "projectRoot", "symbolName"],
+    },
+  },
+  {
+    name: "batch_read",
+    description: "Read multiple symbols from multiple files in one call. Reduces N round-trips to 1.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        reads: {
+          type: "array",
+          description: "List of symbols to read",
+          items: {
+            type: "object",
+            properties: {
+              filePath: { type: "string", description: "Absolute path to file" },
+              symbolName: { type: "string", description: "Symbol name to extract" },
+              className: { type: "string", description: "Class name (optional)" },
+            },
+            required: ["filePath", "symbolName"],
+          },
+        },
+        projectRoot: { type: "string", description: "Project root for security boundary" },
+      },
+      required: ["reads", "projectRoot"],
+    },
+  },
+  {
+    name: "get_rate_limit_status",
+    description: "Get current rate limiter token balance and operation costs. Use before expensive operations to check available budget.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
+  // ── END NEW TOOLS ──────────────────────────────────────────────────────────
   {
     name: "rollback_file",
     description: "Revert a file to its backup state",
@@ -512,15 +582,12 @@ async function handleTwoPhaseWrite(
     if (!token) throw new Error("confirmationToken is required when confirm=true");
     const pendingOp = globalConfirmationStore.consumePending(token);
     if (!pendingOp) throw new Error(`Invalid or expired confirmation token: ${token}`);
-    
-    // SECURITY: Validate paths in Phase 2 (defense in depth)
+
     const projectRoot = String(args.projectRoot);
     const validator = new SecurityValidator(projectRoot);
-    
-    // CRITICAL: Re-acquire lock in Phase 2 to prevent race conditions
-    // Lock is released after Phase 1, so another agent could modify file between Phase 1 and Phase 2
+
     const lockReleases: Array<() => Promise<void>> = [];
-    
+
     try {
       // TOCTOU CHECK: Verify file hasn't been modified since Phase 1
       if (pendingOp.originalHash) {
@@ -532,19 +599,18 @@ async function handleTwoPhaseWrite(
           throw new Error("File was modified by another process after Phase 1. Please repeat the operation to prevent data loss.");
         }
       }
-      
+
       if (pendingOp.pendingWrites && pendingOp.pendingWrites.length > 0) {
-        // CRITICAL: Sort paths alphabetically to prevent deadlocks (Dining Philosophers)
-        const sortedWrites = [...pendingOp.pendingWrites].sort((a, b) => 
+        const sortedWrites = [...pendingOp.pendingWrites].sort((a, b) =>
           a.filePath.localeCompare(b.filePath)
         );
-        
-        // Multi-file rename: validate, lock, and write ALL files atomically
         for (const pw of sortedWrites) {
           const validation = await validator.validateFilePath(pw.filePath);
           if (!validation.valid) throw new Error(validation.error);
-          const release = await globalLockManager.acquireLock(validation.resolvedPath!);
-          lockReleases.push(release);
+          if (!globalLockManager.isLocked(validation.resolvedPath!)) {
+            const release = await globalLockManager.acquireLock(validation.resolvedPath!);
+            lockReleases.push(release);
+          }
         }
         for (const pw of sortedWrites) {
           const validation = await validator.validateFilePath(pw.filePath);
@@ -552,16 +618,16 @@ async function handleTwoPhaseWrite(
           await writeFile(validation.resolvedPath!, pw.newContent);
         }
       } else {
-        // Single-file operation: validate, lock, then write
         const validation = await validator.validateFilePath(pendingOp.filePath);
         if (!validation.valid) throw new Error(validation.error);
-        const release = await globalLockManager.acquireLock(validation.resolvedPath!);
-        lockReleases.push(release);
+        if (!globalLockManager.isLocked(validation.resolvedPath!)) {
+          const release = await globalLockManager.acquireLock(validation.resolvedPath!);
+          lockReleases.push(release);
+        }
         await BackupManager.createBackup(validation.resolvedPath!, projectRoot);
         await writeFile(validation.resolvedPath!, pendingOp.newContent);
       }
     } finally {
-      // Release all locks
       for (const release of lockReleases) {
         await release();
       }
@@ -577,7 +643,6 @@ async function handleTwoPhaseWrite(
   const result = await executeWrite();
   if (!result.success) throw new Error(result.error);
 
-  // Warn if a previous token for this file is being superseded
   const hadConflict = globalConfirmationStore.hasConflictingPending(String(args.filePath));
 
   const newToken = globalConfirmationStore.storePending({
@@ -594,10 +659,26 @@ async function handleTwoPhaseWrite(
     ? `\n⚠️  A previous pending token for this file was invalidated. Only this new token is valid.`
     : "";
 
+  // ERG-01 + NEW-04: decode diff and apply diffFormat
+  const rawDiff = decodeURIComponent(result.diff);
+  const fmt = args.diffFormat ? String(args.diffFormat) : "unified";
+  let displayDiff: string;
+  if (fmt === "none") {
+    displayDiff = `(diff omitted — use diffFormat="unified" to see changes)`;
+  } else if (fmt === "summary") {
+    const added = (rawDiff.match(/^\+[^+]/gm) || []).length;
+    const removed = (rawDiff.match(/^-[^-]/gm) || []).length;
+    displayDiff = `+${added} lines, -${removed} lines`;
+  } else if (fmt === "compact") {
+    displayDiff = rawDiff.split("\n").filter(l => l.startsWith("+") || l.startsWith("-")).join("\n");
+  } else {
+    displayDiff = rawDiff;
+  }
+
   return {
-    content: [{ 
-      type: "text", 
-      text: `DRY RUN SUCCESSFUL.${conflictWarning}\nTo apply these changes, call this tool again with confirm=true and confirmationToken="${newToken}"\n\nDiff:\n${result.diff}` 
+    content: [{
+      type: "text",
+      text: `DRY RUN SUCCESSFUL.${conflictWarning}\nTo apply these changes, call this tool again with confirm=true and confirmationToken="${newToken}"\n\nDiff:\n${displayDiff}`
     }],
   };
 }
@@ -706,9 +787,16 @@ async function handleCleanBackups(args: Record<string, unknown>) {
 async function handleGetServerStats() {
   const telemetry = globalTelemetry.getSummary();
   const audit = globalAuditLogger.getStats();
-  
+  const tokensAvailable = rateLimiter.getTokens("global");
+
   const stats = {
     pendingConfirmations: globalConfirmationStore.getPendingCount(),
+    rateLimiter: {
+      tokensAvailable,
+      maxTokens: 100,
+      refillRate: "10 tokens/second",
+      operationCosts: OPERATION_COSTS,
+    },
     telemetry,
     audit,
   };
@@ -767,6 +855,95 @@ async function handleGetFileWatcherStatus(args: Record<string, unknown>) {
   return {
     content: [{ type: "text", text: JSON.stringify(status, null, 2) }],
   };
+}
+
+// NEW-01: get_rate_limit_status
+async function handleGetRateLimitStatus() {
+  const tokensAvailable = rateLimiter.getTokens("global");
+  const result = {
+    tokensAvailable,
+    maxTokens: 100,
+    refillRate: "10 tokens/second",
+    canAfford: Object.fromEntries(
+      Object.entries(OPERATION_COSTS).map(([op, cost]) => [op, tokensAvailable >= cost])
+    ),
+    operationCosts: OPERATION_COSTS,
+  };
+  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+}
+
+// NEW-02: search_symbols
+async function handleSearchSymbols(args: Record<string, unknown>) {
+  const rootDir = String(args.rootDir);
+  const projectRoot = String(args.projectRoot);
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(rootDir);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const result = await searchSymbols({
+    rootDir: validation.resolvedPath!,
+    projectRoot,
+    query: String(args.query),
+    fuzzy: args.fuzzy as boolean | undefined,
+    types: args.types as string[] | undefined,
+    fileExtensions: args.fileExtensions as string[] | undefined,
+    excludeDirs: args.excludeDirs as string[] | undefined,
+    maxResults: args.maxResults as number | undefined,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-03: explain_symbol
+async function handleExplainSymbol(args: Record<string, unknown>) {
+  const filePath = String(args.filePath);
+  const projectRoot = String(args.projectRoot);
+  const rootDir = args.rootDir ? String(args.rootDir) : projectRoot;
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const ext = path.extname(validation.resolvedPath!);
+  const parser = registry.getParser(ext);
+  if (!parser) throw new Error(`No parser available for ${ext} files`);
+
+  const result = await explainSymbol({
+    filePath: validation.resolvedPath!,
+    projectRoot,
+    symbolName: String(args.symbolName),
+    className: args.className ? String(args.className) : undefined,
+    parser,
+    rootDir,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-05: batch_read
+async function handleBatchRead(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+  const reads = args.reads as Array<{ filePath: string; symbolName: string; className?: string }>;
+
+  const validator = new SecurityValidator(projectRoot);
+  // Validate all paths upfront
+  for (const read of reads) {
+    const v = await validator.validateFilePath(read.filePath);
+    if (!v.valid) throw new Error(v.error);
+    read.filePath = v.resolvedPath!;
+  }
+
+  const result = await batchRead({
+    reads,
+    projectRoot,
+    parser: (ext: string) => registry.getParser(ext) ?? null,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
 }
 
 // -----------------------------------------------------------------------------
@@ -846,6 +1023,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         result = await handleConfigureFileWatcher(args as Record<string, unknown>); break;
       case "get_file_watcher_status":
         result = await handleGetFileWatcherStatus(args as Record<string, unknown>); break;
+      case "search_symbols":
+        result = await handleSearchSymbols(args as Record<string, unknown>); break;
+      case "explain_symbol":
+        result = await handleExplainSymbol(args as Record<string, unknown>); break;
+      case "batch_read":
+        result = await handleBatchRead(args as Record<string, unknown>); break;
+      case "get_rate_limit_status":
+        result = await handleGetRateLimitStatus(); break;
       default:
         throw new Error(`Unknown tool: ${name}`);
     }

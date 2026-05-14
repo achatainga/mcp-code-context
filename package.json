@@ -1,6 +1,6 @@
 {
   "name": "mcp-code-context",
-  "version": "3.6.1",
+  "version": "3.6.2",
   "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, file watching, fuzzy search, rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
   "type": "module",
   "main": "dist/src/index.js",
@@ -62,7 +62,7 @@
     "email": "a.chataing.a@gmail.com"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.12.0",
+    "@modelcontextprotocol/sdk": "1.29.0",
     "chokidar": "5.0.0",
     "diff-match-patch": "1.0.5",
     "fuse.js": "7.3.0",
@@ -83,7 +83,7 @@
     "@vitest/coverage-v8": "4.1.5",
     "@vitest/ui": "4.1.5",
     "rimraf": "6.0.1",
-    "typescript": "5.7.0",
+    "typescript": "5.7.2",
     "vitest": "4.1.5"
   },
   "engines": {
