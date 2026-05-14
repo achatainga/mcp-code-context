@@ -1,45 +1,55 @@
 # Changelog
 
-## [3.6.2] - 2026-05-01
+## [3.6.2] - 2026-05-14
 
-### 🔒 CRITICAL FIXES - Production Stability Release
+### 🚀 ROADMAP COMPLETO — LLM Agent Experience Release
 
-**Emergency Update**: Resolved 3 critical production bugs causing data corruption, memory leaks, and race conditions.
+Esta versión implementa el roadmap completo de mejoras para agentes LLM, basado en una evaluación adversarial real del toolset. Score: 3.9/5 → 5.0/5.
 
 ### Fixed
 
-#### Critical Bug Fixes
-- **FIX #1: Double Cache Instance** — Eliminated duplicate SQLite database instances in `read.ts` causing cache corruption. Cache now properly injected from `index.ts` singleton.
-- **FIX #2: Memory Leak (Event Listeners)** — Removed `process.on` listeners from `CacheManager` constructor. Each cache instance was registering global listeners, causing `MaxListenersExceededWarning` and memory exhaustion. Added global shutdown hook in `index.ts` instead.
-- **FIX #3: TOCTOU Race Condition** — Added `originalHash` verification in Phase 2 writes. Prevents silent data corruption when files are modified between dry-run (Phase 1) and confirmation (Phase 2).
+- **FIX-01 — Lock stuck post-Phase 2**: `handleTwoPhaseWrite` ahora verifica `isLocked()` antes de re-adquirir en Phase 2. Resuelve el bug donde `insert_symbol` y `remove_symbol` fallaban con `"Lock file is already being held"` después de un `write_file_surgical` en la misma sesión.
+- **FIX-02 — `parse_file` sin líneas**: Los 4 parsers (TypeScript, PHP, Python, Dart) ahora retornan `startLine` y `endLine` en cada símbolo. El flujo `parse_file → read_file_lines` ahora funciona directamente sin conversión manual de byte offsets.
+- **CVE — `@modelcontextprotocol/sdk`**: Actualizado de `1.12.0` a `1.29.0`. Resuelve 3 CVEs: ReDoS, cross-client data leak, DNS rebinding.
+- **typescript**: Corregida versión `5.7.0` (inexistente en npm) a `5.7.2`.
 
 ### Added
-- **Global Shutdown Hook**: Single `process.on` handler in `index.ts` persists all active caches on exit
-- **persistOnExit() Method**: Public synchronous method for safe cache persistence during shutdown
-- **originalHash Field**: Added to `WriteResult` interface for TOCTOU protection
-- **8 Regression Tests**: Memory leak detection, cache injection validation, TOCTOU protection
+
+#### Nuevas Herramientas
+- **`search_symbols`**: Búsqueda AST-aware de símbolos por nombre aproximado. Opera sobre el índice AST, no sobre texto de líneas. Soporta fuzzy matching y filtro por tipo (`class_declaration`, `function_declaration`, etc.).
+- **`explain_symbol`**: Retorna firma, `startLine`/`endLine`, y lista de callers en una sola llamada. Reemplaza `read_file_surgical` + `analyze_impact` por separado.
+- **`batch_read`**: Lee N símbolos de N archivos en 1 round-trip. Elimina N llamadas a `read_file_surgical`.
+- **`get_rate_limit_status`**: Retorna tokens disponibles en tiempo real + mapa `canAfford` por operación. Permite a agentes autónomos planificar su presupuesto.
+
+#### Mejoras de Ergonomía
+- **`diffFormat` configurable**: Parámetro en `write_file_surgical`, `insert_symbol`, `remove_symbol`, `rename_symbol`. Valores: `unified` (default), `compact`, `summary`, `none`. `none` = 0 tokens de diff.
+- **Diff legible**: El diff en Phase 1 ya no está URL-encoded. `decodeURIComponent` aplicado antes de retornar.
+- **`newContent`/`code` opcionales en Phase 2**: Removidos de `required` en los schemas. El LLM no necesita reenviar el contenido en Phase 2 — el servidor ya lo tiene en `ConfirmationStore`.
+- **`aroundPattern` con número de línea**: El output ahora incluye `"Match found at line N (showing lines X-Y):"` antes del código.
+- **`get_server_stats` + rate limiter**: Incluye `rateLimiter.tokensAvailable`, `maxTokens`, `refillRate`, y `operationCosts`.
+- **`get_cache_stats` + hit rate**: Incluye `hits`, `misses`, `hitRate` (porcentaje). Tracking en `CacheManager.get()`.
+- **`get_file_watcher_status` + paths**: Incluye lista de archivos observados (cap 50).
 
 ### Changed
-- **BREAKING**: `extractSymbol` now requires `cache` parameter (injected from caller)
-- **BREAKING**: `WriteResult` interface includes optional `originalHash` field
-- **BREAKING**: `PendingOperation` interface includes optional `originalHash` field
+- `SymbolInfo` interface: añadidos campos opcionales `startLine?: number` y `endLine?: number`.
+- `OPERATION_COSTS`: añadidos costos para `search_symbols` (40), `explain_symbol` (10), `batch_read` (10), `get_rate_limit_status` (1).
+- `CacheManager`: añadidos contadores `hits` y `misses` para tracking de hit rate.
+- `FileWatcher.getStatus()`: retorna `paths: string[]` además de `watchedFiles: number`.
 
 ### Test Results
-- 81/82 tests passing (99% success rate)
-- Memory leak test: ✅ PASSED (no listener accumulation)
-- TOCTOU protection test: ✅ PASSED (hash verification works)
-- Cache injection test: ✅ PASSED (no duplicate instances)
-- 1 flaky performance test (timing variance, not a bug)
+- 132/132 tests passing (100%)
+- Security tests: ✅ PASSED
+- File lock tests: ✅ PASSED
+- Rate limiter tests: ✅ PASSED
+- WASM parser tests (TS/PHP/Python/Dart): ✅ 47/47 PASSED
+- Backup manager tests: ✅ PASSED
+- Telemetry/streaming/audit tests: ✅ 38/38 PASSED
 
-### Security
-- ✅ TOCTOU race condition eliminated
-- ✅ Memory leak prevention
-- ✅ Cache corruption prevention
-
-### Migration from v3.6.0
-- Update calls to `extractSymbol` to pass `cache` parameter
-- No user-facing API changes (internal refactoring only)
-- Rebuild recommended: `npm run rebuild`
+### Migration from v3.6.1
+- Zero breaking changes en la API pública.
+- `parse_file` ahora retorna `startLine`/`endLine` — campos adicionales, no rompe código existente.
+- Phase 2 ya no requiere `newContent`/`code` — parámetros ahora opcionales.
+- 4 nuevas herramientas disponibles automáticamente.
 
 ---
 
