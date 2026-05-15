@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && npm run build:tests && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js && node dist-tests/tests/test-wasm-parsers.js",
+    "test": "npm run build && npm run build:tests && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js && node dist-tests/tests/test-index-manager.js && node dist-tests/tests/test-wasm-parsers.js",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
