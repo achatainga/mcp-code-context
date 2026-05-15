@@ -13,46 +13,16 @@ export class TypeScriptParser extends BaseParser {
   }
 
   extractSymbol(tree: Tree, symbolName: string, className?: string): string | null {
-    const cursor = tree.walk();
+    const src = tree.rootNode.text;
+    const symbols = this.findSymbols(tree);
 
-    const search = (): string | null => {
-      const node = cursor.currentNode;
+    const target = symbols.find(s =>
+      s.name === symbolName && (!className || s.className === className)
+    );
 
-      if (node.type === "function_declaration" ||
-          node.type === "class_declaration" ||
-          node.type === "interface_declaration" ||
-          node.type === "type_alias_declaration" ||
-          node.type === "method_definition" ||
-          node.type === "lexical_declaration" ||
-          node.type === "variable_declaration" ||
-          node.type === "export_statement") {
-        const nameNode = node.childForFieldName("name");
-        if (nameNode && nameNode.text === symbolName) {
-          if (className) {
-            const classNode = this.findParentClass(node);
-            if (!classNode || classNode.childForFieldName("name")?.text !== className) {
-              // Continue searching
-            } else {
-              return tree.rootNode.text.substring(node.startIndex, node.endIndex);
-            }
-          } else {
-            return tree.rootNode.text.substring(node.startIndex, node.endIndex);
-          }
-        }
-      }
+    if (!target) return null;
 
-      if (cursor.gotoFirstChild()) {
-        do {
-          const result = search();
-          if (result) return result;
-        } while (cursor.gotoNextSibling());
-        cursor.gotoParent();
-      }
-
-      return null;
-    };
-
-    return search();
+    return src.substring(target.startIndex, target.endIndex);
   }
 
   findSymbols(tree: Tree): SymbolInfo[] {
@@ -65,6 +35,7 @@ export class TypeScriptParser extends BaseParser {
     const visit = () => {
       const node = cursor.currentNode;
 
+      // Standard declarations: function, class, interface, type, method
       if (node.type === "function_declaration" ||
           node.type === "class_declaration" ||
           node.type === "interface_declaration" ||
@@ -84,6 +55,28 @@ export class TypeScriptParser extends BaseParser {
             startLine: offsetToLine(startIndex),
             endLine: offsetToLine(endIndex),
             className: parentClass?.childForFieldName("name")?.text,
+          });
+        }
+      }
+
+      // Arrow functions and function expressions: const Foo = () => {} / const Foo = function() {}
+      if (node.type === "variable_declarator") {
+        const nameNode = node.childForFieldName("name");
+        const valueNode = node.childForFieldName("value");
+        if (nameNode && valueNode &&
+            (valueNode.type === "arrow_function" || valueNode.type === "function_expression")) {
+          // Walk up to lexical_declaration or variable_declaration to include const/let/var + export
+          const declNode = node.parent; // lexical_declaration or variable_declaration
+          const exportParent = declNode?.parent?.type === "export_statement" ? declNode.parent : null;
+          const startIndex = exportParent ? exportParent.startIndex : (declNode?.startIndex ?? node.startIndex);
+          const endIndex = exportParent ? exportParent.endIndex : (declNode?.endIndex ?? node.endIndex);
+          symbols.push({
+            name: nameNode.text,
+            type: "variable_declarator",
+            startIndex,
+            endIndex,
+            startLine: offsetToLine(startIndex),
+            endLine: offsetToLine(endIndex),
           });
         }
       }

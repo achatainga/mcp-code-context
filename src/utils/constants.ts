@@ -27,6 +27,13 @@ export const SUPPORTED_EXTENSIONS = [
   ".pyi",
   ".php",
   ".dart",
+  ".java",
+  ".go",
+  ".cs",
+  ".rb",
+  ".rs",
+  ".kt",
+  ".kts",
 ];
 
 // File and size limits

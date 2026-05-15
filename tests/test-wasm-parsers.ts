@@ -8,6 +8,12 @@ import { TypeScriptParser } from '../src/parsers/typescript.js';
 import { PythonParser } from '../src/parsers/python.js';
 import { PHPParser } from '../src/parsers/php.js';
 import { DartTreeSitterParser } from '../src/parsers/dartTreeSitter.js';
+import { JavaParser } from '../src/parsers/java.js';
+import { GoParser } from '../src/parsers/go.js';
+import { CSharpParser } from '../src/parsers/csharp.js';
+import { RubyParser } from '../src/parsers/ruby.js';
+import { RustParser } from '../src/parsers/rust.js';
+import { KotlinParser } from '../src/parsers/kotlin.js';
 
 // Test fixtures
 const fixtures = {
@@ -33,6 +39,18 @@ interface User {
   name: string;
   age: number;
 }
+
+const MyComponent = () => {
+  return null;
+};
+
+const MyForm = function() {
+  return null;
+};
+
+export const ExportedWidget = ({ name }: { name: string }) => {
+  return name;
+};
 `,
   
   python: `
@@ -102,6 +120,134 @@ int factorial(int n) {
 
 void _privateHelper() {
   print('private');
+}
+`,
+
+  java: `
+public class Calculator {
+  private int value;
+
+  public Calculator(int value) {
+    this.value = value;
+  }
+
+  public int add(int n) {
+    return this.value + n;
+  }
+
+  public int multiply(int n) {
+    return this.value * n;
+  }
+
+  public static int factorial(int n) {
+    if (n <= 1) return 1;
+    return n * factorial(n - 1);
+  }
+}
+`,
+
+  go: `
+package main
+
+type Calculator struct {
+  Value int
+}
+
+func Add(a, b int) int {
+  return a + b
+}
+
+func Multiply(a, b int) int {
+  return a * b
+}
+
+func Factorial(n int) int {
+  if n <= 1 { return 1 }
+  return n * Factorial(n-1)
+}
+`,
+
+  csharp: `
+using System;
+
+public class Calculator {
+  private int value;
+
+  public Calculator(int value) {
+    this.value = value;
+  }
+
+  public int Add(int n) {
+    return this.value + n;
+  }
+
+  public int Multiply(int n) {
+    return this.value * n;
+  }
+
+  public static int Factorial(int n) {
+    if (n <= 1) return 1;
+    return n * Factorial(n - 1);
+  }
+}
+`,
+
+  ruby: `
+class Calculator
+  def initialize(value)
+    @value = value
+  end
+
+  def add(n)
+    @value + n
+  end
+
+  def multiply(n)
+    @value * n
+  end
+end
+
+def factorial(n)
+  return 1 if n <= 1
+  n * factorial(n - 1)
+end
+`,
+
+  rust: `
+struct Calculator {
+  value: i32,
+}
+
+impl Calculator {
+  fn add(&self, n: i32) -> i32 {
+    self.value + n
+  }
+
+  fn multiply(&self, n: i32) -> i32 {
+    self.value * n
+  }
+}
+
+fn factorial(n: i32) -> i32 {
+  if n <= 1 { return 1; }
+  n * factorial(n - 1)
+}
+`,
+
+  kotlin: `
+class Calculator(private val value: Int) {
+  fun add(n: Int): Int {
+    return value + n
+  }
+
+  fun multiply(n: Int): Int {
+    return value * n
+  }
+}
+
+fun factorial(n: Int): Int {
+  if (n <= 1) return 1
+  return n * factorial(n - 1)
 }
 `
 };
@@ -197,7 +343,10 @@ async function runTests() {
       { name: 'add', type: 'method', className: 'Calculator' },
       { name: 'multiply', type: 'method', className: 'Calculator' },
       { name: 'factorial', type: 'function' },
-      { name: 'User', type: 'interface' }
+      { name: 'User', type: 'interface' },
+      { name: 'MyComponent', type: 'variable_declarator' },
+      { name: 'MyForm', type: 'variable_declarator' },
+      { name: 'ExportedWidget', type: 'variable_declarator' },
     ]);
     
     // Test Python
@@ -234,7 +383,73 @@ async function runTests() {
       { name: 'factorial', type: 'function' },
       { name: '_privateHelper', type: 'function' }
     ]);
-    
+
+    // Test Java
+    await engine.loadLanguage('java');
+    const javaParser = new JavaParser();
+    await javaParser.init(engine.createParser(), engine.getLanguage('java')!);
+    await testParser('Java', javaParser, fixtures.java, [
+      { name: 'Calculator', type: 'class' },
+      { name: 'add', type: 'method', className: 'Calculator' },
+      { name: 'multiply', type: 'method', className: 'Calculator' },
+      { name: 'factorial', type: 'method' },
+    ]);
+
+    // Test Go
+    await engine.loadLanguage('go');
+    const goParser = new GoParser();
+    await goParser.init(engine.createParser(), engine.getLanguage('go')!);
+    await testParser('Go', goParser, fixtures.go, [
+      { name: 'Add', type: 'function' },
+      { name: 'Multiply', type: 'function' },
+      { name: 'Factorial', type: 'function' },
+      { name: 'Calculator', type: 'struct_type' },
+    ]);
+
+    // Test C#
+    await engine.loadLanguage('c_sharp');
+    const csharpParser = new CSharpParser();
+    await csharpParser.init(engine.createParser(), engine.getLanguage('c_sharp')!);
+    await testParser('C#', csharpParser, fixtures.csharp, [
+      { name: 'Calculator', type: 'class' },
+      { name: 'Add', type: 'method', className: 'Calculator' },
+      { name: 'Multiply', type: 'method', className: 'Calculator' },
+      { name: 'Factorial', type: 'method' },
+    ]);
+
+    // Test Ruby
+    await engine.loadLanguage('ruby');
+    const rubyParser = new RubyParser();
+    await rubyParser.init(engine.createParser(), engine.getLanguage('ruby')!);
+    await testParser('Ruby', rubyParser, fixtures.ruby, [
+      { name: 'Calculator', type: 'class' },
+      { name: 'add', type: 'method', className: 'Calculator' },
+      { name: 'multiply', type: 'method', className: 'Calculator' },
+      { name: 'factorial', type: 'method' },
+    ]);
+
+    // Test Rust
+    await engine.loadLanguage('rust');
+    const rustParser = new RustParser();
+    await rustParser.init(engine.createParser(), engine.getLanguage('rust')!);
+    await testParser('Rust', rustParser, fixtures.rust, [
+      { name: 'Calculator', type: 'struct' },
+      { name: 'add', type: 'function', className: 'Calculator' },
+      { name: 'multiply', type: 'function', className: 'Calculator' },
+      { name: 'factorial', type: 'function' },
+    ]);
+
+    // Test Kotlin
+    await engine.loadLanguage('kotlin');
+    const kotlinParser = new KotlinParser();
+    await kotlinParser.init(engine.createParser(), engine.getLanguage('kotlin')!);
+    await testParser('Kotlin', kotlinParser, fixtures.kotlin, [
+      { name: 'Calculator', type: 'class' },
+      { name: 'add', type: 'function', className: 'Calculator' },
+      { name: 'multiply', type: 'function', className: 'Calculator' },
+      { name: 'factorial', type: 'function' },
+    ]);
+
   } catch (error: any) {
     console.error('\n❌ FATAL ERROR:', error.message);
     console.error(error.stack);
