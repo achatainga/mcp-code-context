@@ -1,6 +1,6 @@
 /**
- * Backup Manager - v3.6.3
- * Handles rolling backups in OS temp directory
+ * Backup Manager - v3.7.0
+ * Handles rolling backups in ~/.mcp-code-context/backups/
  */
 
 import * as fs from "node:fs/promises";
@@ -8,6 +8,7 @@ import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { tmpdir } from "os";
 import { existsSync, mkdirSync } from "fs";
+import { getAppDir } from "./appDir.js";
 import { MAX_BACKUPS_PER_FILE, HASH_LENGTH } from './constants.js';
 
 /**
@@ -27,11 +28,25 @@ export class BackupManager {
       .update(projectRoot)
       .digest('hex')
       .substring(0, HASH_LENGTH);
-    
-    const backupRoot = path.join(tmpdir(), 'mcp-backups', projectHash);
-    
-    if (!existsSync(backupRoot)) {
-      mkdirSync(backupRoot, { recursive: true });
+
+    const backupRoot = getAppDir(`backups/${projectHash}`);
+
+    // Silent migration: move existing os.tmpdir() backups to new location
+    const legacyRoot = path.join(tmpdir(), 'mcp-backups', projectHash);
+    if (existsSync(legacyRoot)) {
+      try {
+        const files = require('fs').readdirSync(legacyRoot) as string[];
+        for (const file of files) {
+          const src = path.join(legacyRoot, file);
+          const dst = path.join(backupRoot, file);
+          if (!existsSync(dst)) {
+            require('fs').copyFileSync(src, dst);
+          }
+        }
+        require('fs').rmSync(legacyRoot, { recursive: true, force: true });
+      } catch {
+        // Migration is best-effort — never block normal operation
+      }
     }
 
     this.backupRootCache.set(projectRoot, backupRoot);

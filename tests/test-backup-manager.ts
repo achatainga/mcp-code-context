@@ -1,4 +1,5 @@
 import { BackupManager } from "../src/utils/backupManager.js";
+import { getAppDir } from "../src/utils/appDir.js";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as os from "node:os";
@@ -13,12 +14,12 @@ async function runTests() {
 
   const testFile = path.join(projectRoot, "test.txt");
   
-  // Calculate backup directory location (OS temp)
+  // Calculate backup directory location (~/.mcp-code-context/backups/)
   const projectHash = crypto.createHash('md5')
     .update(projectRoot)
     .digest('hex')
     .substring(0, 8);
-  const backupDir = path.join(os.tmpdir(), 'mcp-backups', projectHash);
+  const backupDir = getAppDir(`backups/${projectHash}`);
   
   try {
     // 1. Create file and backup

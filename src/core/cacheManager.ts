@@ -1,6 +1,7 @@
 /**
- * Cache Manager - v3.6.3
+ * Cache Manager - v3.7.0
  * WASM SQLite cache with debounced persistence
+ * Storage: ~/.mcp-code-context/cache/{hash}/
  */
 
 import initSqlJs, { Database } from 'sql.js';
@@ -11,6 +12,7 @@ import * as crypto from 'node:crypto';
 import { tmpdir } from 'os';
 import { logger } from '../utils/logger.js';
 import { FileWatcher } from '../utils/fileWatcher.js';
+import { getAppDir } from '../utils/appDir.js';
 
 export interface CachedFile {
   filePath: string;
@@ -38,19 +40,30 @@ export class CacheManager {
       .update(projectRoot)
       .digest('hex')
       .substring(0, 8);
-    
-    this.cacheDir = path.join(tmpdir(), 'mcp-cache', projectHash);
+
+    this.cacheDir = getAppDir(`cache/${projectHash}`);
     this.dbPath = path.join(this.cacheDir, 'cache.db');
-    
+
+    // Silent migration: move existing os.tmpdir() cache to new location
+    const legacyDb = path.join(tmpdir(), 'mcp-cache', projectHash, 'cache.db');
+    if (existsSync(legacyDb) && !existsSync(this.dbPath)) {
+      try {
+        require('fs').copyFileSync(legacyDb, this.dbPath);
+        require('fs').rmSync(path.dirname(legacyDb), { recursive: true, force: true });
+      } catch {
+        // Migration is best-effort — never block normal operation
+      }
+    }
+
     // Initialize on construction
     this.initPromise = this.init();
   }
 
   private async init(): Promise<void> {
     try {
-      // Ensure cache directory exists (OS cleanup recovery)
+      // Ensure cache directory exists (recovery if manually deleted)
       if (!existsSync(this.cacheDir)) {
-        logger.warn({ cacheDir: this.cacheDir }, 'Cache directory deleted by OS, recreating');
+        logger.warn({ cacheDir: this.cacheDir }, 'Cache directory missing, recreating');
         mkdirSync(this.cacheDir, { recursive: true });
       }
 
