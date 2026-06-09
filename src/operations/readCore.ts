@@ -122,9 +122,7 @@ export async function readLines(params: {
         };
       }
 
-      const regex = new RegExp(params.aroundPattern);
-
-      const findResult = await safeRegexFindFirst(regex, lines);
+      const findResult = await safeRegexFindFirst(params.aroundPattern, lines);
       if (findResult.timedOut) {
         return {
           success: false,

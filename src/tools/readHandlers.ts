@@ -16,6 +16,9 @@ import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toct
 import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
 
 export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
+  if (!args.directoryPath || !args.projectRoot) {
+    throw new Error("directoryPath and projectRoot are required (e.g. projectRoot: C:\\code\\mcp-code-context)");
+  }
   const directoryPath = String(args.directoryPath);
   const projectRoot = String(args.projectRoot);
   const format = args.format === "markdown" ? "markdown" : "xml";

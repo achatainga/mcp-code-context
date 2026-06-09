@@ -54,7 +54,6 @@ export async function searchPattern(params: {
       return { success: true, content: JSON.stringify(results, null, 2) + footer };
     }
 
-    const regex = new RegExp(params.pattern, "g");
     const extensions = params.fileExtensions || SUPPORTED_EXTENSIONS;
     const excludeDirs = params.excludeDirs || EXCLUDE_DIRS;
 
@@ -80,7 +79,7 @@ export async function searchPattern(params: {
 
     // Step 2: ONE worker for ALL files — eliminates N worker spawns
     const scanTimeout = Math.min(OPERATION_TIMEOUT_MS, SCAN_TIMEOUT_BASE_MS + fileEntries.length * SCAN_TIMEOUT_PER_FILE_MS);
-    const batchResult = await safeRegexMultiFileBatchTest(regex, fileEntries, scanTimeout);
+    const batchResult = await safeRegexMultiFileBatchTest(params.pattern, fileEntries, scanTimeout);
 
     if (batchResult.timedOut) {
       console.warn(`\u26a0\ufe0f  Regex scan timed out across ${fileEntries.length} files`);

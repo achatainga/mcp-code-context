@@ -7,6 +7,8 @@ import * as path from "node:path";
 import { EXCLUDE_DIRS, SUPPORTED_EXTENSIONS } from "../utils/constants.js";
 import { walkDir } from "../utils/fileWalker.js";
 import { IndexManager } from "../core/indexManager.js";
+import { safeRegexAnyTest } from "../utils/safeRegex.js";
+import { sanitizeRegexPattern } from "../utils/regexValidator.js";
 import type { ReadResult } from "./readCore.js";
 
 export async function analyzeImpact(params: {
@@ -30,21 +32,28 @@ export async function analyzeImpact(params: {
 
     // ── Slow path: regex scan (no index yet) ─────────────────────────────
     const dependents: string[] = [];
-    const targetFile = path.basename(params.filePath);
+    const fileName = path.basename(params.filePath);
+    const baseName = sanitizeRegexPattern(fileName.replace(/\.[^.]+$/, ""));
+    const fullName = sanitizeRegexPattern(fileName);
+    const importPatterns = [
+      `import.*from.*['"].*${baseName}`,
+      `require\\(['"].*${fullName}`,
+      `from.*${baseName}.*import`,
+    ];
 
     await walkDir(params.rootDir, {
       extensions: SUPPORTED_EXTENSIONS,
       excludeDirs: EXCLUDE_DIRS,
       onFile: async (fullPath) => {
         const content = await fs.readFile(fullPath, "utf-8");
-
-        const importPatterns = [
-          new RegExp(`import.*from.*['"].*${targetFile.replace(/\.[^.]+$/, "")}`, "g"),
-          new RegExp(`require\\(['"].*${targetFile}`, "g"),
-          new RegExp(`from.*${targetFile.replace(/\.[^.]+$/, "")}.*import`, "g"),
-        ];
-
-        if (importPatterns.some(pattern => pattern.test(content))) {
+        const matchResult = await safeRegexAnyTest(importPatterns, content);
+        if (matchResult.timedOut) {
+          throw new Error(matchResult.error ?? "Regex timed out during impact scan (ReDoS prevented)");
+        }
+        if (!matchResult.success) {
+          throw new Error(matchResult.error ?? "Impact scan regex failed");
+        }
+        if (matchResult.matched) {
           dependents.push(fullPath);
         }
       },
