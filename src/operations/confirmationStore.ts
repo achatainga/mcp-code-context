@@ -1,10 +1,12 @@
 /**
- * Confirmation Store - v3.6.3
+ * Confirmation Store - v3.7.0
  * Two-phase write: dry-run preview → confirm with token
  * Stores pending write operations with auto-expiry
+ * NOW with SQLite persistence for crash recovery
  */
 
 import * as crypto from "node:crypto";
+import { PendingOperationStore } from "./pendingStore.js";
 
 export interface PendingOperation {
   token: string;
@@ -17,19 +19,34 @@ export interface PendingOperation {
   expiresAt: number;
   originalHash?: string;
   /** Multi-file pending writes for rename operations */
-  pendingWrites?: Array<{ filePath: string; newContent: string }>;
+  pendingWrites?: Array<{ filePath: string; newContent: string; originalHash?: string }>;
 }
 
 const EXPIRY_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_PENDING = 50;
 
-class ConfirmationStore {
+export class ConfirmationStore {
   private pending: Map<string, PendingOperation> = new Map();
+  private persistentStore: PendingOperationStore | null = null;
+  private sessionId: string;
+  private cleanupInterval: NodeJS.Timeout | null = null;
+
+  constructor(sessionId: string = "default", projectRoot?: string) {
+    this.sessionId = sessionId;
+    if (projectRoot) {
+      this.persistentStore = new PendingOperationStore(projectRoot);
+    }
+    this.cleanupInterval = setInterval(() => this.cleanup(), 60_000);
+    if (this.cleanupInterval.unref) {
+      this.cleanupInterval.unref();
+    }
+  }
 
   /**
    * Store a pending write operation and return a confirmation token.
    * Invalidates any existing pending token for the same file(s) —
    * prevents stale tokens from overwriting newer changes.
+   * NOW persists to SQLite for crash recovery.
    */
   storePending(params: {
     filePath: string;
@@ -38,7 +55,7 @@ class ConfirmationStore {
     newContent: string;
     diff: string;
     originalHash?: string;
-    pendingWrites?: Array<{ filePath: string; newContent: string }>;
+    pendingWrites?: Array<{ filePath: string; newContent: string; originalHash?: string }>;
   }): string {
     this.cleanup();
 
@@ -65,7 +82,7 @@ class ConfirmationStore {
     const token = crypto.randomBytes(16).toString("hex");
     const now = Date.now();
 
-    this.pending.set(token, {
+    const pendingOp: PendingOperation = {
       token,
       filePath: params.filePath,
       operation: params.operation,
@@ -76,7 +93,12 @@ class ConfirmationStore {
       expiresAt: now + EXPIRY_MS,
       originalHash: params.originalHash,
       pendingWrites: params.pendingWrites,
-    });
+    };
+
+    this.pending.set(token, pendingOp);
+
+    // Persist to SQLite if available (fire-and-forget for crash recovery)
+    this.persistentStore?.storePending(this.sessionId, token, params).catch(() => {});
 
     // Enforce max pending limit
     if (this.pending.size > MAX_PENDING) {
@@ -93,20 +115,56 @@ class ConfirmationStore {
 
   /**
    * Retrieve and consume a pending operation by token
+   * Tries in-memory first, then falls back to SQLite for crash recovery
    */
-  consumePending(token: string): PendingOperation | null {
+  async consumePending(token: string): Promise<PendingOperation | null> {
     this.cleanup();
 
+    // Check in-memory (primary path)
     const op = this.pending.get(token);
-    if (!op) return null;
-
-    if (Date.now() > op.expiresAt) {
+    if (op) {
+      if (Date.now() > op.expiresAt) {
+        this.pending.delete(token);
+        return null;
+      }
       this.pending.delete(token);
-      return null;
+      // Fire-and-forget: remove from persistent store too
+      this.persistentStore?.consumePending(token).catch(() => {});
+      return op;
     }
 
-    this.pending.delete(token);
-    return op;
+    // SQLite fallback for crash recovery
+    if (this.persistentStore) {
+      try {
+        const dbOp = await this.persistentStore.consumePending(token);
+        if (dbOp) {
+          let parsedPendingWrites: Array<{ filePath: string; newContent: string }> | undefined;
+          if (dbOp.pendingWrites) {
+            try {
+              parsedPendingWrites = JSON.parse(dbOp.pendingWrites);
+            } catch {
+              // Ignore malformed JSON
+            }
+          }
+          return {
+            token: dbOp.token,
+            filePath: dbOp.filePath,
+            operation: dbOp.operation,
+            symbolName: dbOp.symbolName,
+            newContent: dbOp.newContent,
+            diff: dbOp.diff,
+            createdAt: dbOp.createdAt,
+            expiresAt: dbOp.expiresAt,
+            originalHash: dbOp.originalHash,
+            pendingWrites: parsedPendingWrites,
+          };
+        }
+      } catch {
+        // Fail silently to prevent blocking normal operation
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -162,9 +220,46 @@ class ConfirmationStore {
   clearAll(): void {
     this.pending.clear();
   }
-}
 
-/**
- * Global confirmation store instance
- */
-export const globalConfirmationStore = new ConfirmationStore();
+  /**
+   * List all pending operations (for recovery/debugging)
+   */
+  listAll(): Array<{token: string; filePath: string; operation: string; createdAt: number; expiresAt: number}> {
+    this.cleanup();
+    return Array.from(this.pending.values()).map(op => ({
+      token: op.token,
+      filePath: op.filePath,
+      operation: op.operation,
+      createdAt: op.createdAt,
+      expiresAt: op.expiresAt,
+    }));
+  }
+
+  /**
+   * Returns true if SQLite persistence is active for this store
+   */
+  hasPersistentStore(): boolean {
+    return this.persistentStore !== null;
+  }
+
+  /**
+   * Activate SQLite persistence after construction.
+   * Called when projectRoot becomes known (first real tool call).
+   */
+  activatePersistence(sessionId: string, projectRoot: string): void {
+    if (this.persistentStore) return; // already active
+    this.sessionId = sessionId;
+    this.persistentStore = new PendingOperationStore(projectRoot);
+  }
+
+  /**
+   * Close the persistent store
+   */
+  close(): void {
+    if (this.cleanupInterval) {
+      clearInterval(this.cleanupInterval);
+      this.cleanupInterval = null;
+    }
+    this.persistentStore?.close().catch(() => {});
+  }
+}

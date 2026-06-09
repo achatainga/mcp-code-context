@@ -1,18 +1,14 @@
-/**
- * Safe Regex - v3.6.3
- * CRITICAL FIX: Real ReDoS protection via worker_threads
- *
- * Problem: setTimeout cannot interrupt regex.test() in Node.js single-threaded event loop.
- * Solution: Execute regex in a Worker thread. If it exceeds timeout, worker.terminate() kills it.
- *
- * This file serves dual purpose:
- * - Main thread: exports safe regex functions that delegate to workers
- * - Worker thread: executes regex operations when loaded as a worker
- */
-
 import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
-import { REGEX_TIMEOUT_MS } from './constants.js';
+import * as path from "node:path";
+import { existsSync } from "node:fs";
+import { REGEX_TIMEOUT_MS } from "./constants.js";
+
+export {
+  validateRegexPattern,
+  sanitizeRegexPattern,
+  createSafeRegex,
+} from "./regexValidator.js";
 
 export interface RegexResult {
   success: boolean;
@@ -21,57 +17,49 @@ export interface RegexResult {
   timedOut?: boolean;
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// WORKER THREAD EXECUTION
-// Runs when this file is loaded as a Worker via new Worker(thisFile, { workerData })
-// ─────────────────────────────────────────────────────────────────────────
+type WorkerJob = Record<string, unknown>;
 
-if (!isMainThread && workerData) {
-  const { pattern, flags, input, mode, lines } = workerData;
+function executeRegexJob(data: WorkerJob): unknown {
+  const { pattern, flags, input, mode, lines, files } = data as {
+    pattern: string;
+    flags: string;
+    input?: string;
+    mode: string;
+    lines?: string[];
+    files?: Array<{ path: string; lines: string[] }>;
+  };
+
   const regex = new RegExp(pattern, flags);
 
   switch (mode) {
     case "test":
-      parentPort?.postMessage({ matched: regex.test(input) });
-      break;
-
+      return { matched: regex.test(input ?? "") };
     case "match":
-      parentPort?.postMessage({ matches: input.match(regex) });
-      break;
-
+      return { matches: (input ?? "").match(regex) };
     case "batch_test": {
-      // One worker per file: test each line, return matching indices
       const matches: Array<{ index: number; content: string }> = [];
-      for (let i = 0; i < lines.length; i++) {
+      for (let i = 0; i < (lines?.length ?? 0); i++) {
         regex.lastIndex = 0;
-        if (regex.test(lines[i])) {
-          matches.push({ index: i, content: lines[i].trim() });
+        if (regex.test(lines![i])) {
+          matches.push({ index: i, content: lines![i].trim() });
         }
       }
-      parentPort?.postMessage({ matches });
-      break;
+      return { matches };
     }
-
     case "batch_find_first": {
-      // Find first matching line index
       let matchIndex = -1;
-      for (let i = 0; i < lines.length; i++) {
+      for (let i = 0; i < (lines?.length ?? 0); i++) {
         regex.lastIndex = 0;
-        if (regex.test(lines[i])) {
+        if (regex.test(lines![i])) {
           matchIndex = i;
           break;
         }
       }
-      parentPort?.postMessage({ matchIndex });
-      break;
+      return { matchIndex };
     }
-
     case "batch_multi_file": {
-      // All files in one worker — eliminates N worker spawns in searchPattern
-      // files: Array<{ path: string, lines: string[] }>
-      const { files } = workerData;
       const fileResults: Array<{ file: string; index: number; content: string }> = [];
-      for (const file of files) {
+      for (const file of files ?? []) {
         for (let i = 0; i < file.lines.length; i++) {
           regex.lastIndex = 0;
           if (regex.test(file.lines[i])) {
@@ -79,47 +67,137 @@ if (!isMainThread && workerData) {
           }
         }
       }
-      parentPort?.postMessage({ results: fileResults });
-      break;
+      return { results: fileResults };
+    }
+    default:
+      throw new Error(`Unknown regex worker mode: ${mode}`);
+  }
+}
+
+if (!isMainThread) {
+  const runAndReply = (data: WorkerJob) => {
+    try {
+      parentPort?.postMessage(executeRegexJob(data));
+    } catch (err) {
+      parentPort?.postMessage({
+        __error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  };
+
+  if (workerData) {
+    runAndReply(workerData as WorkerJob);
+  } else {
+    parentPort?.on("message", runAndReply);
+  }
+}
+
+const POOL_SIZE = 4;
+let cachedWorkerFile: string | null = null;
+let workerPool: Worker[] | null = null;
+const idleWorkers: Worker[] = [];
+const waitQueue: Array<(worker: Worker) => void> = [];
+
+function getWorkerFile(): string {
+  if (cachedWorkerFile) return cachedWorkerFile;
+
+  const thisDir = path.dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    path.resolve(thisDir, "../../dist/src/utils/safeRegex.js"),
+    fileURLToPath(import.meta.url),
+  ];
+
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) {
+      cachedWorkerFile = candidate;
+      return candidate;
+    }
+  }
+
+  throw new Error("safeRegex worker file not found. Run: npm run build");
+}
+
+function spawnWorker(): Worker {
+  const worker = new Worker(getWorkerFile());
+  worker.on("error", () => replaceWorker(worker));
+  return worker;
+}
+
+function initPool(): void {
+  if (workerPool) return;
+  workerPool = Array.from({ length: POOL_SIZE }, () => spawnWorker());
+  idleWorkers.push(...workerPool);
+}
+
+function replaceWorker(dead: Worker): void {
+  if (!workerPool) return;
+  const idx = workerPool.indexOf(dead);
+  if (idx >= 0) {
+    const replacement = spawnWorker();
+    workerPool[idx] = replacement;
+    idleWorkers.push(replacement);
+    const waiter = waitQueue.shift();
+    if (waiter) {
+      idleWorkers.pop();
+      waiter(replacement);
     }
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// MAIN THREAD: Worker execution helper
-// ─────────────────────────────────────────────────────────────────────────
+function acquireWorker(): Promise<Worker> {
+  initPool();
+  const worker = idleWorkers.pop();
+  if (worker) return Promise.resolve(worker);
+  return new Promise((resolve) => waitQueue.push(resolve));
+}
 
-const WORKER_FILE = fileURLToPath(import.meta.url);
-
-function runInWorker<T>(data: Record<string, any>, timeoutMs: number): Promise<{ result?: T; timedOut?: boolean; error?: string }> {
-  if (!isMainThread) {
-    throw new Error("safeRegex: runInWorker called from worker thread — this is a bug");
+function releaseWorker(worker: Worker): void {
+  const waiter = waitQueue.shift();
+  if (waiter) {
+    waiter(worker);
+  } else {
+    idleWorkers.push(worker);
   }
+}
+
+async function runInWorker<T>(
+  data: WorkerJob,
+  timeoutMs: number
+): Promise<{ result?: T; timedOut?: boolean; error?: string }> {
+  if (!isMainThread) {
+    throw new Error("safeRegex: runInWorker called from worker thread");
+  }
+
+  const worker = await acquireWorker();
+
   return new Promise((resolve) => {
-    const worker = new Worker(WORKER_FILE, { workerData: data });
     let settled = false;
 
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
+      worker.removeAllListeners("message");
       worker.terminate();
+      replaceWorker(worker);
       resolve({ timedOut: true });
     }, timeoutMs);
 
-    worker.on("message", (msg: T) => {
+    const onMessage = (msg: T & { __error?: string }) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      worker.terminate();
-      resolve({ result: msg });
-    });
+      worker.off("message", onMessage);
+      releaseWorker(worker);
 
-    worker.on("error", (err) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      resolve({ error: err.message });
-    });
+      if (msg && typeof msg === "object" && "__error" in msg) {
+        resolve({ error: msg.__error });
+      } else {
+        resolve({ result: msg });
+      }
+    };
+
+    worker.on("message", onMessage);
+    worker.postMessage(data);
   });
 }
 
@@ -130,14 +208,6 @@ function extractPatternInfo(pattern: string | RegExp): { source: string; flags: 
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// PUBLIC API — Single operations
-// ─────────────────────────────────────────────────────────────────────────
-
-/**
- * Execute regex test with real timeout via worker_threads.
- * worker.terminate() can actually kill a stuck regex, unlike setTimeout.
- */
 export async function safeRegexTest(
   pattern: string | RegExp,
   input: string,
@@ -151,14 +221,13 @@ export async function safeRegexTest(
     timeoutMs
   );
 
-  if (timedOut) return { success: false, matched: false, timedOut: true, error: `Regex exceeded ${timeoutMs}ms (ReDoS prevented)` };
+  if (timedOut) {
+    return { success: false, matched: false, timedOut: true, error: `Regex exceeded ${timeoutMs}ms (ReDoS prevented)` };
+  }
   if (error) return { success: false, matched: false, error };
   return { success: true, matched: result!.matched };
 }
 
-/**
- * Execute regex match with real timeout via worker_threads.
- */
 export async function safeRegexMatch(
   pattern: string | RegExp,
   input: string,
@@ -177,15 +246,6 @@ export async function safeRegexMatch(
   return { success: true, matches: result!.matches };
 }
 
-// ─────────────────────────────────────────────────────────────────────────
-// PUBLIC API — Batch operations (one worker per file, loop inside worker)
-// ─────────────────────────────────────────────────────────────────────────
-
-/**
- * Batch regex test: sends all lines to one worker, loops inside.
- * Returns matching line indices and trimmed content.
- * Use this for searchPattern — one worker per file, not per line.
- */
 export async function safeRegexBatchTest(
   pattern: string | RegExp,
   lines: string[],
@@ -204,10 +264,6 @@ export async function safeRegexBatchTest(
   return { success: true, matches: result!.matches };
 }
 
-/**
- * Batch find first matching line: one worker, returns index of first match.
- * Use this for readLines aroundPattern — avoids N worker spawns.
- */
 export async function safeRegexFindFirst(
   pattern: string | RegExp,
   lines: string[],
@@ -226,12 +282,6 @@ export async function safeRegexFindFirst(
   return { success: true, matchIndex: result!.matchIndex };
 }
 
-/**
- * Multi-file batch regex test: ALL files processed in ONE worker spawn.
- * Eliminates N worker spawns for N files in searchPattern.
- * The worker loops all files×lines internally. If any line causes ReDoS,
- * the worker is terminated and the entire search times out safely.
- */
 export async function safeRegexMultiFileBatchTest(
   pattern: string | RegExp,
   files: Array<{ path: string; lines: string[] }>,
@@ -245,86 +295,9 @@ export async function safeRegexMultiFileBatchTest(
     timeoutMs
   );
 
-  if (timedOut) return { success: false, timedOut: true, error: `Multi-file regex scan exceeded ${timeoutMs}ms (ReDoS prevented)` };
+  if (timedOut) {
+    return { success: false, timedOut: true, error: `Multi-file regex scan exceeded ${timeoutMs}ms (ReDoS prevented)` };
+  }
   if (error) return { success: false, error };
   return { success: true, results: result!.results };
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Pattern validation and sanitization (synchronous — no worker needed)
-// ─────────────────────────────────────────────────────────────────────────
-
-/**
- * Validate regex pattern for safety
- */
-export function validateRegexPattern(pattern: string): { safe: boolean; issues: string[] } {
-  const issues: string[] = [];
-
-  // Check for catastrophic backtracking patterns
-  const dangerousPatterns = [
-    { pattern: /\([^)]*\+\)\+/, message: 'Nested quantifiers (a+)+ detected' },
-    { pattern: /\([^)]*\*\)\*/, message: 'Nested quantifiers (a*)* detected' },
-    { pattern: /\([^)]*\+\)\*/, message: 'Nested quantifiers (a+)* detected' },
-    { pattern: /\([^)]*\*\)\+/, message: 'Nested quantifiers (a*)+ detected' },
-    { pattern: /\([^|]*\|[^)]*\)\*/, message: 'Alternation with star (a|b)* detected' },
-    { pattern: /\([^|]*\|[^)]*\)\+/, message: 'Alternation with plus (a|b)+ detected' },
-  ];
-
-  for (const { pattern: dangerousPattern, message } of dangerousPatterns) {
-    if (dangerousPattern.test(pattern)) {
-      issues.push(message);
-    }
-  }
-
-  // Check for excessive repetition
-  if (/\{(\d+),\}/.test(pattern)) {
-    const match = pattern.match(/\{(\d+),\}/);
-    if (match && parseInt(match[1]) > 1000) {
-      issues.push('Excessive repetition {n,} with n > 1000');
-    }
-  }
-
-  // Check for very long patterns (potential complexity)
-  if (pattern.length > 500) {
-    issues.push('Pattern exceeds 500 characters');
-  }
-
-  return {
-    safe: issues.length === 0,
-    issues,
-  };
-}
-
-/**
- * Sanitize regex pattern (escape metacharacters)
- */
-export function sanitizeRegexPattern(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
-/**
- * Create safe regex with validation
- */
-export function createSafeRegex(
-  pattern: string,
-  flags?: string
-): { regex: RegExp | null; error?: string } {
-  const validation = validateRegexPattern(pattern);
-
-  if (!validation.safe) {
-    return {
-      regex: null,
-      error: `Unsafe regex pattern: ${validation.issues.join(', ')}`,
-    };
-  }
-
-  try {
-    const regex = new RegExp(pattern, flags);
-    return { regex };
-  } catch (error) {
-    return {
-      regex: null,
-      error: error instanceof Error ? error.message : String(error),
-    };
-  }
 }

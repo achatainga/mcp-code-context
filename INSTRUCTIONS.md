@@ -108,7 +108,7 @@ newContent: "return `Hello, ${name}`;"
   maxResults: 10
 ```
 
-### Fuzzy Search (v3.6.2+)
+### Fuzzy Search
 ```
 @mcp-code-context/search_code_pattern
   rootDir: /project/root
@@ -189,14 +189,14 @@ Rename across entire codebase in one operation:
 ## ⚠️ Common Mistakes
 
 ### ❌ Mistake 1: Forgetting projectRoot
-```
+```typescript
 // WRONG
 @mcp-code-context/read_file_surgical
   filePath: /path/to/file.ts
 ```
 
 ### ❌ Mistake 2: Skipping Phase 1
-```
+```typescript
 // WRONG - No preview
 @mcp-code-context/write_file_surgical
   confirm: true
@@ -204,13 +204,13 @@ Rename across entire codebase in one operation:
 ```
 
 ### ❌ Mistake 3: Incomplete Symbol Code
-```
+```typescript
 // WRONG - Missing function signature
 newContent: "{ return 42; }"
 ```
 
 ### ❌ Mistake 4: Not Checking Impact
-```
+```typescript
 // WRONG - Removing without checking dependencies
 @mcp-code-context/remove_symbol
   symbolName: importantFunction
@@ -253,10 +253,23 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.6.3 Features
+## 🚀 v3.7.0 Features
 
+### New Tools
+- **`get_session_stats`**: Session-scoped stats (pending ops, locks held, rate limiter tokens)
+- **`clear_session_cache`**: Clear cache for current session only (no impact on other clients)
+- **`list_pending_operations`**: List all pending operations (for recovery after crash)
+
+### Improvements
+- ✅ **Session-scoped state**: No state leakage between MCP clients
+- ✅ **Crash recovery**: SQLite-backed pending operations store
+- ✅ **Expanded ReDoS protection**: 15+ patterns (was 6)
+- ✅ **Auto-persist before eviction**: Cache data preserved
+- ✅ **Higher file limits**: MAX_FILES = 2000 (was 500)
+
+### Previously Added in v3.7.0
 - ✅ **4 New Tools**: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
-- ✅ **`diffFormat`**: Control diff verbosity on all write tools (`unified`, `compact`, `summary`, `none`)
+- ✅ **`diffFormat`**: Control diff verbosity (`unified`, `compact`, `summary`, `none`)
 - ✅ **Phase 2 optimized**: No need to resend `newContent`/`code` — server stores it from Phase 1
 - ✅ **`aroundPattern` line number**: Output now shows `Match found at line N`
 - ✅ **Rate limiter in stats**: `get_server_stats` includes token balance and operation costs
@@ -275,5 +288,6 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.6.3  
-**Last Updated**: May 1, 2026
+**Version**: 3.7.0  
+**Last Updated**: June 8, 2026  
+**Status**: Production-ready with session-scoped state and crash recovery

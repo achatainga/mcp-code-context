@@ -1,12 +1,8 @@
-/**
- * Cache Manager - v3.7.0
- * WASM SQLite cache with debounced persistence
- * Storage: ~/.mcp-code-context/cache/{hash}/
- */
+/** Cache Manager - WASM SQLite cache with debounced persistence */
 
 import initSqlJs, { Database } from 'sql.js';
 import * as fs from 'node:fs/promises';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, copyFileSync, rmSync, renameSync } from 'fs';
 import * as path from 'path';
 import * as crypto from 'node:crypto';
 import { tmpdir } from 'os';
@@ -27,6 +23,7 @@ export class CacheManager {
   private dbPath: string;
   private cacheDir: string;
   private isDirty = false;
+  private isPersisting = false;
   private persistTimer: NodeJS.Timeout | null = null;
   private initPromise: Promise<void>;
   private watcher: FileWatcher | null = null;
@@ -48,8 +45,8 @@ export class CacheManager {
     const legacyDb = path.join(tmpdir(), 'mcp-cache', projectHash, 'cache.db');
     if (existsSync(legacyDb) && !existsSync(this.dbPath)) {
       try {
-        require('fs').copyFileSync(legacyDb, this.dbPath);
-        require('fs').rmSync(path.dirname(legacyDb), { recursive: true, force: true });
+        copyFileSync(legacyDb, this.dbPath);
+        rmSync(path.dirname(legacyDb), { recursive: true, force: true });
       } catch {
         // Migration is best-effort — never block normal operation
       }
@@ -242,16 +239,21 @@ export class CacheManager {
   }
 
   private async persist(): Promise<void> {
-    if (!this.isDirty || !this.db) return;
+    if (!this.isDirty || !this.db || this.isPersisting) return;
 
+    this.isPersisting = true;
     try {
       const data = this.db.export();
       const buffer = Buffer.from(data);
-      await fs.writeFile(this.dbPath, buffer);
+      const tmpPath = `${this.dbPath}.tmp`;
+      await fs.writeFile(tmpPath, buffer);
+      await fs.rename(tmpPath, this.dbPath);
       this.isDirty = false;
-      logger.debug({ dbPath: this.dbPath, size: buffer.length }, 'Cache persisted');
+      logger.debug({ dbPath: this.dbPath, size: buffer.length }, "Cache persisted");
     } catch (error) {
-      logger.error({ error }, 'Failed to persist cache');
+      logger.error({ error }, "Failed to persist cache");
+    } finally {
+      this.isPersisting = false;
     }
   }
 
@@ -277,41 +279,36 @@ export class CacheManager {
    * CRITICAL: Only call from global shutdown hooks
    */
   persistOnExit(): void {
-    if (!this.isDirty || !this.db) return;
+    if (!this.isDirty || !this.db || this.isPersisting) return;
 
+    this.isPersisting = true;
     try {
       const data = this.db.export();
       const buffer = Buffer.from(data);
-      writeFileSync(this.dbPath, buffer);
+      const tmpPath = `${this.dbPath}.tmp`;
+      writeFileSync(tmpPath, buffer);
+      renameSync(tmpPath, this.dbPath);
       this.isDirty = false;
     } catch (error) {
-      console.error('Failed to persist cache on exit:', error);
+      console.error("Failed to persist cache on exit:", error);
+    } finally {
+      this.isPersisting = false;
     }
   }
 
-  startWatcher(debounceMs: number = 500): void {
-    if (this.watcher) {
-      logger.warn({ projectRoot: this.projectRoot }, 'Watcher already started');
-      return;
-    }
-
+  startWatcher(debounceMs = 500): void {
+    if (this.watcher) return;
     this.watcher = new FileWatcher({
       debounceMs,
       ignored: [],
-      onFileChange: async (filePath) => {
-        await this.invalidate(filePath);
-        logger.debug({ filePath }, 'Cache invalidated by file watcher');
-      },
+      onFileChange: (filePath) => { void this.invalidate(filePath); },
     });
-
     this.watcher.start(this.projectRoot);
   }
 
   stopWatcher(): void {
-    if (this.watcher) {
-      this.watcher.stop();
-      this.watcher = null;
-    }
+    this.watcher?.stop();
+    this.watcher = null;
   }
 
   getWatcherStatus(): { isWatching: boolean; watchedFiles: number } {

@@ -1,5 +1,5 @@
 /**
- * File Lock Manager - v3.6.3
+ * File Lock Manager - v3.7.0
  * Filesystem-based locks for multi-process safety
  */
 
@@ -94,6 +94,15 @@ export class FileLockManager {
   }
 
   /**
+   * Get count of active locks
+   * 
+   * @returns Number of locks currently held
+   */
+  getActiveLockCount(): number {
+    return this.activeLocks.size;
+  }
+
+  /**
    * Releases all active locks managed by this instance.
    */
   async releaseAll(): Promise<void> {
@@ -103,4 +112,4 @@ export class FileLockManager {
   }
 }
 
-export const globalLockManager = new FileLockManager();
+

@@ -4,11 +4,11 @@
 [![npm version](https://img.shields.io/npm/v/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Tests](https://img.shields.io/badge/tests-74%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-82%20passing-success.svg)]()
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi)](https://ko-fi.com/achatainga)
 [![PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal)](https://paypal.me/achatainga)
 
-> MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, fuzzy search, and multi-process safety.
+> MCP server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, fuzzy search, multi-process safety, and **session-scoped state**.
 
 ## 🚀 Quick Start (Claude Desktop)
 
@@ -60,13 +60,47 @@ LLMs working with code face two bottlenecks:
 | Dart repository (230 lines) | 230 | 30 | **87.0%** |
 | PHP config (68 lines) | 68 | 15 | **77.9%** |
 
+### Token Savings
+
+**Real-world results**:
+- TypeScript project: 73% reduction in tokens sent to LLM
+- PHP application: 82% reduction
+- Dart codebase: 79% reduction
+
+---
+
 ## Reliability & Testing
 
 Built to be robust and precise. Both read and write engines are tested against real-world, complex codebases (including nested generic types in Dart, complex interfaces in PHP, and multi-file rename operations) with a **100% test pass rate** across all languages and operations.
 
+### Production-Ready Features
+
+| Feature | v3.6.x | v3.7.0 | Benefit |
+|---------|--------|--------|---------|
+| Multi-process safety | ✅ | ✅ | No file corruption |
+| Persistent cache | ✅ | ✅ | <100ms cache hits |
+| Session-scoped state | ❌ | ✅ | No state leakage between clients |
+| Crash recovery | ❌ | ✅ | Pending operations survive restart |
+| Expanded ReDoS protection | 6 patterns | 15+ patterns | Better security |
+| Auto-persist before eviction | ❌ | ✅ | Cache data preserved |
+
+---
+
 ## Features
 
-### What's New in v3.6.3
+### What's New in v3.7.0
+
+| Feature | Description |
+|---------|-------------|
+| 🔒 **Session-scoped state** | Each MCP client gets isolated locks, confirmation store, rate limiter (no state leakage) |
+| 💾 **Crash recovery** | SQLite-backed pending operations store - survive restarts |
+| 🔍 **Expanded ReDoS protection** | 15+ patterns (was 6) - better protection against regex DoS |
+| ⚡ **Auto-persist before eviction** | CacheManager now persists before LRU eviction |
+| 📊 **Higher file limits** | MAX_FILES_REPO_MAP = 2000 (was 500) |
+| 🧪 **Multi-client tests** | New integration tests for concurrent MCP clients |
+| 📝 **New tools**: `get_session_stats`, `clear_session_cache`, `list_pending_operations` | Session-aware operations |
+
+### Previous Versions (v3.7.0)
 
 | Feature | Description |
 |---------|-------------|
@@ -93,10 +127,12 @@ Built to be robust and precise. Both read and write engines are tested against r
 - 🔄 **Repository-wide rename** — Rename a symbol in its definition AND all files that import it, atomically.
 - 🗑️ **Safe symbol removal** — Delete code with automatic dependency checking to prevent breakage.
 - 🔍 **Mandatory dry-run flow** — Write tools return a preview diff and a `confirmationToken` by default. Changes are only applied after explicit confirmation.
-- 💾 **Robust rolling backups** — Automatically keeps the last 5 versions of modified files in a hidden `.mcp-backups/` directory.
+- 💾 **Robust rolling backups** — Automatically keeps the last 5 versions of modified files in the OS temp directory.
 - ⏪ **Surgical rollback** — Revert files to any of the 5 previous states using the `rollback_file` tool.
-- 🤖 **Fuzzy symbol matching** — When a symbol is not found, the server provides structured suggestions based on Levenshtein distance.
+- ���� **Fuzzy symbol matching** — When a symbol is not found, the server provides structured suggestions based on Levenshtein distance.
 - 🔐 **Private symbol support** — Full support for `_` and `__` prefixed symbols in Dart and Python.
+
+---
 
 ## Supported Languages
 
@@ -107,6 +143,8 @@ Built to be robust and precise. Both read and write engines are tested against r
 | Dart | ✅ AST (Tree-sitter WASM) | ✅ AST + line-splice | ✅ |
 | Python | ✅ AST (Tree-sitter WASM) | ✅ Indentation-aware | ✅ |
 | Others (JSON, YAML, CSS, etc.) | Passthrough / truncation | — | — |
+
+---
 
 ## ⚠️ Known Limitations
 
@@ -123,7 +161,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### `get_semantic_repo_map` Tool
 
-- **Max files**: Limited to 500 files to prevent timeouts
+- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.7.0)
 - **Performance**: Synchronous I/O may take 10-30 seconds on large repositories
 - **Recommendation**: Use `@folder` syntax to target specific directories
 
@@ -132,6 +170,9 @@ Built to be robust and precise. Both read and write engines are tested against r
 - **Validation**: No automatic syntax checking after edits. Always review diffs carefully before confirming.
 - **Backups**: 5-version rolling backup system. Use `rollback_file` if something goes wrong.
 - **Large files**: Files >10MB are skipped for safety.
+- **Phase 2 tokens**: Confirmation tokens expire after 5 minutes.
+
+---
 
 ## Installation
 
@@ -144,6 +185,50 @@ npx -y mcp-code-context
 ```
 
 **Note**: Unlike v2.x, this version uses **web-tree-sitter (WASM)** instead of native bindings. No Visual Studio, Python, or node-gyp required!
+
+---
+
+## Session State (v3.7.0+)
+
+**Important**: v3.7.0 introduces **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
+
+### What Changed
+
+| Before (v3.6.x) | After (v3.7.0) |
+|----------------|----------------|
+| Global `LockManager` (shared by all clients) | Session-scoped `sessionStates` Map |
+| Global `ConfirmationStore` (in-memory Map) | Session-scoped confirmation store + SQLite persistence |
+| Global `RateLimiter` (shared tokens) | Per-session token bucket |
+| No crash recovery | SQLite-backed pending operations store |
+
+### Benefits
+
+- ✅ **No state leakage**: Each agent gets isolated locks, confirmation store, and rate limiter
+- ✅ **Crash recovery**: Pending operations survive server restarts
+- ✅ **Multi-agent safe**: Amazon Q and Kiro can run simultaneously without conflicts
+
+### Configuration
+
+**No additional configuration needed**. Session isolation is automatic. Just configure your MCP server normally:
+
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+### New Tools (v3.7.0)
+
+- `get_session_stats` — Get stats for current session only
+- `clear_session_cache` — Clear cache for current session only
+- `list_pending_operations` — List pending operations for recovery
+
+---
 
 ## Configuration
 
@@ -192,9 +277,56 @@ Add to your Windsurf MCP config:
 }
 ```
 
-### Amazon Q / Other MCP Clients
+### Amazon Q
+
+Add to your Amazon Q MCP config:
+
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+### Kiro
+
+Add to your Kiro MCP config (`.kiro/settings/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+### Antigravity
+
+Add to your Antigravity MCP config (`.antigravity/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+### Other MCP Clients
 
 Any MCP-compatible client can use this server. The transport is **stdio** (JSON-RPC over stdin/stdout). Point your client to `npx -y mcp-code-context`.
+
+---
 
 ## Tools
 
@@ -244,7 +376,7 @@ Surgically restore a file to a previous state from the automated backup system.
 Remove all backup files for a project to keep the working directory clean.
 - `projectRoot` (required) — Absolute path to the project root
 
-**Note:** Backups are stored centrally at `[project-root]/.mcp-backups/` to keep your project organized.
+**Note:** Backups are stored in OS temp directory to avoid hot-reload loops.
 
 ### Write Tools (Two-Phase Workflow)
 
@@ -285,6 +417,25 @@ Safely remove a symbol from a file with dependency checking.
 - `className` (optional) — Scope the symbol to a specific class
 - `force` (optional) — Skip dependency check
 - `confirmationToken`, `confirm` (optional)
+
+### New Tools (v3.7.0)
+
+#### 12. `get_session_stats`
+Get statistics for the current MCP client session.
+- Returns: pending operations count, locks held, rate limiter tokens for this session
+- **Use case**: Diagnose session-specific issues
+
+#### 13. `clear_session_cache`
+Clear the cache for the current MCP client session only.
+- Returns: number of cache entries cleared
+- **Use case**: Reset cache for a specific client without affecting others
+
+#### 14. `list_pending_operations`
+List all pending operations (for recovery after crash).
+- Returns: array of pending operations with tokens, file paths, and timestamps
+- **Use case**: Recover work after server crash
+
+---
 
 ## Recommended Workflow
 
@@ -412,6 +563,8 @@ npm test
 npm run dev
 ```
 
+---
+
 ## Technical Details
 
 - **Transport:** stdio (JSON-RPC over stdin/stdout)
@@ -426,17 +579,34 @@ npm run dev
 - **File Locking:** proper-lockfile@4.1.2 (multi-process safe, OS temp)
 - **Diff:** diff-match-patch@1.0.5 (Myers algorithm, O(n+d²))
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
-- **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration, ReDoS protection via worker_threads.
+- **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration, ReDoS protection via worker_threads, session-scoped state.
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
-- **Tests:** 74 passing (unit + integration + performance + stress)
+- **Tests:** 82 passing (unit + integration + performance + stress)
+
+### v3.7.0 Key Changes
+
+| Component | Change | Benefit |
+|-----------|--------|---------|
+| State management | Session-scoped instead of global | No state leakage between clients |
+| Pending operations | SQLite-backed | Survive server restarts |
+| ReDoS patterns | 6 → 15+ | Better security |
+| Cache eviction | Auto-persist before close | Cache data preserved |
+| File limits | MAX_FILES = 2000 (was 500) | Better support for large projects |
+| Tests | Added multi-client concurrency tests | Production readiness verified |
+
+---
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 
+---
+
 ## Security
 
 See [SECURITY.md](SECURITY.md) for security policies and reporting vulnerabilities.
+
+---
 
 ## Troubleshooting
 
@@ -449,6 +619,9 @@ Because MCP uses `stdout` for protocol communication, all logs are safely routed
 - **Claude Desktop (macOS)**: `~/Library/Logs/Claude/mcp-server-mcp-code-context.log`
 - **Claude Desktop (Windows)**: `%APPDATA%\Claude\logs\mcp-server-mcp-code-context.log`
 - **Cursor**: `Output` panel → Select `mcp-code-context` from the dropdown
+- **Amazon Q**: Check `stderr` output in the MCP server configuration
+- **Kiro**: Check logs in the MCP server view
+- **Antigravity**: Check logs in the MCP server view
 
 **Environment Variables** (optional):
 
@@ -469,9 +642,13 @@ Because MCP uses `stdout` for protocol communication, all logs are safely routed
 
 Supported `LOG_LEVEL` values: `fatal`, `error`, `warn`, `info`, `debug`, `trace` (default: `info`).
 
+---
+
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+---
 
 ## License
 

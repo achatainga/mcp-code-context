@@ -62,7 +62,7 @@ describe('Large File Handling', () => {
     const result = await readLines({ filePath, startLine: 100, endLine: 200 });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Invalid line range');
+    expect(result.error).toContain('exceeds file length');
   });
 
   it('readLines: pattern not found — line range with out-of-bounds returns error', async () => {
@@ -74,6 +74,6 @@ describe('Large File Handling', () => {
     const result = await readLines({ filePath, startLine: 999, endLine: 1000 });
 
     expect(result.success).toBe(false);
-    expect(result.error).toContain('Invalid line range');
+    expect(result.error).toContain('exceeds file length');
   });
 });

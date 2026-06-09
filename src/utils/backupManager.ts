@@ -7,7 +7,7 @@ import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import * as crypto from "node:crypto";
 import { tmpdir } from "os";
-import { existsSync, mkdirSync } from "fs";
+import { existsSync, mkdirSync, readdirSync, copyFileSync, rmSync } from "fs";
 import { getAppDir } from "./appDir.js";
 import { MAX_BACKUPS_PER_FILE, HASH_LENGTH } from './constants.js';
 
@@ -35,15 +35,15 @@ export class BackupManager {
     const legacyRoot = path.join(tmpdir(), 'mcp-backups', projectHash);
     if (existsSync(legacyRoot)) {
       try {
-        const files = require('fs').readdirSync(legacyRoot) as string[];
+        const files = readdirSync(legacyRoot);
         for (const file of files) {
           const src = path.join(legacyRoot, file);
           const dst = path.join(backupRoot, file);
           if (!existsSync(dst)) {
-            require('fs').copyFileSync(src, dst);
+            copyFileSync(src, dst);
           }
         }
-        require('fs').rmSync(legacyRoot, { recursive: true, force: true });
+        rmSync(legacyRoot, { recursive: true, force: true });
       } catch {
         // Migration is best-effort — never block normal operation
       }

@@ -1,5 +1,5 @@
 /**
- * Diff Utilities - v3.6.3
+ * Diff Utilities - v3.7.0
  * Uses diff-match-patch for efficient diffing
  */
 
@@ -9,6 +9,10 @@ import { DIFF_MAX_FILE_LINES } from './constants.js';
 const dmp = new DiffMatchPatch();
 const COMPACT_DIFF_THRESHOLD = 2048;
 
+// FIX-07: Early fallback threshold — skip O(n+d²) Myers for large files with many changes
+const EARLY_FALLBACK_LINES = 500;
+const EARLY_FALLBACK_CHANGE_RATIO = 0.3; // >30% lines changed → use fast path
+
 export interface DiffLine {
   type: 'add' | 'remove' | 'context';
   content: string;
@@ -16,8 +20,40 @@ export interface DiffLine {
 }
 
 /**
+ * Estimate change ratio between two texts without full diff.
+ * Fast O(n) heuristic using line hashing.
+ */
+function estimateChangeRatio(oldText: string, newText: string): number {
+  const oldLines = new Set(oldText.split('\n'));
+  const newLines = newText.split('\n');
+  const changedLines = newLines.filter(l => !oldLines.has(l)).length;
+  return changedLines / Math.max(newLines.length, 1);
+}
+
+/**
+ * Generates an early fallback diff for large files with many changes.
+ * Avoids O(n+d²) degradation from Myers algorithm.
+ * FIX-07: Added in v3.7.0.
+ * 
+ * @param oldText - Original file content
+ * @param newText - Modified file content
+ * @returns Human-readable summary diff
+ */
+export function generateEarlyFallbackDiff(oldText: string, newText: string): string {
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  const added = newLines.length - oldLines.length;
+  const sign = added >= 0 ? '+' : '';
+
+  return `[Early fallback: file too large for Myers diff (O(n+d²) would degrade performance)]
+Lines: ${oldLines.length} → ${newLines.length} (${sign}${added})
+Use rollback_file to revert if needed.`;
+}
+
+/**
  * Generates a unified diff using Myers algorithm.
  * Falls back to simple diff for files exceeding line limit.
+ * FIX-07: Added early fallback for large files with high change ratio.
  * 
  * @param oldText - Original file content
  * @param newText - Modified file content
@@ -27,8 +63,17 @@ export function generateUnifiedDiff(oldText: string, newText: string): string {
   const oldLines = oldText.split('\n');
   const newLines = newText.split('\n');
 
+  // Hard limit: always use simple diff above DIFF_MAX_FILE_LINES
   if (oldLines.length > DIFF_MAX_FILE_LINES || newLines.length > DIFF_MAX_FILE_LINES) {
     return generateSimpleDiff(oldText, newText);
+  }
+
+  // FIX-07: Early fallback for >500 lines with high change ratio (avoid O(n+d²) degradation)
+  if (oldLines.length > EARLY_FALLBACK_LINES || newLines.length > EARLY_FALLBACK_LINES) {
+    const changeRatio = estimateChangeRatio(oldText, newText);
+    if (changeRatio > EARLY_FALLBACK_CHANGE_RATIO) {
+      return generateEarlyFallbackDiff(oldText, newText);
+    }
   }
 
   const diffs = dmp.diff_main(oldText, newText);

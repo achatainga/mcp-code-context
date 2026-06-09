@@ -68,6 +68,7 @@ describe('searchPattern: unsafe regex gate', () => {
       pattern: '(a+)+',
       fileExtensions: ['.ts'],
     });
+    // The native tool returns empty matches, so regex validation kicks in
     expect(result.success).toBe(false);
     expect(result.error).toContain('Unsafe regex');
   });
@@ -78,6 +79,7 @@ describe('searchPattern: unsafe regex gate', () => {
       pattern: '(foo|bar)*',
       fileExtensions: ['.ts'],
     });
+    // The native tool returns empty matches, so regex validation kicks in
     expect(result.success).toBe(false);
     expect(result.error).toContain('Unsafe regex');
   });

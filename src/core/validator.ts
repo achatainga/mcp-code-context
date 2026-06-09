@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.6.3
+ * Security Validator - v3.7.0
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 
@@ -20,28 +20,33 @@ export class SecurityValidator {
   }
 
   async validateFilePath(filePath: string): Promise<ValidationResult> {
-    // Resolve FIRST, then check
     const resolved = path.resolve(filePath);
 
-    // CRITICAL: Check boundary AFTER normalization (with path separator)
     if (resolved !== this.projectRoot && !resolved.startsWith(this.projectRoot + path.sep)) {
-      return { 
-        valid: false, 
-        error: `Security: Path "${filePath}" is outside project boundary "${this.projectRoot}"` 
+      return {
+        valid: false,
+        error: `Security: Path "${filePath}" is outside project boundary "${this.projectRoot}"`,
       };
     }
 
-    // Existence check
     try {
-      await fs.access(resolved);
+      const realPath = await fs.realpath(resolved);
+
+      if (realPath !== this.projectRoot && !realPath.startsWith(this.projectRoot + path.sep)) {
+        return {
+          valid: false,
+          error: `Security: Symlink "${filePath}" resolves outside project boundary "${this.projectRoot}"`,
+        };
+      }
+
+      await fs.access(realPath);
+      return { valid: true, resolvedPath: realPath };
     } catch {
-      return { 
-        valid: false, 
-        error: `File not found: "${filePath}" (resolved to "${resolved}")` 
+      return {
+        valid: false,
+        error: `File not found: "${filePath}" (resolved to "${resolved}")`,
       };
     }
-
-    return { valid: true, resolvedPath: resolved };
   }
 
   async validateFileSize(filePath: string, maxSize: number = 10 * 1024 * 1024): Promise<ValidationResult> {

@@ -1,11 +1,17 @@
 /**
- * Audit Logger - v3.6.3
+ * Audit Logger - v3.7.0
  * Comprehensive audit trail for all operations
  */
 
 import * as fs from "node:fs/promises";
-import * as path from "node:path";
-import { LOG_DIR } from './logger.js';
+import { LOG_DIR } from "./logger.js";
+import {
+  initLogDir as initAuditLogDir,
+  ensureLogFile as ensureAuditLogFile,
+  rotateLog as rotateAuditLog,
+  getLogFiles as getAuditLogFiles,
+} from "./auditLogWriter.js";
+import { queryAuditLogs, getAuditStats } from "./auditQuery.js";
 
 export interface AuditEntry {
   timestamp: number;
@@ -167,9 +173,6 @@ export class AuditLogger {
     }
   }
 
-  /**
-   * Query audit logs
-   */
   async query(filters: {
     startTime?: number;
     endTime?: number;
@@ -179,85 +182,13 @@ export class AuditLogger {
     result?: "success" | "failure";
     limit?: number;
   }): Promise<AuditEntry[]> {
-    const results: AuditEntry[] = [];
-    const limit = filters.limit || 1000;
-
-    try {
-      const files = await this.getLogFiles();
-
-      for (const file of files.reverse()) {
-        if (results.length >= limit) break;
-
-        const content = await fs.readFile(file, "utf-8");
-        const lines = content.split("\n").filter((line) => line.trim());
-
-        for (const line of lines.reverse()) {
-          if (results.length >= limit) break;
-
-          try {
-            const entry: AuditEntry = JSON.parse(line);
-
-            // Apply filters
-            if (filters.startTime && entry.timestamp < filters.startTime) continue;
-            if (filters.endTime && entry.timestamp > filters.endTime) continue;
-            if (filters.level && entry.level !== filters.level) continue;
-            if (filters.operation && entry.operation !== filters.operation) continue;
-            if (filters.clientId && entry.clientId !== filters.clientId) continue;
-            if (filters.result && entry.result !== filters.result) continue;
-
-            results.push(entry);
-          } catch {
-            // Skip invalid lines
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Failed to query audit logs:", error);
-    }
-
-    return results;
+    return queryAuditLogs(this.config.logDir, filters);
   }
 
-  /**
-   * Get audit statistics
-   */
-  async getStats(timeRange?: { start: number; end: number }): Promise<{
-    totalEntries: number;
-    byLevel: Record<string, number>;
-    byOperation: Record<string, number>;
-    byResult: Record<string, number>;
-    securityEvents: number;
-  }> {
-    const entries = await this.query({
-      startTime: timeRange?.start,
-      endTime: timeRange?.end,
-      limit: 100000,
-    });
-
-    const stats = {
-      totalEntries: entries.length,
-      byLevel: {} as Record<string, number>,
-      byOperation: {} as Record<string, number>,
-      byResult: {} as Record<string, number>,
-      securityEvents: 0,
-    };
-
-    for (const entry of entries) {
-      stats.byLevel[entry.level] = (stats.byLevel[entry.level] || 0) + 1;
-      stats.byOperation[entry.operation] = (stats.byOperation[entry.operation] || 0) + 1;
-      stats.byResult[entry.result] = (stats.byResult[entry.result] || 0) + 1;
-      
-      if (entry.level === "security") {
-        stats.securityEvents++;
-      }
-    }
-
-    return stats;
+  async getStats(timeRange?: { start: number; end: number }) {
+    return getAuditStats(this.config.logDir, timeRange);
   }
 
-  /**
-   * Stop logger and flush
-   */
   async stop(): Promise<void> {
     if (this.flushInterval) {
       clearInterval(this.flushInterval);
@@ -266,20 +197,14 @@ export class AuditLogger {
     await this.flush();
   }
 
-  // Private methods
-
   private async initLogDir(): Promise<void> {
-    try {
-      await fs.mkdir(this.config.logDir, { recursive: true });
-    } catch (error) {
-      console.error("Failed to create audit log directory:", error);
-    }
+    await initAuditLogDir(this.config.logDir);
   }
 
   private async ensureLogFile(): Promise<void> {
     if (!this.currentLogFile) {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      this.currentLogFile = path.join(this.config.logDir, `audit-${timestamp}.log`);
+      const { file } = await ensureAuditLogFile(this.config.logDir, this.currentLogFile);
+      this.currentLogFile = file;
       this.currentLogSize = 0;
     }
   }
@@ -287,40 +212,11 @@ export class AuditLogger {
   private async rotateLog(): Promise<void> {
     this.currentLogFile = null;
     this.currentLogSize = 0;
-
-    // Cleanup old logs
-    const files = await this.getLogFiles();
-    if (files.length > this.config.maxFiles) {
-      const toDelete = files.slice(0, files.length - this.config.maxFiles);
-      for (const file of toDelete) {
-        try {
-          await fs.unlink(file);
-        } catch {
-          // Ignore errors
-        }
-      }
-    }
+    await rotateAuditLog(this.config.logDir, this.config.maxFiles);
   }
 
   private async getLogFiles(): Promise<string[]> {
-    try {
-      const entries = await fs.readdir(this.config.logDir);
-      const files = entries
-        .filter((name) => name.startsWith("audit-") && name.endsWith(".log"))
-        .map((name) => path.join(this.config.logDir, name));
-
-      // Sort by creation time
-      const stats = await Promise.all(
-        files.map(async (file) => ({
-          file,
-          mtime: (await fs.stat(file)).mtime.getTime(),
-        }))
-      );
-
-      return stats.sort((a, b) => a.mtime - b.mtime).map((s) => s.file);
-    } catch {
-      return [];
-    }
+    return getAuditLogFiles(this.config.logDir);
   }
 
   private logToConsole(entry: AuditEntry): void {

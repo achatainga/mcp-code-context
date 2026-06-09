@@ -1,10 +1,19 @@
-# mcp-code-context v3.6.3
+# mcp-code-context v3.7.0
 
-> A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline.
+> A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline, session-scoped state, and crash recovery.
 
-## What's New in v3.6.3
+## What's New in v3.7.0
 
-🚀 **LLM Agent Experience Release**:
+🚀 **CRITICAL FIXES - Production Readiness Release**:
+- ✅ **Session-scoped state**: Each MCP client gets isolated locks, confirmation store, rate limiter (no state leakage)
+- ✅ **Crash recovery**: SQLite-backed pending operations store - survive restarts
+- ✅ **Expanded ReDoS protection**: 15+ patterns (was 6) - better security
+- ✅ **Auto-persist before eviction**: CacheManager now persists before LRU eviction
+- ✅ **Higher file limits**: MAX_FILES_REPO_MAP = 2000 (was 500)
+- ✅ **Multi-client tests**: New integration tests for concurrent MCP clients
+
+## What's New in v3.7.0 (Previously Added)
+
 - ✅ 4 new tools: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
 - ✅ `diffFormat` parameter on all write tools (`unified`, `compact`, `summary`, `none`)
 - ✅ Phase 2 no longer requires `newContent`/`code` — server stores content from Phase 1
@@ -138,15 +147,17 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.6.3 Two-Phase Workflow)
+### Write Tools (v3.7.0 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.6.3):**
+**Important Notes (v3.7.0):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
+- ✅ **Session-scoped state**: Each MCP client gets isolated state (locks, confirmation store, rate limiter).
+- ✅ **Crash recovery**: Pending operations survive server restarts via SQLite.
 
 #### 7. `write_file_surgical`
 **Purpose:** Replace the full source code of a named symbol in a file.
@@ -223,6 +234,74 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Best used when:** Cleaning up deprecated functions or unused code.
 
+## New Tools (v3.7.0)
+
+#### 11. `get_session_stats`
+**Purpose:** Get statistics for the current MCP client session.
+
+**Input:** None.
+
+**Returns:**
+- `pendingOperations`: Count of pending operations for this session
+- `locksHeld`: Number of file locks currently held
+- `rateLimiterTokens`: Current token balance for this session
+
+**Best used when:** Diagnosing session-specific issues or understanding your client's resource usage.
+
+#### 12. `clear_session_cache`
+**Purpose:** Clear the cache for the current MCP client session only.
+
+**Input:** None.
+
+**Returns:** `cacheEntriesCleared` - Number of cache entries removed.
+
+**Best used when:** You want to reset your client's cache without affecting other MCP clients.
+
+#### 13. `list_pending_operations`
+**Purpose:** List all pending operations (for recovery after crash).
+
+**Input:** None.
+
+**Returns:** Array of pending operations with tokens, file paths, and timestamps.
+
+**Best used when:** Recovering work after a server crash.
+
+## Previously Added Tools (v3.7.0)
+
+#### 14. `parse_file`
+**Purpose:** Parse a file using Tree-sitter and extract all symbols.
+**Input:** `filePath` (required), `projectRoot` (required).
+**Returns:** JSON array of all symbols with type, name, `startLine`, and `endLine`.
+
+#### 15. `clean_backups`
+**Purpose:** Remove all backup files for a project.
+**Input:** `projectRoot` (required).
+
+#### 16. `get_server_stats`
+**Purpose:** Get server telemetry, audit statistics, and health metrics.
+**Input:** None.
+**Returns:** Pending confirmations, rate limiter token balance, operation costs, and operational metrics.
+
+#### 17. `search_symbols`
+**Purpose:** Search symbols by name across the repo using AST (not text search).
+**Input:** `rootDir` (required), `projectRoot` (required), `query` (required), `types` (optional), `fuzzy` (optional), `fileExtensions` (optional), `maxResults` (optional).
+**Returns:** Matching symbols with file path, line numbers, and type.
+
+#### 18. `explain_symbol`
+**Purpose:** Get signature, location, and callers of a symbol in one call.
+**Input:** `filePath` (required), `projectRoot` (required), `symbolName` (required), `className` (optional), `rootDir` (optional).
+**Returns:** Symbol definition + list of files that call it. Replaces `read_file_surgical` + `analyze_impact` in one round-trip.
+
+#### 19. `batch_read`
+**Purpose:** Read N symbols from N files in a single call.
+**Input:** `reads` (required): array of `{filePath, symbolName, className?}`. `projectRoot` (required).
+**Returns:** All requested symbols in one response. Eliminates N round-trips.
+
+#### 20. `get_rate_limit_status`
+**Purpose:** Get current token balance and operation costs.
+**Input:** None.
+**Returns:** `tokensAvailable`, `maxTokens`, `refillRate`, and `canAfford` map per operation. Lets autonomous agents plan their budget.
+
 ## Recommended Workflow
 
 1. **Start with `get_semantic_repo_map`** to understand the project structure.
@@ -232,41 +311,86 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-### Additional Tools (v3.6.3)
+## Session State Configuration (v3.7.0+)
 
-#### 11. `parse_file`
-**Purpose:** Parse a file using Tree-sitter and extract all symbols.
-**Input:** `filePath` (required), `projectRoot` (required).
-**Returns:** JSON array of all symbols with type, name, `startLine`, and `endLine`.
+### Critical: Session-Scoped State
 
-#### 12. `clean_backups`
-**Purpose:** Remove all backup files for a project.
-**Input:** `projectRoot` (required).
+The server now uses **session-scoped state** for each MCP client connection. This means:
 
-#### 13. `get_server_stats`
-**Purpose:** Get server telemetry, audit statistics, and health metrics.
-**Input:** None.
-**Returns:** Pending confirmations, rate limiter token balance, operation costs, and operational metrics.
+1. **No state leakage**: Each agent (Amazon Q, Kiro, Cursor, etc.) gets isolated locks, confirmation store, and rate limiter.
+2. **Crash recovery**: Pending operations survive server restarts via SQLite.
+3. **Session tools**: Use `get_session_stats`, `clear_session_cache`, and `list_pending_operations` for session-aware operations.
 
-#### 14. `search_symbols`
-**Purpose:** Search symbols by name across the repo using AST (not text search).
-**Input:** `rootDir` (required), `projectRoot` (required), `query` (required), `types` (optional), `fuzzy` (optional), `fileExtensions` (optional), `maxResults` (optional).
-**Returns:** Matching symbols with file path, line numbers, and type.
+### IDE-Specific Configuration
 
-#### 15. `explain_symbol`
-**Purpose:** Get signature, location, and callers of a symbol in one call.
-**Input:** `filePath` (required), `projectRoot` (required), `symbolName` (required), `className` (optional), `rootDir` (optional).
-**Returns:** Symbol definition + list of files that call it. Replaces `read_file_surgical` + `analyze_impact` in one round-trip.
+Each IDE/agent has a specific location for MCP configuration:
 
-#### 16. `batch_read`
-**Purpose:** Read N symbols from N files in a single call.
-**Input:** `reads` (required): array of `{filePath, symbolName, className?}`. `projectRoot` (required).
-**Returns:** All requested symbols in one response. Eliminates N round-trips.
+#### Amazon Q
+Add to `.amazonq/rules/1-mcp-code-context-instructions.md`:
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
 
-#### 17. `get_rate_limit_status`
-**Purpose:** Get current token balance and operation costs.
-**Input:** None.
-**Returns:** `tokensAvailable`, `maxTokens`, `refillRate`, and `canAfford` map per operation. Lets autonomous agents plan their budget.
+#### Kiro
+Add to `.kiro/settings/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+#### Cursor
+Add to `.cursor/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+#### Windsurf
+Add to Windsurf MCP settings:
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+#### Antigravity
+Add to `.antigravity/mcp.json`:
+```json
+{
+  "mcpServers": {
+    "mcp-code-context": {
+      "command": "npx",
+      "args": ["-y", "mcp-code-context"]
+    }
+  }
+}
+```
+
+No additional configuration is needed beyond adding the MCP server definition. Session isolation is automatic.
 
 ## Technical Details
 
@@ -277,4 +401,32 @@ All write tools follow a **Two-Phase Workflow**:
 - **Supported languages:** TypeScript, JavaScript (all variants), PHP, Dart, Python
 - **Security:** projectRoot boundary, safe regex, rate limiting, file locking, audit logging, telemetry
 - **Write safety:** Two-phase confirmation (dry-run + token), atomic writes, syntax validation
+- **State management:** Session-scoped (per-MCP-client) with SQLite persistence for pending operations
+- **Cache:** sql.js@1.14.1 (WASM SQLite, zero native deps)
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
+- **Tests:** 82 passing (unit + integration + performance + stress)
+
+## Support This Project
+
+### PayPal
+[paypal.me/achatainga](https://paypal.me/achatainga)
+
+### Ko-fi
+[ko-fi.com/achatainga](https://ko-fi.com/achatainga)
+
+### Binance (USDT)
+- **TRC20/ERC20**: `0xa68d53f7853ce0175eb96aaad4a30c068ca96444`
+- **Binance Pay ID**: `367669339`
+
+### Hire Me
+- 💼 **Available for**: Freelance contracts
+- 🌐 **Location**: Caracas, Venezuela (Remote)
+- 💻 **Skills**: TypeScript, Node.js, MCP, AI/LLM integrations
+- 💵 **Rate**: $50-75/hour
+- 📧 **Contact**: a.chataing.a@gmail.com
+
+---
+
+**Version**: 3.7.0  
+**Last Updated**: June 8, 2026  
+**Status**: Production-ready with session-scoped state and crash recovery

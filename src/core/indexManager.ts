@@ -12,6 +12,13 @@ import * as crypto from "node:crypto";
 import { logger } from "../utils/logger.js";
 import { getAppDir } from "../utils/appDir.js";
 import type { SymbolInfo } from "../parsers/base.js";
+import {
+  searchSymbolsInDb,
+  getDependentsFromDb,
+  getDependenciesFromDb,
+  hasIndexInDb,
+  getIndexStatsFromDb,
+} from "./indexManagerQueries.js";
 
 export interface IndexedSymbol {
   filePath: string;
@@ -213,142 +220,31 @@ export class IndexManager {
     this.schedulePersist();
   }
 
-  /**
-   * Search symbols by name. Supports exact, prefix, and fuzzy (LIKE) matching.
-   */
   async searchSymbols(
     query: string,
-    options: {
-      fuzzy?: boolean;
-      types?: string[];
-      maxResults?: number;
-    } = {}
+    options: { fuzzy?: boolean; types?: string[]; maxResults?: number } = {}
   ): Promise<IndexedSymbol[]> {
     await this.initPromise;
     if (!this.db) return [];
-
-    const { fuzzy = false, types, maxResults = 50 } = options;
-    const results: IndexedSymbol[] = [];
-
-    let sql: string;
-    let params: (string | number)[];
-
-    const typeFilter =
-      types && types.length > 0
-        ? `AND type IN (${types.map(() => "?").join(",")})`
-        : "";
-
-    if (fuzzy) {
-      // Case-insensitive LIKE search
-      sql = `
-        SELECT file_path, name, type, start_line, end_line, class_name
-        FROM symbols
-        WHERE LOWER(name) LIKE LOWER(?)
-        ${typeFilter}
-        ORDER BY
-          CASE WHEN LOWER(name) = LOWER(?) THEN 0
-               WHEN LOWER(name) LIKE LOWER(?) THEN 1
-               ELSE 2 END,
-          name
-        LIMIT ?
-      `;
-      params = [
-        `%${query}%`,
-        ...(types ?? []),
-        query,
-        `${query}%`,
-        maxResults,
-      ];
-    } else {
-      // Exact match first, then prefix
-      sql = `
-        SELECT file_path, name, type, start_line, end_line, class_name
-        FROM symbols
-        WHERE LOWER(name) = LOWER(?)
-        ${typeFilter}
-        ORDER BY name
-        LIMIT ?
-      `;
-      params = [query, ...(types ?? []), maxResults];
-    }
-
-    const stmt = this.db.prepare(sql);
-    stmt.bind(params);
-    while (stmt.step()) {
-      const row = stmt.getAsObject() as {
-        file_path: string;
-        name: string;
-        type: string;
-        start_line: number;
-        end_line: number;
-        class_name: string | null;
-      };
-      results.push({
-        filePath: row.file_path,
-        name: row.name,
-        type: row.type,
-        startLine: row.start_line,
-        endLine: row.end_line,
-        className: row.class_name ?? undefined,
-      });
-    }
-    stmt.free();
-
-    return results;
+    return searchSymbolsInDb(this.db, query, options);
   }
 
-  /**
-   * Get all files that import the given file (reverse dependency lookup).
-   */
   async getDependents(filePath: string): Promise<string[]> {
     await this.initPromise;
     if (!this.db) return [];
-
-    const results: string[] = [];
-    const stmt = this.db.prepare(
-      "SELECT from_file FROM dependencies WHERE to_file = ?"
-    );
-    stmt.bind([filePath]);
-    while (stmt.step()) {
-      const row = stmt.getAsObject() as { from_file: string };
-      results.push(row.from_file);
-    }
-    stmt.free();
-    return results;
+    return getDependentsFromDb(this.db, filePath);
   }
 
-  /**
-   * Get all files that the given file imports.
-   */
   async getDependencies(filePath: string): Promise<string[]> {
     await this.initPromise;
     if (!this.db) return [];
-
-    const results: string[] = [];
-    const stmt = this.db.prepare(
-      "SELECT to_file FROM dependencies WHERE from_file = ?"
-    );
-    stmt.bind([filePath]);
-    while (stmt.step()) {
-      const row = stmt.getAsObject() as { to_file: string };
-      results.push(row.to_file);
-    }
-    stmt.free();
-    return results;
+    return getDependenciesFromDb(this.db, filePath);
   }
 
-  /**
-   * Returns true if the index has at least one file indexed.
-   */
   async hasIndex(): Promise<boolean> {
     await this.initPromise;
     if (!this.db) return false;
-
-    const stmt = this.db.prepare("SELECT COUNT(*) as count FROM files");
-    stmt.step();
-    const row = stmt.getAsObject() as { count: number };
-    stmt.free();
-    return row.count > 0;
+    return hasIndexInDb(this.db);
   }
 
   async getStats(): Promise<IndexStats> {
@@ -356,38 +252,7 @@ export class IndexManager {
     if (!this.db) {
       return { filesIndexed: 0, symbolsIndexed: 0, dependenciesIndexed: 0, dbSizeBytes: 0, lastIndexedAt: null };
     }
-
-    const files = this.db.prepare("SELECT COUNT(*) as c FROM files");
-    files.step();
-    const filesCount = (files.getAsObject() as { c: number }).c;
-    files.free();
-
-    const syms = this.db.prepare("SELECT COUNT(*) as c FROM symbols");
-    syms.step();
-    const symsCount = (syms.getAsObject() as { c: number }).c;
-    syms.free();
-
-    const deps = this.db.prepare("SELECT COUNT(*) as c FROM dependencies");
-    deps.step();
-    const depsCount = (deps.getAsObject() as { c: number }).c;
-    deps.free();
-
-    const last = this.db.prepare("SELECT MAX(indexed_at) as t FROM files");
-    last.step();
-    const lastAt = (last.getAsObject() as { t: number | null }).t;
-    last.free();
-
-    const dbSize = existsSync(this.dbPath)
-      ? (await fs.stat(this.dbPath)).size
-      : 0;
-
-    return {
-      filesIndexed: filesCount,
-      symbolsIndexed: symsCount,
-      dependenciesIndexed: depsCount,
-      dbSizeBytes: dbSize,
-      lastIndexedAt: lastAt,
-    };
+    return getIndexStatsFromDb(this.db, this.dbPath);
   }
 
   async clear(): Promise<void> {
