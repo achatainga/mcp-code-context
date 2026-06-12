@@ -10,6 +10,7 @@ import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { CodeContextEngine } from "./core/engine.js";
 import { ParserRegistry } from "./parsers/registry.js";
 import { globalSessionManager } from "./core/sessionManager.js";
+import { globalAuditLogger } from "./utils/auditLogger.js";
 import { TOOLS } from "./tools/toolDefinitions.js";
 import { setServerInstances } from "./tools/context.js";
 import { registerPipeline } from "./tools/pipeline.js";
@@ -39,9 +40,16 @@ async function main() {
 }
 
 const shutdownHandler = () => {
-  globalSessionManager.shutdownAll().catch((err) => {
-    console.error('[shutdown] Session cleanup error:', err);
-  });
+  globalSessionManager.shutdownAll()
+    .then(() => globalAuditLogger.stop())
+    .then(() => {
+      console.error('[shutdown] Cleanup complete. Exiting.');
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('[shutdown] Session cleanup error:', err);
+      process.exit(1);
+    });
 };
 
 process.on("SIGINT", shutdownHandler);

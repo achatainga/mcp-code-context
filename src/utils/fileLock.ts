@@ -23,12 +23,7 @@ export class FileLockManager {
    * Initializes lock directory in OS temp with project-specific hash.
    */
   constructor() {
-    const projectHash = crypto.createHash('md5')
-      .update(process.cwd())
-      .digest('hex')
-      .substring(0, HASH_LENGTH);
-    
-    this.lockDir = path.join(tmpdir(), `mcp-locks-${projectHash}`);
+    this.lockDir = path.join(tmpdir(), 'mcp-locks');
     
     if (!existsSync(this.lockDir)) {
       mkdirSync(this.lockDir, { recursive: true });

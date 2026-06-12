@@ -243,6 +243,9 @@ export class AuditLogger {
         console.error("Failed to flush audit log:", error);
       });
     }, 5000); // Flush every 5 seconds
+    if (this.flushInterval.unref) {
+      this.flushInterval.unref();
+    }
   }
 }
 

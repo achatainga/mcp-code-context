@@ -244,6 +244,9 @@ export class SessionManager {
         await this.cleanup(sessionId);
       }
     }, 60 * 1000); // Check every minute
+    if (this.cleanupTimer.unref) {
+      this.cleanupTimer.unref();
+    }
   }
 
   /**

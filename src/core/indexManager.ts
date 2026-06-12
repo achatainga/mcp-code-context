@@ -6,7 +6,7 @@
 
 import initSqlJs, { Database } from "sql.js";
 import * as fs from "node:fs/promises";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync } from "fs";
 import * as path from "path";
 import * as crypto from "node:crypto";
 import { logger } from "../utils/logger.js";
@@ -276,7 +276,9 @@ export class IndexManager {
     if (!this.isDirty || !this.db) return;
     try {
       const data = this.db.export();
-      await fs.writeFile(this.dbPath, Buffer.from(data));
+      const tmpPath = `${this.dbPath}.tmp`;
+      await fs.writeFile(tmpPath, Buffer.from(data));
+      await fs.rename(tmpPath, this.dbPath);
       this.isDirty = false;
       logger.debug({ dbPath: this.dbPath }, "Index persisted");
     } catch (error) {
@@ -287,7 +289,10 @@ export class IndexManager {
   persistOnExit(): void {
     if (!this.isDirty || !this.db) return;
     try {
-      writeFileSync(this.dbPath, Buffer.from(this.db.export()));
+      const data = this.db.export();
+      const tmpPath = `${this.dbPath}.tmp`;
+      writeFileSync(tmpPath, Buffer.from(data));
+      renameSync(tmpPath, this.dbPath);
       this.isDirty = false;
     } catch (error) {
       console.error("Failed to persist index on exit:", error);

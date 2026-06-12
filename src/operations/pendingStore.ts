@@ -52,7 +52,9 @@ export class PendingOperationStore {
 
     const data = this.db.export();
     await fs.mkdir(path.dirname(this.dbPath), { recursive: true });
-    await fs.writeFile(this.dbPath, data);
+    const tmpPath = `${this.dbPath}.tmp`;
+    await fs.writeFile(tmpPath, data);
+    await fs.rename(tmpPath, this.dbPath);
   }
 
   async storePending(sessionId: string, token: string, params: {

@@ -109,6 +109,9 @@ export class RateLimiter {
         }
       }
     }, this.config.refillInterval);
+    if (this.refillTimer.unref) {
+      this.refillTimer.unref();
+    }
   }
 
   /**

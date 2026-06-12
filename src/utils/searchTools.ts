@@ -14,11 +14,11 @@ export interface SearchToolResult {
 }
 
 const SEARCH_TOOLS = [
-  { name: 'rg', args: (pattern: string, dir: string) => ['--json', pattern, dir] },
-  { name: 'ugrep', args: (pattern: string, dir: string) => ['--json', pattern, dir] },
-  { name: 'ag', args: (pattern: string, dir: string) => ['--json', pattern, dir] },
+  { name: 'rg', args: (pattern: string, dir: string) => ['--json', '--', pattern, dir] },
+  { name: 'ugrep', args: (pattern: string, dir: string) => ['--json', '--', pattern, dir] },
+  { name: 'ag', args: (pattern: string, dir: string) => ['--json', '--', pattern, dir] },
   { name: 'findstr', args: (pattern: string, dir: string) => ['/S', '/N', pattern, `${dir}\\*`] },
-  { name: 'grep', args: (pattern: string, dir: string) => ['-rn', pattern, dir] },
+  { name: 'grep', args: (pattern: string, dir: string) => ['-rn', '--', pattern, dir] },
 ];
 
 async function detectTool(): Promise<string | null> {
