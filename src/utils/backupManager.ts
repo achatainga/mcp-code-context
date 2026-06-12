@@ -24,7 +24,7 @@ export class BackupManager {
       return this.backupRootCache.get(projectRoot)!;
     }
 
-    const projectHash = crypto.createHash('md5')
+    const projectHash = crypto.createHash('sha256')
       .update(projectRoot)
       .digest('hex')
       .substring(0, HASH_LENGTH);
@@ -74,7 +74,7 @@ export class BackupManager {
     }
 
     const relativePath = path.relative(projectRoot, filePath);
-    const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
+    const safeName = crypto.createHash('sha256').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
     
     const timestamp = Date.now();
     const backupFileName = `${safeName}_${timestamp}.bak`;
@@ -96,7 +96,7 @@ export class BackupManager {
     try {
       const backupDir = this.getBackupRoot(projectRoot);
       const relativePath = path.relative(projectRoot, filePath);
-      const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
+      const safeName = crypto.createHash('sha256').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
 
       let files: string[];
       try {
@@ -190,7 +190,7 @@ export class BackupManager {
     try {
       const backupDir = this.getBackupRoot(projectRoot);
       const relativePath = path.relative(projectRoot, filePath);
-      const safeName = crypto.createHash('md5').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
+      const safeName = crypto.createHash('sha256').update(relativePath).digest('hex').substring(0, HASH_LENGTH) + "_" + path.basename(filePath);
 
       const files = await fs.readdir(backupDir);
       return files

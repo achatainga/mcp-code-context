@@ -93,7 +93,7 @@ async function generateRenameChanges(
     pendingWrites.push({
       filePath: dep.path,
       newContent: depNewContent,
-      originalHash: createHash("md5").update(dep.content).digest("hex"),
+      originalHash: createHash("sha256").update(dep.content).digest("hex"),
     });
     diffParts.push(`--- ${dep.path}\n${generateUnifiedDiff(dep.content, depNewContent)}`);
   }
@@ -101,7 +101,7 @@ async function generateRenameChanges(
   pendingWrites.push({
     filePath: definitionPath,
     newContent: definitionNewContent,
-    originalHash: createHash("md5").update(definitionContent).digest("hex"),
+    originalHash: createHash("sha256").update(definitionContent).digest("hex"),
   });
   diffParts.push(`--- ${definitionPath}\n${generateUnifiedDiff(definitionContent, definitionNewContent)}`);
 
@@ -172,7 +172,7 @@ export async function renameSymbol(params: {
       success: true,
       newContent,
       diff,
-      originalHash: createHash("md5").update(content).digest("hex"),
+      originalHash: createHash("sha256").update(content).digest("hex"),
       pendingWrites,
     };
   } catch (error) {

@@ -17,7 +17,7 @@ export async function verifyFileUnchanged(
 
   if (expectedHash) {
     const currentContent = await fs.readFile(validation.resolvedPath!, "utf-8");
-    const currentHash = crypto.createHash("md5").update(currentContent).digest("hex");
+    const currentHash = crypto.createHash("sha256").update(currentContent).digest("hex");
     if (currentHash !== expectedHash) {
       throw new Error(
         `File "${filePath}" was modified by another process after Phase 1. Please repeat the operation to prevent data loss.`

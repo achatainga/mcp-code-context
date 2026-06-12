@@ -18,7 +18,7 @@ export interface ReadResult {
 
 async function getFileHash(filePath: string): Promise<string> {
   const content = await fs.readFile(filePath, "utf-8");
-  return crypto.createHash("md5").update(content).digest("hex");
+  return crypto.createHash("sha256").update(content).digest("hex");
 }
 
 /**

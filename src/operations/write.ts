@@ -79,7 +79,7 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
 
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
-    const originalHash = createHash('md5').update(content).digest('hex');
+    const originalHash = createHash('sha256').update(content).digest('hex');
     const tree = parser.parse(content);
 
     // Use AST-based replacement
@@ -129,7 +129,7 @@ export async function insertCode(options: InsertOptions): Promise<WriteResult> {
 
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
-    const originalHash = createHash('md5').update(content).digest('hex');
+    const originalHash = createHash('sha256').update(content).digest('hex');
     const tree = parser.parse(content);
 
     let insertIndex: number;

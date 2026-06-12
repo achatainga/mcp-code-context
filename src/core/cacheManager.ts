@@ -9,11 +9,12 @@ import { tmpdir } from 'os';
 import { logger } from '../utils/logger.js';
 import { FileWatcher } from '../utils/fileWatcher.js';
 import { getAppDir } from '../utils/appDir.js';
+import type { SymbolInfo } from '../parsers/base.js';
 
 export interface CachedFile {
   filePath: string;
   hash: string;
-  symbols: any[];
+  symbols: SymbolInfo[];
   lastModified: number;
   cachedAt: number;
 }
@@ -33,7 +34,7 @@ export class CacheManager {
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
-    const projectHash = crypto.createHash('md5')
+    const projectHash = crypto.createHash('sha256')
       .update(projectRoot)
       .digest('hex')
       .substring(0, 8);

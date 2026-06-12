@@ -15,7 +15,7 @@ async function runTests() {
   const testFile = path.join(projectRoot, "test.txt");
   
   // Calculate backup directory location (~/.mcp-code-context/backups/)
-  const projectHash = crypto.createHash('md5')
+  const projectHash = crypto.createHash('sha256')
     .update(projectRoot)
     .digest('hex')
     .substring(0, 8);

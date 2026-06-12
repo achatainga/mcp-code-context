@@ -167,7 +167,7 @@ export async function handleInsertSymbol(args: Record<string, unknown>) {
       projectRoot: String(args.projectRoot),
       code: String(args.code),
       anchorSymbol: args.anchorSymbol ? String(args.anchorSymbol) : undefined,
-      position: args.position as any,
+      position: args.position !== undefined ? String(args.position) as "before" | "after" | "inside_start" | "inside_end" : undefined,
       className: args.className ? String(args.className) : undefined,
       parser,
     });

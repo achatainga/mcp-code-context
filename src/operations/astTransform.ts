@@ -60,7 +60,7 @@ export async function astTransform(options: AstTransformOptions): Promise<WriteR
 
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
-    const originalHash = createHash("md5").update(content).digest("hex");
+    const originalHash = createHash("sha256").update(content).digest("hex");
     const tree = parser.parse(content);
 
     const symbols = parser.findSymbols(tree);

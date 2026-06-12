@@ -21,6 +21,28 @@ export interface PendingOperation {
   pendingWrites?: string; // JSON serialized
 }
 
+interface PendingOperationRow {
+  token: string;
+  session_id: string;
+  file_path: string;
+  operation: string;
+  symbol_name: string | null;
+  new_content: string;
+  diff: string;
+  created_at: number;
+  expires_at: number;
+  original_hash: string | null;
+  pending_writes: string | null;
+}
+
+interface PendingOperationSummaryRow {
+  token: string;
+  file_path: string;
+  operation: string;
+  created_at: number;
+  expires_at: number;
+}
+
 const EXPIRY_MS = 5 * 60 * 1000;
 
 /** SQLite-backed pending operation store */
@@ -32,7 +54,7 @@ export class PendingOperationStore {
 
   constructor(projectRoot: string) {
     this.projectRoot = projectRoot;
-    const projectHash = crypto.createHash('md5')
+    const projectHash = crypto.createHash('sha256')
       .update(projectRoot)
       .digest('hex')
       .substring(0, 8);
@@ -113,9 +135,9 @@ export class PendingOperationStore {
     `);
     stmt.bind([token]);
     
-    let row: any = null;
+    let row: PendingOperationRow | null = null;
     if (stmt.step()) {
-      row = stmt.getAsObject();
+      row = stmt.getAsObject() as unknown as PendingOperationRow;
     }
     stmt.free();
 
@@ -166,18 +188,18 @@ export class PendingOperationStore {
     `);
     stmt.bind([sessionId, Date.now()]);
 
-    const results: any[] = [];
+    const results: PendingOperationSummaryRow[] = [];
     while (stmt.step()) {
-      results.push(stmt.getAsObject());
+      results.push(stmt.getAsObject() as unknown as PendingOperationSummaryRow);
     }
     stmt.free();
 
-    return results.map((row: any) => ({
-      token: row.token as string,
-      filePath: row.file_path as string,
-      operation: row.operation as string,
-      createdAt: row.created_at as number,
-      expiresAt: row.expires_at as number,
+    return results.map((row) => ({
+      token: row.token,
+      filePath: row.file_path,
+      operation: row.operation,
+      createdAt: row.created_at,
+      expiresAt: row.expires_at,
     }));
   }
 

@@ -47,7 +47,7 @@ export class IndexManager {
 
   constructor(projectRoot: string) {
     const projectHash = crypto
-      .createHash("md5")
+      .createHash("sha256")
       .update(projectRoot)
       .digest("hex")
       .substring(0, 8);

@@ -52,7 +52,7 @@ export class FileLockManager {
         },
         lockfilePath: path.join(
           this.lockDir,
-          `${crypto.createHash('md5').update(normalizedPath).digest('hex')}.lock`
+          `${crypto.createHash('sha256').update(normalizedPath).digest('hex')}.lock`
         )
       });
 
@@ -79,7 +79,7 @@ export class FileLockManager {
     try {
       const lockfilePath = path.join(
         this.lockDir,
-        `${crypto.createHash('md5').update(normalizedPath).digest('hex')}.lock`
+        `${crypto.createHash('sha256').update(normalizedPath).digest('hex')}.lock`
       );
       
       return await lockfile.check(normalizedPath, { lockfilePath });

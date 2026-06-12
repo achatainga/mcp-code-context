@@ -11,7 +11,7 @@ import crypto from 'crypto';
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 // Calculate project-specific log directory in OS temp
-const projectHash = crypto.createHash('md5')
+const projectHash = crypto.createHash('sha256')
   .update(process.cwd())
   .digest('hex')
   .substring(0, 8);

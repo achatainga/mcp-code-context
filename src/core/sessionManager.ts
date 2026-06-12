@@ -25,6 +25,25 @@ interface SessionState {
   lastActivity: number;
 }
 
+export interface SessionStats {
+  exists: boolean;
+  sessionId?: string;
+  createdAt?: number;
+  lastActivity?: number;
+  pendingOperations: number;
+  locksHeld: number;
+  rateLimiterTokens: number;
+  cacheManagers: number;
+}
+
+export interface PendingOperationSummary {
+  token: string;
+  filePath: string;
+  operation: string;
+  createdAt: number;
+  expiresAt: number;
+}
+
 const MAX_CACHE_MANAGERS = 10;
 const SESSION_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
@@ -152,7 +171,7 @@ export class SessionManager {
    * @param sessionId - Session identifier
    * @returns Session statistics
    */
-  getSessionStats(sessionId: string): any {
+  getSessionStats(sessionId: string): SessionStats {
     const session = this.sessions.get(sessionId);
     if (!session) {
       return {
@@ -211,7 +230,7 @@ export class SessionManager {
    * @param sessionId - Session identifier
    * @returns Array of pending operations
    */
-  listPendingOperations(sessionId: string): any[] {
+  listPendingOperations(sessionId: string): PendingOperationSummary[] {
     const session = this.sessions.get(sessionId);
     if (!session) return [];
 

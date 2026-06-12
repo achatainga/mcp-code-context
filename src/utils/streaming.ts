@@ -6,6 +6,7 @@
 import * as fs from "node:fs";
 import * as readline from "node:readline";
 import { MAX_FILE_SIZE_BYTES } from "./constants.js";
+import type { BaseParser, SymbolInfo } from "../parsers/base.js";
 
 export interface StreamOptions {
   chunkSize?: number;
@@ -137,9 +138,9 @@ export async function streamLines(
  */
 export async function streamParseFile(
   filePath: string,
-  parser: any,
+  parser: BaseParser,
   options: StreamOptions = {}
-): Promise<{ success: boolean; symbols?: any[]; error?: string }> {
+): Promise<{ success: boolean; symbols?: SymbolInfo[]; error?: string }> {
   try {
     // For files >10MB, stream in chunks
     const stat = await fs.promises.stat(filePath);

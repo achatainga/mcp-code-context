@@ -57,24 +57,30 @@ export async function searchPattern(params: {
     const extensions = params.fileExtensions || SUPPORTED_EXTENSIONS;
     const excludeDirs = params.excludeDirs || EXCLUDE_DIRS;
 
-    // Step 1: Collect all files and their lines
-    const fileEntries: Array<{ path: string; lines: string[] }> = [];
+    // Step 1: Collect file paths first (preventing memory exhaustion)
+    const filePaths: string[] = [];
 
     await walkDir(params.rootDir, {
       extensions,
       excludeDirs,
-      onFile: async (fullPath) => {
-        const content = await fs.readFile(fullPath, "utf-8");
-        fileEntries.push({ path: fullPath, lines: content.split("\n") });
+      maxFiles: MAX_FILES_SEARCH + 1, // Stop early if we exceed the limit
+      onFile: (fullPath) => {
+        filePaths.push(fullPath);
       },
     });
 
     // CRITICAL: Prevent OOM in large monorepos
-    if (fileEntries.length > MAX_FILES_SEARCH) {
+    if (filePaths.length > MAX_FILES_SEARCH) {
       return {
         success: false,
-        error: `Too many files to search (${fileEntries.length}). Maximum: ${MAX_FILES_SEARCH}. Try narrowing your search with fileExtensions or excludeDirs.`
+        error: `Too many files to search (${filePaths.length - 1}+). Maximum: ${MAX_FILES_SEARCH}. Try narrowing your search with fileExtensions or excludeDirs.`
       };
+    }
+
+    const fileEntries: Array<{ path: string; lines: string[] }> = [];
+    for (const filePath of filePaths) {
+      const content = await fs.readFile(filePath, "utf-8");
+      fileEntries.push({ path: filePath, lines: content.split("\n") });
     }
 
     // Step 2: ONE worker for ALL files — eliminates N worker spawns
@@ -82,7 +88,7 @@ export async function searchPattern(params: {
     const batchResult = await safeRegexMultiFileBatchTest(params.pattern, fileEntries, scanTimeout);
 
     if (batchResult.timedOut) {
-      console.warn(`\u26a0\ufe0f  Regex scan timed out across ${fileEntries.length} files`);
+      console.warn(`⚠️  Regex scan timed out across ${fileEntries.length} files`);
       return { success: false, error: `Regex scan timed out (${fileEntries.length} files, potential ReDoS)` };
     }
 
@@ -113,8 +119,14 @@ export async function searchPattern(params: {
     }
     
     // Paginate results
+    interface SearchMatch {
+      file: string;
+      line: number;
+      content: string;
+    }
+
     const paginatedMatches = filteredMatches.slice(startIdx, startIdx + maxRes);
-    const results: any[] = paginatedMatches.map(match => ({
+    const results: SearchMatch[] = paginatedMatches.map(match => ({
       file: match.file,
       line: match.index + 1,
       content: match.content,

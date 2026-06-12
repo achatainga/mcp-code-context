@@ -17,6 +17,11 @@ export interface CompressionResult {
   error?: string;
 }
 
+interface CompressedFile {
+  path: string;
+  symbols: Array<{ type: string; name: string }>;
+}
+
 /**
  * Generate semantic repository map
  */
@@ -30,7 +35,7 @@ async function compressRepository(params: {
 }): Promise<CompressionResult> {
   try {
     const format = params.format || "xml";
-    const files: any[] = [];
+    const files: CompressedFile[] = [];
     let totalSymbols = 0;
 
     // Index manager — feeds symbol index and dependency graph as a side-effect
@@ -50,7 +55,7 @@ async function compressRepository(params: {
 
             // Compute hash for stale check
             const fileHash = crypto
-              .createHash("md5")
+              .createHash("sha256")
               .update(content)
               .digest("hex");
 
