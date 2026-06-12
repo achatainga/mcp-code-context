@@ -6,6 +6,7 @@ export const WRITE_OPS = new Set([
   "remove_symbol",
   "rename_symbol",
   "rollback_file",
+  "ast_transform",
 ]);
 
 import { CORE_TOOLS } from "./toolDefinitionsCore.js";

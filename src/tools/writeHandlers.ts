@@ -4,6 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
+import { astTransform, TransformParams } from "../operations/astTransform.js";
 import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
@@ -46,16 +47,20 @@ export async function handleTwoPhaseWrite(
           a.filePath.localeCompare(b.filePath)
         );
 
+        // TOCTOU fix: Lock-Before-Verify — acquire locks first to prevent race conditions
+        for (const pw of sortedWrites) {
+          const validation = await validator.validateFilePath(pw.filePath);
+          if (!validation.valid) throw new Error(validation.error);
+          if (!await session.lockManager.isLocked(validation.resolvedPath!)) {
+            lockReleases.push(await session.lockManager.acquireLock(validation.resolvedPath!));
+          }
+        }
+
+        // Now verify hashes with locks held — no race window
         const resolvedWrites: Array<{ resolvedPath: string; newContent: string }> = [];
         for (const pw of sortedWrites) {
           const resolvedPath = await verifyFileUnchanged(validator, pw.filePath, pw.originalHash);
           resolvedWrites.push({ resolvedPath, newContent: pw.newContent });
-        }
-
-        for (const { resolvedPath } of resolvedWrites) {
-          if (!await session.lockManager.isLocked(resolvedPath)) {
-            lockReleases.push(await session.lockManager.acquireLock(resolvedPath));
-          }
         }
 
         for (const { resolvedPath, newContent } of resolvedWrites) {
@@ -63,14 +68,18 @@ export async function handleTwoPhaseWrite(
           await writeFile(resolvedPath, newContent);
         }
       } else {
+        // TOCTOU fix: Lock-Before-Verify for single file path
+        const validation = await validator.validateFilePath(pendingOp.filePath);
+        if (!validation.valid) throw new Error(validation.error);
+        if (!await session.lockManager.isLocked(validation.resolvedPath!)) {
+          lockReleases.push(await session.lockManager.acquireLock(validation.resolvedPath!));
+        }
+
         const resolvedPath = await verifyFileUnchanged(
           validator,
           pendingOp.filePath,
           pendingOp.originalHash
         );
-        if (!await session.lockManager.isLocked(resolvedPath)) {
-          lockReleases.push(await session.lockManager.acquireLock(resolvedPath));
-        }
         await BackupManager.createBackup(resolvedPath, projectRoot);
         await writeFile(resolvedPath, pendingOp.newContent);
       }
@@ -193,6 +202,28 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
       oldName: String(args.oldName),
       newName: String(args.newName),
       rootDir: args.rootDir ? String(args.rootDir) : String(args.projectRoot),
+      parser,
+    });
+  });
+}
+
+export async function handleAstTransform(args: Record<string, unknown>) {
+  return handleTwoPhaseWrite(args, "ast_transform", async () => {
+    const ext = path.extname(String(args.filePath));
+    const parser = getRegistry().getParser(ext);
+    if (!parser) throw new Error(`No parser available for ${ext} files`);
+
+    const transform = args.transform as TransformParams;
+    if (!transform || !transform.kind) {
+      throw new Error('"transform" object with "kind" is required');
+    }
+
+    return await astTransform({
+      filePath: String(args.filePath),
+      projectRoot: String(args.projectRoot),
+      symbolName: String(args.symbolName),
+      className: args.className ? String(args.className) : undefined,
+      transform,
       parser,
     });
   });

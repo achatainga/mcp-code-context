@@ -67,7 +67,9 @@ async function compressRepository(params: {
               const deps = extractImports(content, fullPath, params.directoryPath);
 
               // Feed index (fire-and-forget, never blocks the repo map)
-              indexManager.indexFile(fullPath, fileHash, syms, deps).catch(() => {});
+              indexManager.indexFile(fullPath, fileHash, syms, deps).catch(() => {
+                // Index feeding is fire-and-forget — never blocks repo map generation
+              });
 
               return syms;
             })();
@@ -78,7 +80,8 @@ async function compressRepository(params: {
               symbols: symbols.map(s => ({ type: s.type, name: s.name })),
             });
           } catch {
-            // Skip files that fail to parse
+            // Skip files that fail to parse or read (IO errors, encoding issues)
+            // Non-parseable files are still included below without symbols
           }
         } else {
           // Non-parseable file — still include in map without symbols

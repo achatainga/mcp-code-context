@@ -34,7 +34,7 @@ async function detectTool(): Promise<string | null> {
         return tool.name;
       }
     } catch {
-      continue;
+      continue; // Binary not installed — try next search tool
     }
   }
   return null;
@@ -90,7 +90,7 @@ export async function searchWithNativeTool(
           });
         }
       } catch {
-        continue;
+        continue; // Non-match JSON line from search tool output (summary, begin/end markers)
       }
     } else {
       // findstr/grep: "file:line:content"

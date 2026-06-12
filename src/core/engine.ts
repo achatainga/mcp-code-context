@@ -60,7 +60,7 @@ export class CodeContextEngine {
       const pkgPath = require.resolve("tree-sitter-wasms/package.json");
       possiblePaths.unshift(path.join(path.dirname(pkgPath), "out", wasmFile));
     } catch {
-      // Ignore resolution errors, fallback to manual paths
+      // require.resolve probe failed — expected when running under npx or global install
     }
     
     let wasmPath: string | null = null;
@@ -70,7 +70,7 @@ export class CodeContextEngine {
         wasmPath = p;
         break;
       } catch {
-        continue;
+        continue; // WASM file not at this path — try next candidate
       }
     }
     

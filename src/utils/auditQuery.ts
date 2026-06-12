@@ -38,7 +38,7 @@ export async function queryAuditLogs(
           if (filters.result && entry.result !== filters.result) continue;
           results.push(entry);
         } catch {
-          // skip invalid lines
+          // Skip malformed NDJSON lines (partial writes, truncation)
         }
       }
     }

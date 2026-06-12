@@ -160,7 +160,44 @@ export const CORE_TOOLS = [
       required: ["filePath", "projectRoot", "oldName", "newName"],
     },
   },
-  // ΓöÇΓöÇ NEW TOOLS v3.6.3 ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── AST Transform (v3.7.0) ──────────────────────────────────────────────
+  {
+    name: "ast_transform",
+    description: "Apply a declarative AST transformation to a symbol. Supports: add_parameter, wrap_with_try_catch, add_decorator, change_return_type, extract_variable. Uses two-phase write (Phase 1: preview diff, Phase 2: confirm with token).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        symbolName: { type: "string", description: "Target symbol to transform" },
+        className: { type: "string", description: "Class name (optional, for scoping)" },
+        transform: {
+          type: "object",
+          description: "Transform specification",
+          properties: {
+            kind: {
+              type: "string",
+              enum: ["add_parameter", "wrap_with_try_catch", "add_decorator", "change_return_type", "extract_variable"],
+              description: "Type of transformation",
+            },
+            parameter: { type: "string", description: "For add_parameter: parameter text (e.g. 'timeout: number = 5000')" },
+            parameterIndex: { type: "number", description: "For add_parameter: insertion index (0-based, default: append)" },
+            catchBody: { type: "string", description: "For wrap_with_try_catch: catch block body (default: 'throw error;')" },
+            decorator: { type: "string", description: "For add_decorator: decorator text (e.g. '@deprecated')" },
+            returnType: { type: "string", description: "For change_return_type: new return type" },
+            expression: { type: "string", description: "For extract_variable: expression to extract" },
+            variableName: { type: "string", description: "For extract_variable: name for extracted const" },
+          },
+          required: ["kind"],
+        },
+        confirm: { type: "boolean", description: "Set true to apply a pending operation (Phase 2)" },
+        confirmationToken: { type: "string", description: "Token from Phase 1 dry-run (Phase 2 only)" },
+        diffFormat: { type: "string", enum: ["unified", "compact", "summary", "none"], description: "Diff verbosity (default: unified)" },
+      },
+      required: ["filePath", "projectRoot", "symbolName", "transform"],
+    },
+  },
+  // ── NEW TOOLS v3.6.3 ──────────────────────────────────────────────────────ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   {
     name: "search_symbols",
     description: "Search symbols by name across the repo using AST (not text search). Finds classes, functions, methods by approximate name.",

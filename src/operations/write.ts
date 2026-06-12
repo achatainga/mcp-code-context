@@ -52,7 +52,7 @@ export interface RemoveOptions {
 /**
  * Validate syntax of generated code
  */
-function validateSyntax(content: string, parser: BaseParser): { valid: boolean; error?: string } {
+export function validateSyntax(content: string, parser: BaseParser): { valid: boolean; error?: string } {
   try {
     const tree = parser.parse(content);
     if (tree.rootNode.hasError) {
@@ -250,6 +250,6 @@ export async function writeFile(filePath: string, content: string): Promise<void
   await fs.rename(tmpPath, filePath);
 }
 
-function generateDiff(oldContent: string, newContent: string): string {
+export function generateDiff(oldContent: string, newContent: string): string {
   return generateUnifiedDiff(oldContent, newContent);
 }

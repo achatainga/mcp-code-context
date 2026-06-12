@@ -29,7 +29,7 @@ export async function rotateLog(logDir: string, maxFiles: number): Promise<void>
       try {
         await fs.unlink(file);
       } catch {
-        // ignore
+        // Old audit log deletion is best-effort — continue with remaining files
       }
     }
   }
@@ -51,6 +51,6 @@ export async function getLogFiles(logDir: string): Promise<string[]> {
 
     return stats.sort((a, b) => a.mtime - b.mtime).map((s) => s.file);
   } catch {
-    return [];
+    return []; // Log directory may not exist yet (first run)
   }
 }

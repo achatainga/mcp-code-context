@@ -47,8 +47,9 @@ export class CacheManager {
       try {
         copyFileSync(legacyDb, this.dbPath);
         rmSync(path.dirname(legacyDb), { recursive: true, force: true });
-      } catch {
+      } catch (err) {
         // Migration is best-effort — never block normal operation
+        logger.debug({ err }, 'Legacy cache migration failed (non-blocking)');
       }
     }
 

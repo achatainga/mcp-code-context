@@ -7,6 +7,40 @@ import { WRITE_OPS } from "./toolDefinitions.js";
 import { getSession, SESSION_ID } from "./context.js";
 import * as handlers from "./handlers.js";
 
+type ToolHandler = (args: Record<string, unknown>) => Promise<any>;
+
+/** Tool registry — replaces switch-case for O(1) dispatch and easy extensibility */
+const TOOL_REGISTRY = new Map<string, ToolHandler>([
+  // Read operations
+  ["get_semantic_repo_map", handlers.handleGetSemanticRepoMap],
+  ["read_file_surgical", handlers.handleReadFileSurgical],
+  ["analyze_impact", handlers.handleAnalyzeImpact],
+  ["read_file_lines", handlers.handleReadFileLines],
+  ["search_code_pattern", handlers.handleSearchCodePattern],
+  ["parse_file", handlers.handleParseFile],
+  ["search_symbols", handlers.handleSearchSymbols],
+  ["explain_symbol", handlers.handleExplainSymbol],
+  ["batch_read", handlers.handleBatchRead],
+  // Write operations
+  ["write_file_surgical", handlers.handleWriteFileSurgical],
+  ["insert_symbol", handlers.handleInsertSymbol],
+  ["remove_symbol", handlers.handleRemoveSymbol],
+  ["rename_symbol", handlers.handleRenameSymbol],
+  ["ast_transform", handlers.handleAstTransform],
+  // Admin operations
+  ["rollback_file", handlers.handleRollbackFile],
+  ["clean_backups", handlers.handleCleanBackups],
+  ["get_server_stats", () => handlers.handleGetServerStats()],
+  ["get_cache_stats", handlers.handleGetCacheStats],
+  ["clear_cache", handlers.handleClearCache],
+  ["configure_file_watcher", handlers.handleConfigureFileWatcher],
+  ["get_file_watcher_status", handlers.handleGetFileWatcherStatus],
+  ["get_rate_limit_status", () => handlers.handleGetRateLimitStatus()],
+  ["get_session_stats", () => handlers.handleGetSessionStats()],
+  ["clear_session_cache", handlers.handleClearSessionCache],
+  ["list_pending_operations", () => handlers.handleListPendingOperations()],
+]);
+
 function redactSensitiveFields(args: Record<string, unknown>): Record<string, unknown> {
   const SENSITIVE_KEYS = ["newContent", "code", "content"];
   const safe = { ...args };
@@ -16,6 +50,11 @@ function redactSensitiveFields(args: Record<string, unknown>): Record<string, un
     }
   }
   return safe;
+}
+
+/** Register a new tool handler at runtime */
+export function registerTool(name: string, handler: ToolHandler): void {
+  TOOL_REGISTRY.set(name, handler);
 }
 
 export function registerPipeline(server: Server) {
@@ -39,59 +78,10 @@ export function registerPipeline(server: Server) {
         lockRelease = await session.lockManager.acquireLock(String(args.filePath));
       }
 
-      let result;
-      switch (name) {
-        case "get_semantic_repo_map":
-          result = await handlers.handleGetSemanticRepoMap(args as Record<string, unknown>); break;
-        case "read_file_surgical":
-          result = await handlers.handleReadFileSurgical(args as Record<string, unknown>); break;
-        case "analyze_impact":
-          result = await handlers.handleAnalyzeImpact(args as Record<string, unknown>); break;
-        case "read_file_lines":
-          result = await handlers.handleReadFileLines(args as Record<string, unknown>); break;
-        case "search_code_pattern":
-          result = await handlers.handleSearchCodePattern(args as Record<string, unknown>); break;
-        case "parse_file":
-          result = await handlers.handleParseFile(args as Record<string, unknown>); break;
-        case "write_file_surgical":
-          result = await handlers.handleWriteFileSurgical(args as Record<string, unknown>); break;
-        case "insert_symbol":
-          result = await handlers.handleInsertSymbol(args as Record<string, unknown>); break;
-        case "remove_symbol":
-          result = await handlers.handleRemoveSymbol(args as Record<string, unknown>); break;
-        case "rename_symbol":
-          result = await handlers.handleRenameSymbol(args as Record<string, unknown>); break;
-        case "rollback_file":
-          result = await handlers.handleRollbackFile(args as Record<string, unknown>); break;
-        case "clean_backups":
-          result = await handlers.handleCleanBackups(args as Record<string, unknown>); break;
-        case "get_server_stats":
-          result = await handlers.handleGetServerStats(); break;
-        case "get_cache_stats":
-          result = await handlers.handleGetCacheStats(args as Record<string, unknown>); break;
-        case "clear_cache":
-          result = await handlers.handleClearCache(args as Record<string, unknown>); break;
-        case "configure_file_watcher":
-          result = await handlers.handleConfigureFileWatcher(args as Record<string, unknown>); break;
-        case "get_file_watcher_status":
-          result = await handlers.handleGetFileWatcherStatus(args as Record<string, unknown>); break;
-        case "search_symbols":
-          result = await handlers.handleSearchSymbols(args as Record<string, unknown>); break;
-        case "explain_symbol":
-          result = await handlers.handleExplainSymbol(args as Record<string, unknown>); break;
-        case "batch_read":
-          result = await handlers.handleBatchRead(args as Record<string, unknown>); break;
-        case "get_rate_limit_status":
-          result = await handlers.handleGetRateLimitStatus(); break;
-        case "get_session_stats":
-          result = await handlers.handleGetSessionStats(); break;
-        case "clear_session_cache":
-          result = await handlers.handleClearSessionCache(args as Record<string, unknown>); break;
-        case "list_pending_operations":
-          result = await handlers.handleListPendingOperations(); break;
-        default:
-          throw new Error(`Unknown tool: ${name}`);
-      }
+      const handler = TOOL_REGISTRY.get(name);
+      if (!handler) throw new Error(`Unknown tool: ${name}`);
+
+      const result = await handler(args as Record<string, unknown>);
 
       success = true;
       return result;

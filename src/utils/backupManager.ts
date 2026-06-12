@@ -45,7 +45,7 @@ export class BackupManager {
         }
         rmSync(legacyRoot, { recursive: true, force: true });
       } catch {
-        // Migration is best-effort — never block normal operation
+        // Legacy backup migration is best-effort — never block normal operation
       }
     }
 
@@ -64,7 +64,7 @@ export class BackupManager {
     try {
       await fs.access(filePath);
     } catch {
-      return;
+      return; // Source file does not exist — nothing to back up (new file creation)
     }
 
     const backupDir = this.getBackupRoot(projectRoot);
@@ -102,6 +102,7 @@ export class BackupManager {
       try {
         files = await fs.readdir(backupDir);
       } catch {
+        // Backup directory does not exist (ENOENT) or is inaccessible
         return { success: false, error: `No backups directory found for project "${projectRoot}"` };
       }
 
@@ -197,7 +198,7 @@ export class BackupManager {
         .map(f => path.join(backupDir, f))
         .sort((a, b) => b.localeCompare(a));
     } catch {
-      return [];
+      return []; // Backup directory may not exist — no backups available
     }
   }
 }

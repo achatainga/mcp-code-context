@@ -98,7 +98,9 @@ export class ConfirmationStore {
     this.pending.set(token, pendingOp);
 
     // Persist to SQLite if available (fire-and-forget for crash recovery)
-    this.persistentStore?.storePending(this.sessionId, token, params).catch(() => {});
+    this.persistentStore?.storePending(this.sessionId, token, params).catch(() => {
+      // Persistence failure is non-blocking — token still valid in memory
+    });
 
     // Enforce max pending limit
     if (this.pending.size > MAX_PENDING) {
@@ -129,7 +131,9 @@ export class ConfirmationStore {
       }
       this.pending.delete(token);
       // Fire-and-forget: remove from persistent store too
-      this.persistentStore?.consumePending(token).catch(() => {});
+      this.persistentStore?.consumePending(token).catch(() => {
+        // Best-effort cleanup of consumed token from SQLite
+      });
       return op;
     }
 
@@ -143,7 +147,7 @@ export class ConfirmationStore {
             try {
               parsedPendingWrites = JSON.parse(dbOp.pendingWrites);
             } catch {
-              // Ignore malformed JSON
+              // Malformed pendingWrites JSON in SQLite — proceed without multi-file writes
             }
           }
           return {
@@ -159,8 +163,9 @@ export class ConfirmationStore {
             pendingWrites: parsedPendingWrites,
           };
         }
-      } catch {
-        // Fail silently to prevent blocking normal operation
+      } catch (err) {
+        // SQLite crash-recovery path failed — non-blocking, but worth observing
+        console.error('[ConfirmationStore] SQLite fallback failed:', err);
       }
     }
 
@@ -260,6 +265,8 @@ export class ConfirmationStore {
       clearInterval(this.cleanupInterval);
       this.cleanupInterval = null;
     }
-    this.persistentStore?.close().catch(() => {});
+    this.persistentStore?.close().catch(() => {
+      // Teardown cleanup — cannot recover
+    });
   }
 }

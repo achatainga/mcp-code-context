@@ -39,7 +39,9 @@ async function main() {
 }
 
 const shutdownHandler = () => {
-  globalSessionManager.shutdownAll().catch(() => {});
+  globalSessionManager.shutdownAll().catch((err) => {
+    console.error('[shutdown] Session cleanup error:', err);
+  });
 };
 
 process.on("SIGINT", shutdownHandler);

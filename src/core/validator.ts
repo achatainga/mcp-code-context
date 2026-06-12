@@ -42,6 +42,7 @@ export class SecurityValidator {
       await fs.access(realPath);
       return { valid: true, resolvedPath: realPath };
     } catch {
+      // fs.realpath or fs.access failed — file does not exist or is inaccessible
       return {
         valid: false,
         error: `File not found: "${filePath}" (resolved to "${resolved}")`,

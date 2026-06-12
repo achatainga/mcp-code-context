@@ -89,7 +89,7 @@ export class FileLockManager {
       
       return await lockfile.check(normalizedPath, { lockfilePath });
     } catch {
-      return false;
+      return false; // Lock check failed (corrupted lockfile, permissions) — assume unlocked
     }
   }
 
