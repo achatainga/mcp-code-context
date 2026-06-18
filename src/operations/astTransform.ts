@@ -177,7 +177,7 @@ function applyWrapTryCatch(code: string, params: TransformParams): string {
     .join("\n");
 
   const wrapped =
-    `{\n${baseIndent}try {${indentedContent}\n${baseIndent}} catch (error) {\n${baseIndent}  ${catchBody}\n${closingIndent}}`;
+    `{\n${baseIndent}try {\n${indentedContent}\n${baseIndent}} catch (error) {\n${baseIndent}  ${catchBody}\n${closingIndent}}`;
 
   return code.substring(0, bodyStart) + wrapped + code.substring(bodyEnd + 1);
 }
