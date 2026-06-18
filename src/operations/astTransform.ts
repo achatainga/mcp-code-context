@@ -154,20 +154,30 @@ function applyAddParameter(code: string, params: TransformParams): string {
 function applyWrapTryCatch(code: string, params: TransformParams): string {
   const catchBody = params.catchBody || "throw error;";
 
-  // Find the opening brace of the function body
   const bodyStart = code.indexOf("{");
   if (bodyStart === -1) throw new Error("No function body found (arrow expression?)");
 
   const bodyEnd = findMatchingBrace(code, bodyStart);
   if (bodyEnd === -1) throw new Error("Unmatched brace in symbol");
 
-  const bodyContent = code.substring(bodyStart + 1, bodyEnd);
+  const rawBody = code.substring(bodyStart + 1, bodyEnd);
+  const lines = rawBody.split("\n");
 
-  // Detect indentation
-  const indent = detectIndent(bodyContent);
+  // Last line is trailing whitespace before the closing } — preserve it as method closer
+  const closingIndent = lines[lines.length - 1];
+  const contentLines = lines.slice(0, -1);
+
+  // Detect base indentation from first non-empty content line
+  const nonEmpty = contentLines.filter((l) => l.trim() !== "");
+  const baseIndent = nonEmpty.length > 0 ? (nonEmpty[0].match(/^(\s*)/)?.[1] ?? "  ") : "  ";
+
+  // Shift each content line one level deeper (2 spaces) inside try {}
+  const indentedContent = contentLines
+    .map((l) => (l.trim() === "" ? l : "  " + l))
+    .join("\n");
 
   const wrapped =
-    `{\n${indent}  try {${bodyContent}\n${indent}  } catch (error) {\n${indent}    ${catchBody}\n${indent}  }\n${indent}}`;
+    `{\n${baseIndent}try {${indentedContent}\n${baseIndent}} catch (error) {\n${baseIndent}  ${catchBody}\n${closingIndent}}`;
 
   return code.substring(0, bodyStart) + wrapped + code.substring(bodyEnd + 1);
 }

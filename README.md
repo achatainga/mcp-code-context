@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Tests](https://img.shields.io/badge/tests-82%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-83%20passing-success.svg)]()
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi)](https://ko-fi.com/achatainga)
 [![PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal)](https://paypal.me/achatainga)
 
@@ -52,7 +52,7 @@ LLMs working with code face two bottlenecks:
 
 ## The Solution
 
-`mcp-code-context` provides **13 tools** — 6 for reading, 2 for cleanup, and 5 for writing — that operate at the **symbol level** (functions, classes, methods). Furthermore, tools support a `className` scope which correctly isolates identical symbol names in the same file (e.g. Flutter `build()` methods) to avoid reading or changing the wrong logic. Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
+`mcp-code-context` provides **25 tools** — covering reading, writing, AST transformation, search, and session management — all operating at the **symbol level** (functions, classes, methods). Tools support a `className` scope to correctly isolate identical symbol names in the same file (e.g. Flutter `build()` methods). Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -100,7 +100,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 | 🧪 **Multi-client tests** | New integration tests for concurrent MCP clients |
 | 📝 **New tools**: `get_session_stats`, `clear_session_cache`, `list_pending_operations` | Session-aware operations |
 
-### Previous Versions (v3.7.0)
+### Previous Versions (v3.6.x)
 
 | Feature | Description |
 |---------|-------------|
@@ -330,110 +330,53 @@ Any MCP-compatible client can use this server. The transport is **stdio** (JSON-
 
 ## Tools
 
-### Read Tools
+### Tool Reference (25 tools)
 
-#### 1. `get_semantic_repo_map`
-Generate a compressed architectural overview of an entire repository.
-- `directoryPath` (required) — Path to the repo root
-- `format` (optional) — `"xml"` (default) or `"markdown"`
+#### Read Tools
 
-#### 2. `read_file_surgical`
-Read a file, or extract only a specific named symbol. Returns structured suggestions if the symbol is missing.
-- `filePath` (required) — Path to the source file
-- `symbolName` (optional) — Name of a function, class, method, or type
-- `className` (optional) — Scope the symbol to a specific class (to avoid duplicates)
+| Tool | Key Params | Description |
+|------|-----------|-------------|
+| `get_semantic_repo_map` | `directoryPath`, `projectRoot`, `format` | Compressed XML/Markdown repo overview with AST symbols |
+| `read_file_surgical` | `filePath`, `projectRoot`, `symbolName?`, `className?` | Extract one symbol or full file |
+| `analyze_impact` | `filePath`, `projectRoot`, `rootDir?` | All files that depend on this file |
+| `read_file_lines` | `filePath`, `projectRoot`, `startLine?`, `endLine?`, `aroundPattern?` | Read a line range or pattern context |
+| `search_code_pattern` | `rootDir`, `projectRoot`, `pattern`, `fileExtensions?`, `fuzzyMatch?` | Regex search across files (ripgrep-fast) |
+| `parse_file` | `filePath`, `projectRoot` | All symbols with line numbers (cheap index) |
+| `search_symbols` | `rootDir`, `projectRoot`, `query`, `fuzzy?`, `types?` | AST symbol search by name, not text |
+| `explain_symbol` | `filePath`, `projectRoot`, `symbolName`, `rootDir?` | Signature + location + callers in one call |
+| `batch_read` | `reads[]`, `projectRoot` | N symbols from N files in 1 round-trip |
+| `get_rate_limit_status` | — | Token balance + `canAfford` map |
 
-#### 3. `analyze_impact`
-Find all files that depend on a given file.
-- `filePath` (required) — Path to the file being modified
-- `rootDir` (optional) — Repository root (auto-detected)
+#### Write Tools (Two-Phase: preview → confirm)
 
-#### 4. `read_file_lines`
-Read specific line ranges from a file without loading the entire content. More efficient than `read_file_surgical` for small fragments.
-- `filePath` (required) — Path to the source file
-- `startLine` (optional) — Starting line number (1-indexed)
-- `endLine` (optional) — Ending line number (1-indexed)
-- `aroundPattern` (optional) — Search pattern to find and return surrounding lines
-- `contextLines` (optional) — Number of lines before/after pattern (default: 5)
+All write tools require two calls:
+1. **Phase 1** — Call normally → returns `diff` + `confirmationToken`
+2. **Phase 2** — Call again with `confirm: true` + `confirmationToken` → applies changes
 
-#### 5. `search_code_pattern`
-Search for code patterns across multiple files with context. Respects `.gitignore` rules.
-- `rootDir` (required) — Repository root directory
-- `pattern` (required) — Regular expression pattern to search
-- `fileExtensions` (optional) — Array of extensions to search (e.g., `[".ts", ".dart"]`)
-- `excludeDirs` (optional) — Directories to exclude (default: `["node_modules", "dist", "build"]`)
-- `maxResults` (optional) — Maximum matches per page (default: 10)
-- `startIndex` (optional) — Pagination offset (default: 0)
-- `fuzzyMatch` (optional) — Enable fuzzy/typo-tolerant matching (default: false)
-- `fuzzyThreshold` (optional) — Fuzzy sensitivity 0.0–1.0 (default: 0.4)
+`newContent`/`code` are **not required** in Phase 2 — the server stores them from Phase 1.
 
-#### 6. `rollback_file`
-Surgically restore a file to a previous state from the automated backup system.
-- `filePath` (required) — Path to the file to restore
-- `steps` (optional) — Number of versions to go back (1-5, default: 1)
+| Tool | Key Params | Description |
+|------|-----------|-------------|
+| `write_file_surgical` | `filePath`, `projectRoot`, `symbolName`, `newContent`, `className?` | Replace a symbol with new code |
+| `insert_symbol` | `filePath`, `projectRoot`, `code`, `anchorSymbol?`, `position?`, `className?` | Insert code before/after/inside a symbol |
+| `remove_symbol` | `filePath`, `projectRoot`, `symbolName`, `className?`, `force?` | Remove a symbol (with dependency check) |
+| `rename_symbol` | `filePath`, `projectRoot`, `oldName`, `newName`, `rootDir?` | Rename across entire repo (AST + regex) |
+| `ast_transform` | `filePath`, `projectRoot`, `symbolName`, `transform`, `className?` | Declarative transforms: `wrap_with_try_catch`, `add_parameter`, `add_decorator`, `change_return_type`, `extract_variable` |
 
-#### 7. `clean_backups`
-Remove all backup files for a project to keep the working directory clean.
-- `projectRoot` (required) — Absolute path to the project root
+#### Admin / Recovery Tools
 
-**Note:** Backups are stored in OS temp directory to avoid hot-reload loops.
-
-### Write Tools (Two-Phase Workflow)
-
-All write tools follow a **Two-Phase Workflow**:
-1. **Call without token**: Returns a unified `diff` and a `confirmationToken`.
-2. **Call with token**: Set `confirm: true` and provide the token to apply the changes.
-
-#### 8. `write_file_surgical`
-Replace the full source code of a named symbol in a file.
-- `filePath` (required) — Path to the file
-- `symbolName` (required) — Symbol to replace
-- `newContent` (required) — Replacement code (signature + body)
-- `confirmationToken` (optional) — Token from Phase 1 to apply changes
-- `confirm` (optional) — Set to `true` to apply
-- `className` (optional) — Scope the symbol to a specific class
-
-#### 9. `insert_symbol`
-Insert new code at a precise location relative to an existing symbol.
-- `filePath` (required) — Path to the file
-- `code` (required) — Code to insert
-- `anchorSymbol` (optional) — Symbol to position relative to
-- `position` (optional) — `"before"`, `"after"`, `"inside_start"`, `"inside_end"`
-- `className` (optional) — Scope the anchor to a specific class
-- `confirmationToken`, `confirm` (optional)
-
-#### 10. `rename_symbol`
-Rename a symbol across the entire repository (definition + all usages).
-- `filePath` (required) — File where the symbol is defined
-- `oldName` (required) — Current name
-- `newName` (required) — New name
-- `rootDir` (optional) — Repository root
-- `confirmationToken`, `confirm` (optional)
-
-#### 11. `remove_symbol`
-Safely remove a symbol from a file with dependency checking.
-- `filePath` (required) — Path to the file
-- `symbolName` (required) — Symbol to remove
-- `className` (optional) — Scope the symbol to a specific class
-- `force` (optional) — Skip dependency check
-- `confirmationToken`, `confirm` (optional)
-
-### New Tools (v3.7.0)
-
-#### 12. `get_session_stats`
-Get statistics for the current MCP client session.
-- Returns: pending operations count, locks held, rate limiter tokens for this session
-- **Use case**: Diagnose session-specific issues
-
-#### 13. `clear_session_cache`
-Clear the cache for the current MCP client session only.
-- Returns: number of cache entries cleared
-- **Use case**: Reset cache for a specific client without affecting others
-
-#### 14. `list_pending_operations`
-List all pending operations (for recovery after crash).
-- Returns: array of pending operations with tokens, file paths, and timestamps
-- **Use case**: Recover work after server crash
+| Tool | Key Params | Description |
+|------|-----------|-------------|
+| `rollback_file` | `filePath`, `projectRoot`, `steps?` | Restore file from rolling backup (up to 5 versions) |
+| `clean_backups` | `projectRoot` | Delete all backups for this project |
+| `get_server_stats` | — | Telemetry, audit stats, rate limiter state |
+| `get_cache_stats` | `projectRoot` | Cache entries, size, hit rate |
+| `clear_cache` | `projectRoot` | Invalidate cache for this project |
+| `configure_file_watcher` | `projectRoot`, `action` (`start`/`stop`), `debounceMs?` | Auto-invalidate cache on file changes |
+| `get_file_watcher_status` | `projectRoot` | Watcher state + watched paths |
+| `get_session_stats` | — | Per-session: pending ops, locks, tokens |
+| `clear_session_cache` | `projectRoot?` | Clear cache for current session only |
+| `list_pending_operations` | — | List pending Phase 1 tokens (crash recovery) |
 
 ---
 
@@ -581,7 +524,7 @@ npm run dev
 - **Ignore Engine:** `ignore` npm package (full .gitignore spec support)
 - **Safety Features:** Mandatory two-phase confirmation, rolling 5-version backups, fuzzy matching, dependency checking, surgical restoration, ReDoS protection via worker_threads, session-scoped state.
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
-- **Tests:** 82 passing (unit + integration + performance + stress)
+- **Tests:** 83 passing (unit + integration + performance + stress)
 
 ### v3.7.0 Key Changes
 

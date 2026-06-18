@@ -139,11 +139,19 @@ export const OPERATION_COSTS = {
   insert_symbol: 10,
   remove_symbol: 10,
   rename_symbol: 40,  // Very expensive (cross-file)
+  ast_transform: 10,
   rollback_file: 2,
   clean_backups: 2,
   get_server_stats: 1,
+  get_cache_stats: 1,
+  clear_cache: 2,
+  configure_file_watcher: 1,
+  get_file_watcher_status: 1,
   get_rate_limit_status: 1,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,
+  get_session_stats: 1,
+  clear_session_cache: 2,
+  list_pending_operations: 1,
 } as const;

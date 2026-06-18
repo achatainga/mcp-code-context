@@ -16,13 +16,15 @@ export class SecurityValidator {
   private projectRoot: string;
 
   constructor(projectRoot: string) {
-    this.projectRoot = path.resolve(projectRoot);
+    // normalize: resolve + lowercase for case-insensitive Windows FS comparison
+    this.projectRoot = path.resolve(projectRoot).toLowerCase();
   }
 
   async validateFilePath(filePath: string): Promise<ValidationResult> {
     const resolved = path.resolve(filePath);
+    const resolvedNorm = resolved.toLowerCase();
 
-    if (resolved !== this.projectRoot && !resolved.startsWith(this.projectRoot + path.sep)) {
+    if (resolvedNorm !== this.projectRoot && !resolvedNorm.startsWith(this.projectRoot + path.sep)) {
       return {
         valid: false,
         error: `Security: Path "${filePath}" is outside project boundary "${this.projectRoot}"`,
@@ -31,8 +33,9 @@ export class SecurityValidator {
 
     try {
       const realPath = await fs.realpath(resolved);
+      const realPathNorm = realPath.toLowerCase();
 
-      if (realPath !== this.projectRoot && !realPath.startsWith(this.projectRoot + path.sep)) {
+      if (realPathNorm !== this.projectRoot && !realPathNorm.startsWith(this.projectRoot + path.sep)) {
         return {
           valid: false,
           error: `Security: Symlink "${filePath}" resolves outside project boundary "${this.projectRoot}"`,

@@ -65,3 +65,8 @@ coverage/
 .nyc_output/
 stdout.txt
 stderr.txt
+
+# Scratch / migration artifacts
+scripts/old-index.ts.txt
+scripts/split-*.mjs
+scripts/restore-*.mjs

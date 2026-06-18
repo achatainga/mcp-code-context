@@ -1,5 +1,5 @@
 /**
- * Ruby Parser - v3.6.4
+ * Ruby Parser - v3.7.0
  * Tree-sitter based Ruby parser
  */
 
