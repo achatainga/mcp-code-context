@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.7.0 - Tree-sitter WASM Edition (thin bootstrap)
+ * mcp-code-context v3.7.1 - Tree-sitter WASM Edition (thin bootstrap)
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -16,7 +16,7 @@ import { setServerInstances } from "./tools/context.js";
 import { registerPipeline } from "./tools/pipeline.js";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.7.0";
+const SERVER_VERSION = "3.7.1";
 
 const server = new Server(
   { name: SERVER_NAME, version: SERVER_VERSION },

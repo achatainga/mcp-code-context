@@ -1,5 +1,14 @@
 # Changelog
 
+## [3.7.1] - 2026-06-18
+
+### Fixed
+
+- **`ast_transform` wrap_with_try_catch**: Missing closing `}` for method body caused unbalanced braces and syntax errors in all TypeScript class methods
+- **`ast_transform` wrap_with_try_catch**: Missing newline after `try {` caused parse failure on all function types
+
+---
+
 ## [3.7.0] - 2026-06-18
 
 ### 🚀 Production Readiness Release — Adversarial Audit Hardening

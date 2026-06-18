@@ -1,8 +1,8 @@
-# mcp-code-context v3.7.0
+# mcp-code-context v3.7.1
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline, session-scoped state, and crash recovery.
 
-## What's New in v3.7.0
+## What's New in v3.7.1
 
 🚀 **CRITICAL FIXES - Production Readiness Release**:
 - ✅ **Session-scoped state**: Each MCP client gets isolated locks, confirmation store, rate limiter (no state leakage)
@@ -12,7 +12,7 @@
 - ✅ **Higher file limits**: MAX_FILES_REPO_MAP = 2000 (was 500)
 - ✅ **Multi-client tests**: New integration tests for concurrent MCP clients
 
-## What's New in v3.7.0 (Previously Added)
+## What's New in v3.7.1 (Previously Added)
 
 - ✅ 4 new tools: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
 - ✅ `diffFormat` parameter on all write tools (`unified`, `compact`, `summary`, `none`)
@@ -147,13 +147,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.7.0 Two-Phase Workflow)
+### Write Tools (v3.7.1 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.7.0):**
+**Important Notes (v3.7.1):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 - ✅ **Session-scoped state**: Each MCP client gets isolated state (locks, confirmation store, rate limiter).
@@ -234,7 +234,7 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Best used when:** Cleaning up deprecated functions or unused code.
 
-## New Tools (v3.7.0)
+## New Tools (v3.7.1)
 
 #### 11. `get_session_stats`
 **Purpose:** Get statistics for the current MCP client session.
@@ -266,7 +266,7 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Best used when:** Recovering work after a server crash.
 
-## Previously Added Tools (v3.7.0)
+## Previously Added Tools (v3.7.1)
 
 #### 14. `parse_file`
 **Purpose:** Parse a file using Tree-sitter and extract all symbols.
@@ -311,7 +311,7 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-## Session State Configuration (v3.7.0+)
+## Session State Configuration (v3.7.1+)
 
 ### Critical: Session-Scoped State
 
@@ -427,6 +427,6 @@ No additional configuration is needed beyond adding the MCP server definition. S
 
 ---
 
-**Version**: 3.7.0  
+**Version**: 3.7.1  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery

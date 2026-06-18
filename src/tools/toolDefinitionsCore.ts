@@ -160,7 +160,7 @@ export const CORE_TOOLS = [
       required: ["filePath", "projectRoot", "oldName", "newName"],
     },
   },
-  // ── AST Transform (v3.7.0) ──────────────────────────────────────────────
+  // ── AST Transform (v3.7.1) ──────────────────────────────────────────────
   {
     name: "ast_transform",
     description: "Apply a declarative AST transformation to a symbol. Supports: add_parameter, wrap_with_try_catch, add_decorator, change_return_type, extract_variable. Uses two-phase write (Phase 1: preview diff, Phase 2: confirm with token).",
@@ -197,7 +197,7 @@ export const CORE_TOOLS = [
       required: ["filePath", "projectRoot", "symbolName", "transform"],
     },
   },
-  // ── NEW TOOLS v3.7.0 ──────────────────────────────────────────────────────ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── NEW TOOLS v3.7.1 ──────────────────────────────────────────────────────ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   {
     name: "search_symbols",
     description: "Search symbols by name across the repo using AST (not text search). Finds classes, functions, methods by approximate name.",
