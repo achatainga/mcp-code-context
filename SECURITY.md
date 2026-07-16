@@ -1,8 +1,8 @@
-# Security Policy - mcp-code-context v3.7.1
+# Security Policy - mcp-code-context v3.8.0
 
-## 🔒 Security Improvements in v3.7.1
+## 🔒 Security Improvements in v3.7.1+
 
-This release addresses **all critical security vulnerabilities** from comprehensive adversarial audit, implements full middleware pipeline, and hardens all 13 tool handlers. **NEW**: Session-scoped state isolation prevents cross-client data leakage.
+This release addresses **all critical security vulnerabilities** from comprehensive adversarial audit, implements full middleware pipeline, and hardens all 13 tool handlers. **NEW in v3.7.0**: Session-scoped state isolation prevents cross-client data leakage.
 
 ---
 
@@ -96,9 +96,9 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ---
 
-### 10. Session State Leakage (HIGH) — **NEW**
+### 10. Session State Leakage (HIGH) — **NEW in v3.7.0**
 **CVSS Score**: 7.5 (High)
-**Status**: ✅ FIXED in v3.7.1
+**Status**: ✅ FIXED in v3.7.0
 
 **Description**: Global state (`globalLockManager`, `globalConfirmationStore`, `rateLimiter`) accumulated across client sessions with no cleanup.
 
@@ -108,9 +108,9 @@ This release addresses **all critical security vulnerabilities** from comprehens
 
 ---
 
-### 11. Pending Operations Not Persistent (HIGH) — **NEW**
+### 11. Pending Operations Not Persistent (HIGH) — **NEW in v3.7.0**
 **CVSS Score**: 7.0 (High)
-**Status**: ✅ FIXED in v3.7.1
+**Status**: ✅ FIXED in v3.7.0
 
 **Description**: Pending operations stored in `globalConfirmationStore` (in-memory Map). No persistence.
 
@@ -141,7 +141,7 @@ This release addresses **all critical security vulnerabilities** from comprehens
    - Audit logging (persistent `.mcp-audit-logs/`)
    - Telemetry (operation metrics, percentiles)
 
-4. **Session-Scoped State** (v3.7.1)
+4. **Session-Scoped State** (v3.7.0)
    - Each MCP client gets isolated locks, confirmation store, rate limiter
    - No state leakage between clients (Amazon Q, Kiro, Cursor, etc.)
 
@@ -191,7 +191,7 @@ node dist-tests/tests/test-security.js
 - [x] Syntax validation
 - [x] Bounded memory in compress
 
-### v3.7.1 ✅
+### v3.7.x ✅
 - [x] Regex timeout enforcement (safeRegexTest)
 - [x] Expanded ReDoS detection (15+ patterns)
 - [x] Rate limiting (token bucket)
@@ -208,4 +208,4 @@ node dist-tests/tests/test-security.js
 ---
 
 **Last Updated**: 2026-06-08
-**Version**: 3.7.1
+**Version**: 3.8.0

@@ -52,6 +52,19 @@ PLAN_*.md
 # Old release notes
 RELEASE_NOTES_*.md
 
+# Chat logs & session exports (internal)
+*-chat-log.txt
+q-dev-chat-*.md
+
+# Plans directory (internal — never publish to npm)
+docs/plans/
+docs/archive/
+
+# Survival/context anchor files (AI session state)
+.survival.md
+survival-sync.sh
+.survival-instructions.md
+
 # Validation scripts (internal)
 validate-release.ps1
 validate-release.sh

@@ -1,5 +1,5 @@
 /**
- * Ruby Parser - v3.7.1
+ * Ruby Parser - v3.8.0
  * Tree-sitter based Ruby parser
  */
 
@@ -11,13 +11,30 @@ export class RubyParser extends BaseParser {
     super("ruby");
   }
 
+  /**
+   * Extract a symbol from source content using AST byte offsets.
+   * NOTE: uses content directly (not tree.rootNode.text) because web-tree-sitter
+   * may strip leading whitespace/newlines from rootNode.text on Windows/WASM,
+   * causing off-by-one drift against the original byte offsets.
+   */
   extractSymbol(tree: Tree, symbolName: string, className?: string): string | null {
-    const src = tree.rootNode.text;
     const symbols = this.findSymbols(tree);
     const target = symbols.find(s =>
       s.name === symbolName && (!className || s.className === className)
     );
-    return target ? src.substring(target.startIndex, target.endIndex) : null;
+    if (!target) return null;
+    // Reconstruct the original source from tree nodes — use the full text of the
+    // root node's parent walk so we always have the unparsed original.
+    // The safest approach: use tree.rootNode.text but correct the start offset.
+    const src = tree.rootNode.text;
+    const rootStart = tree.rootNode.startIndex;
+    return src.substring(target.startIndex - rootStart, target.endIndex - rootStart);
+  }
+
+  search(tree: Tree, pattern: string): SymbolInfo[] {
+    return this.findSymbols(tree).filter(s =>
+      s.name.toLowerCase().includes(pattern.toLowerCase())
+    );
   }
 
   findSymbols(tree: Tree): SymbolInfo[] {

@@ -1,7 +1,7 @@
 {
   "name": "mcp-code-context",
-  "version": "3.7.1",
-  "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, file watching, fuzzy search, rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, and Python.",
+  "version": "3.8.0",
+  "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, file watching, fuzzy search, rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, Python, and Ruby (with ActiveRecord Virtual Schema extraction).",
   "type": "module",
   "main": "dist/src/index.js",
   "bin": {
@@ -38,7 +38,10 @@
     "typescript",
     "php",
     "dart",
-    "python"
+    "python",
+    "ruby",
+    "rails",
+    "activerecord"
   ],
   "author": "Alejandro Chataing <a.chataing.a@gmail.com>",
   "license": "MIT",

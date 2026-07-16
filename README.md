@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![npm downloads](https://img.shields.io/npm/dm/mcp-code-context.svg)](https://www.npmjs.com/package/mcp-code-context)
 [![TypeScript](https://img.shields.io/badge/TypeScript-100%25-blue.svg)]()
-[![Tests](https://img.shields.io/badge/tests-83%20passing-success.svg)]()
+[![Tests](https://img.shields.io/badge/tests-120%20passing-success.svg)]()
 [![Ko-fi](https://img.shields.io/badge/Support-Ko--fi-FF5E5B?logo=ko-fi)](https://ko-fi.com/achatainga)
 [![PayPal](https://img.shields.io/badge/Donate-PayPal-00457C?logo=paypal)](https://paypal.me/achatainga)
 
@@ -75,7 +75,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### Production-Ready Features
 
-| Feature | v3.6.x | v3.7.1 | Benefit |
+| Feature | v3.6.x | v3.8.0 | Benefit |
 |---------|--------|--------|---------|
 | Multi-process safety | ✅ | ✅ | No file corruption |
 | Persistent cache | ✅ | ✅ | <100ms cache hits |
@@ -88,7 +88,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ## Features
 
-### What's New in v3.7.1
+### What's New in v3.8.0
 
 | Feature | Description |
 |---------|-------------|
@@ -99,6 +99,8 @@ Built to be robust and precise. Both read and write engines are tested against r
 | 📊 **Higher file limits** | MAX_FILES_REPO_MAP = 2000 (was 500) |
 | 🧪 **Multi-client tests** | New integration tests for concurrent MCP clients |
 | 📝 **New tools**: `get_session_stats`, `clear_session_cache`, `list_pending_operations` | Session-aware operations |
+| 💎 **Ruby full support** | Complete `RubyParser` with `search()` for `search_code_pattern` compatibility |
+| 🗄️ **ActiveRecord Virtual Schema** | Parses `db/schema.rb` and injects column annotations when reading AR model files |
 
 ### Previous Versions (v3.6.x)
 
@@ -142,6 +144,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 | PHP | ✅ AST (Tree-sitter WASM) | ✅ AST + line-splice | ✅ |
 | Dart | ✅ AST (Tree-sitter WASM) | ✅ AST + line-splice | ✅ |
 | Python | ✅ AST (Tree-sitter WASM) | ✅ Indentation-aware | ✅ |
+| Ruby | ✅ AST (Tree-sitter WASM) + ActiveRecord Virtual Schema | ✅ AST byte-offset splice | ✅ |
 | Others (JSON, YAML, CSS, etc.) | Passthrough / truncation | — | — |
 
 ---
@@ -161,7 +164,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### `get_semantic_repo_map` Tool
 
-- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.7.1)
+- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.8.0)
 - **Performance**: Synchronous I/O may take 10-30 seconds on large repositories
 - **Recommendation**: Use `@folder` syntax to target specific directories
 
@@ -188,13 +191,13 @@ npx -y mcp-code-context
 
 ---
 
-## Session State (v3.7.1+)
+## Session State (v3.8.0+)
 
-**Important**: v3.7.1 introduces **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
+**Important**: v3.8.0 introduces **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
 
 ### What Changed
 
-| Before (v3.6.x) | After (v3.7.1) |
+| Before (v3.6.x) | After (v3.8.0) |
 |----------------|----------------|
 | Global `LockManager` (shared by all clients) | Session-scoped `sessionStates` Map |
 | Global `ConfirmationStore` (in-memory Map) | Session-scoped confirmation store + SQLite persistence |
@@ -222,7 +225,7 @@ npx -y mcp-code-context
 }
 ```
 
-### New Tools (v3.7.1)
+### New Tools (v3.8.0)
 
 - `get_session_stats` — Get stats for current session only
 - `clear_session_cache` — Clear cache for current session only
@@ -526,7 +529,7 @@ npm run dev
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
 - **Tests:** 83 passing (unit + integration + performance + stress)
 
-### v3.7.1 Key Changes
+### v3.8.0 Key Changes
 
 | Component | Change | Benefit |
 |-----------|--------|---------|

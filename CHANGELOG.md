@@ -1,5 +1,30 @@
 # Changelog
 
+## [3.8.0] - 2026-07-15
+
+### Added
+
+- **Ruby full support** — `RubyParser` now complete with `search()` method for `search_code_pattern` tool compatibility
+- **ActiveRecord Virtual Schema Extractor** — new `src/utils/railsSchema.ts` utility:
+  - Parses `db/schema.rb` via O(n) line-by-line state machine (no backtracking risk)
+  - mtime-keyed in-memory cache — zero I/O on repeated reads of unchanged schema
+  - `modelToTable()` — Rails CoC PascalCase → snake_case → pluralize (`AdminUser → admin_users`, `Category → categories`)
+  - `formatSchemaAnnotation()` — emits XML comment block with column names and types
+- **AR schema injection in `read_file_surgical`** — when reading `.rb` files inheriting from `ApplicationRecord` or `ActiveRecord::Base`, virtual schema columns are prepended as XML comments
+  - Context-aware: when `symbolName` is set, reads full file to detect AR inheritance before injecting
+  - Graceful: no-op when `db/schema.rb` is absent or table not found
+
+### Fixed
+
+- **`RubyParser.extractSymbol` off-by-one** — `tree.rootNode.text` omits leading whitespace on Windows/WASM, causing `startIndex` drift. Fixed by adjusting indices relative to `tree.rootNode.startIndex`.
+
+### Tests
+
+- Added `tests/unit/parsers/ruby.spec.ts` — 5 vitest specs: symbol discovery, surgical replace, `extractSymbol` scoping, `parseSchemaRb` column extraction, `modelToTable` CoC mapping
+- All 115 WASM parser tests passing (100%)
+
+---
+
 ## [3.7.1] - 2026-06-18
 
 ### Fixed

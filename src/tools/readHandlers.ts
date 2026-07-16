@@ -14,6 +14,7 @@ import { BackupManager } from "../utils/backupManager.js";
 import { globalSessionManager } from "../core/sessionManager.js";
 import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toctou.js";
 import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
+import { loadRailsSchema, modelToTable, formatSchemaAnnotation } from "../utils/railsSchema.js";
 
 export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
   if (!args.directoryPath || !args.projectRoot) {
@@ -76,6 +77,34 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
       content = streamRes.chunks!.join("");
     } else {
       content = await fs.readFile(validation.resolvedPath!, "utf-8");
+    }
+  }
+
+  // ActiveRecord Virtual Schema injection
+  if (path.extname(filePath) === ".rb") {
+    // When extracting a symbol, `content` is only the method body — no class declaration.
+    // We need the full file to detect AR inheritance, but guard with stat first to
+    // avoid allocating >5MB files without the streaming guard.
+    let sourceForDetection = content;
+    if (symbolName) {
+      const fileStat = await fs.stat(validation.resolvedPath!);
+      if (fileStat.size <= 5 * 1024 * 1024) {
+        sourceForDetection = await fs.readFile(validation.resolvedPath!, "utf-8");
+      }
+      // Files >5MB: skip schema injection for symbol extracts — not worth the memory cost
+    }
+    const arMatch = sourceForDetection.match(
+      /class\s+(\w+)\s*<\s*(?:ApplicationRecord|ActiveRecord::Base)/
+    );
+    if (arMatch) {
+      const schema = await loadRailsSchema(projectRoot);
+      if (schema) {
+        const tableName = modelToTable(arMatch[1]);
+        const columns = schema[tableName];
+        if (columns && Object.keys(columns).length > 0) {
+          content = formatSchemaAnnotation(tableName, columns) + "\n" + content;
+        }
+      }
     }
   }
 

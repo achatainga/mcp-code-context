@@ -58,6 +58,16 @@ ANALYSIS_*.md
 CRITICAL_*.md
 WASM_MIGRATION_PROMPT.md
 
+# Chat logs & session exports (internal)
+*-chat-log.txt
+q-dev-chat-*.md
+ruby-chat-log.txt
+
+# Survival/context anchor files (AI session state)
+.survival.md
+survival-sync.sh
+.survival-instructions.md
+
 # Test artifacts
 *.test.js
 *.spec.js

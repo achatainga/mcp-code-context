@@ -253,7 +253,7 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.7.1 Features
+## 🚀 v3.8.0 Features
 
 ### New Tools
 - **`get_session_stats`**: Session-scoped stats (pending ops, locks held, rate limiter tokens)
@@ -267,7 +267,7 @@ newContent: "{ return 42; }"
 - ✅ **Auto-persist before eviction**: Cache data preserved
 - ✅ **Higher file limits**: MAX_FILES = 2000 (was 500)
 
-### Previously Added in v3.7.1
+### Previously Added in v3.7.x
 - ✅ **4 New Tools**: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
 - ✅ **`diffFormat`**: Control diff verbosity (`unified`, `compact`, `summary`, `none`)
 - ✅ **Phase 2 optimized**: No need to resend `newContent`/`code` — server stores it from Phase 1
@@ -288,6 +288,6 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.7.1  
+**Version**: 3.8.0  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery
