@@ -1,7 +1,8 @@
 /**
- * Base Parser - v3.7.1
+ * Base Parser - v3.8.1
  * Abstract base for all language parsers
  * IMPROVEMENT: replaceSymbol moved here using AST indices (eliminates indexOf fragility)
+ * v3.8.1: getInsideStartIndex/getInsideEndIndex overridable for brace-less languages
  */
 
 import { Parser, Tree, Language, Node } from "web-tree-sitter";
@@ -47,6 +48,26 @@ export abstract class BaseParser {
     symbolName: string,
     className?: string
   ): string | null;
+
+  /**
+   * Returns the index inside a symbol's body for inside_start insertion.
+   * Default: searches for `{` after symbol start (JS/TS/PHP/Java/Go/C#/Rust/Kotlin).
+   * Override in parsers for brace-less languages (Ruby, Python).
+   */
+  getInsideStartIndex(content: string, symbolInfo: SymbolInfo): number {
+    const idx = content.indexOf("{", symbolInfo.startIndex);
+    return idx !== -1 ? idx + 1 : symbolInfo.startIndex + 1;
+  }
+
+  /**
+   * Returns the index inside a symbol's body for inside_end insertion.
+   * Default: searches for last `}` before symbol end (JS/TS/PHP/Java/Go/C#/Rust/Kotlin).
+   * Override in parsers for brace-less languages (Ruby, Python).
+   */
+  getInsideEndIndex(content: string, symbolInfo: SymbolInfo): number {
+    const idx = content.lastIndexOf("}", symbolInfo.endIndex);
+    return idx !== -1 ? idx : symbolInfo.endIndex - 1;
+  }
 
   /**
    * Replace a symbol using AST startIndex/endIndex (no indexOf fragility)

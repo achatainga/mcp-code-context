@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.8.1] - 2026-07-16
+
+### Added
+
+- **`insertCode` fix for brace-less languages (Ruby, Python)** — `inside_start`/`inside_end` positions now use AST-aware methods instead of `indexOf("{")` / `lastIndexOf("}")`. Added `getInsideStartIndex()` and `getInsideEndIndex()` to `BaseParser` with language-specific overrides in `RubyParser` and `PythonParser`.
+- **Ruby import analysis** — `extractImports` in `compress.ts` now detects `require` and `require_relative` patterns. `analyzeImpact` adds Ruby patterns with file-resolution guard (prevents false positives from stdlib mixins like `include Comparable`).
+- **ActiveRecord schema injection in `get_semantic_repo_map`** — repo map now includes `db_column` symbols for AR models, showing database columns alongside methods in the XML/Markdown output.
+
+### Fixed
+
+- **`insert_symbol inside_start/inside_end` for Ruby** — previously returned wrong position (`-1`) for any Ruby class or method. Now inserts correctly after the opening header line (`inside_start`) and before the closing `end` keyword (`inside_end`).
+- **`insert_symbol inside_start/inside_end` for Python** — previously searched for `{`/`}` that don't exist. Now uses colon+newline and indentation-aware end position.
+
+---
+
 ## [3.8.0] - 2026-07-15
 
 ### Added

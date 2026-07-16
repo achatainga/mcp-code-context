@@ -1,6 +1,7 @@
 /**
- * Ruby Parser - v3.8.0
+ * Ruby Parser - v3.8.1
  * Tree-sitter based Ruby parser
+ * v3.8.1: override getInsideStartIndex/getInsideEndIndex for end-based syntax
  */
 
 import { Tree, Node } from "web-tree-sitter";
@@ -35,6 +36,32 @@ export class RubyParser extends BaseParser {
     return this.findSymbols(tree).filter(s =>
       s.name.toLowerCase().includes(pattern.toLowerCase())
     );
+  }
+
+  /**
+   * For Ruby's `end`-based blocks, inside_start = first byte after the header line.
+   * The header line is the first line of the node (e.g. "def full_name\n" or "class User < ApplicationRecord\n").
+   * We find the newline that terminates the first line of the symbol and insert after it.
+   */
+  getInsideStartIndex(content: string, symbolInfo: SymbolInfo): number {
+    // Find the newline that ends the opening line (def/class header)
+    const firstNewline = content.indexOf("\n", symbolInfo.startIndex);
+    return firstNewline !== -1 ? firstNewline + 1 : symbolInfo.startIndex + 1;
+  }
+
+  /**
+   * For Ruby's `end`-based blocks, inside_end = the byte index of the `end` keyword itself.
+   * We search backwards from the symbol's endIndex for the last "end" token on its own line.
+   */
+  getInsideEndIndex(content: string, symbolInfo: SymbolInfo): number {
+    // Walk backwards from the node end to find the `end` keyword line
+    const slice = content.substring(0, symbolInfo.endIndex);
+    const endMatch = slice.match(/\bend\b\s*$/);
+    if (endMatch && endMatch.index !== undefined) {
+      return endMatch.index;
+    }
+    // Fallback: insert just before the last character of the symbol
+    return symbolInfo.endIndex - 1;
   }
 
   findSymbols(tree: Tree): SymbolInfo[] {

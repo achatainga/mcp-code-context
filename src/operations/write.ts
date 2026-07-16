@@ -1,5 +1,5 @@
 /**
- * Write Operations - v3.7.1
+ * Write Operations - v3.8.1
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
  * CRITICAL: renameSymbol Phase 1 is now pure-functional (no disk writes)
  */
@@ -157,10 +157,10 @@ export async function insertCode(options: InsertOptions): Promise<WriteResult> {
           insertIndex = anchorNode.endIndex;
           break;
         case "inside_start":
-          insertIndex = content.indexOf("{", anchorNode.startIndex) + 1;
+          insertIndex = parser.getInsideStartIndex(content, anchorNode);
           break;
         case "inside_end":
-          insertIndex = content.lastIndexOf("}", anchorNode.endIndex);
+          insertIndex = parser.getInsideEndIndex(content, anchorNode);
           break;
         default:
           insertIndex = anchorNode.endIndex;

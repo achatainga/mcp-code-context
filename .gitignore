@@ -80,3 +80,6 @@ stderr.txt
 scripts/old-index.ts.txt
 scripts/split-*.mjs
 scripts/restore-*.mjs
+
+# Workspace state
+.workspace_state.md

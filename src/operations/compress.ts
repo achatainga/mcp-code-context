@@ -1,5 +1,5 @@
 /**
- * Semantic Compression - v3.7.1
+ * Semantic Compression - v3.8.1
  * IMPROVEMENTS: Centralized constants + size limits + timeout + index feeding
  */
 
@@ -10,6 +10,7 @@ import { ParserRegistry } from "../parsers/registry.js";
 import { EXCLUDE_DIRS, MAX_FILES_REPO_MAP, MAX_TOTAL_SIZE_BYTES } from "../utils/constants.js";
 import { walkDir } from "../utils/fileWalker.js";
 import { IndexManager } from "../core/indexManager.js";
+import { loadRailsSchema, modelToTable } from "../utils/railsSchema.js";
 
 export interface CompressionResult {
   success: boolean;
@@ -80,9 +81,32 @@ async function compressRepository(params: {
             })();
 
             totalSymbols += symbols.length;
+
+            // R1: Rails AR schema injection for .rb files in repo map
+            let fileSymbols = symbols.map(s => ({ type: s.type, name: s.name }));
+            if (path.extname(fullPath) === ".rb") {
+              const schema = await loadRailsSchema(params.projectRoot).catch(() => null);
+              if (schema) {
+                for (const sym of symbols) {
+                  if (sym.type === "class") {
+                    const tableName = modelToTable(sym.name);
+                    const columns = schema[tableName];
+                    if (columns && Object.keys(columns).length > 0) {
+                      const dbCols = Object.entries(columns).map(([col, type]) => ({
+                        type: "db_column",
+                        name: `${col}:${type}`,
+                      }));
+                      fileSymbols = [...fileSymbols, ...dbCols];
+                      totalSymbols += dbCols.length;
+                    }
+                  }
+                }
+              }
+            }
+
             files.push({
               path: path.relative(params.directoryPath, fullPath),
-              symbols: symbols.map(s => ({ type: s.type, name: s.name })),
+              symbols: fileSymbols,
             });
           } catch {
             // Skip files that fail to parse or read (IO errors, encoding issues)
@@ -156,31 +180,40 @@ function extractImports(content: string, filePath: string, rootDir: string): str
   const deps: string[] = [];
   const dir = path.dirname(filePath);
 
-  // Match: import ... from './path' | import './path' | require('./path')
-  const patterns = [
+  // JS/TS: import ... from './path' | import './path' | require('./path')
+  const jsPatterns = [
     /from\s+['"](\.[^'"]+)['"]/g,
     /import\s+['"](\.[^'"]+)['"]/g,
     /require\s*\(\s*['"](\.[^'"]+)['"]\s*\)/g,
   ];
 
-  for (const pattern of patterns) {
+  for (const pattern of jsPatterns) {
     let match: RegExpExecArray | null;
     while ((match = pattern.exec(content)) !== null) {
       const importPath = match[1];
       if (!importPath) continue;
-
-      // Resolve to absolute path
-      const resolved = path.resolve(dir, importPath);
-
-      // Try common extensions if no extension given
-      const ext = path.extname(resolved);
-      if (ext) {
-        deps.push(resolved);
-      } else {
-        // Add the bare path — IndexManager stores what it gets
-        deps.push(resolved);
-      }
+      deps.push(path.resolve(dir, importPath));
     }
+  }
+
+  // Ruby: require 'path' | require_relative '../path'
+  const rubyRequire = /require\s+['"]([^'"]+)['"]/g;
+  const rubyRequireRel = /require_relative\s+['"]([^'"]+)['"]/g;
+
+  let match: RegExpExecArray | null;
+
+  // require 'path' — treat as relative to projectRoot (lib/ or gems — best effort)
+  while ((match = rubyRequire.exec(content)) !== null) {
+    const importPath = match[1];
+    if (!importPath || importPath.includes("/") === false) continue; // skip bare gem names like 'devise'
+    deps.push(path.resolve(dir, importPath));
+  }
+
+  // require_relative '../path' — always relative to the file doing the require
+  while ((match = rubyRequireRel.exec(content)) !== null) {
+    const importPath = match[1];
+    if (!importPath) continue;
+    deps.push(path.resolve(dir, importPath));
   }
 
   return [...new Set(deps)]; // deduplicate

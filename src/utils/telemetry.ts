@@ -1,5 +1,5 @@
 /**
- * Telemetry - v3.7.1
+ * Telemetry - v3.8.1
  * Metrics collection and monitoring
  */
 

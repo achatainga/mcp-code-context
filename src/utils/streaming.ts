@@ -1,5 +1,5 @@
 /**
- * File Streaming - v3.7.1
+ * File Streaming - v3.8.1
  * Stream large files in chunks to avoid memory exhaustion
  */
 

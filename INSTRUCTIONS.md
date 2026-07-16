@@ -253,7 +253,7 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.8.0 Features
+## 🚀 v3.8.1 Features
 
 ### New Tools
 - **`get_session_stats`**: Session-scoped stats (pending ops, locks held, rate limiter tokens)
@@ -288,6 +288,6 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.8.0  
+**Version**: 3.8.1  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery

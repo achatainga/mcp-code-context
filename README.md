@@ -75,7 +75,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### Production-Ready Features
 
-| Feature | v3.6.x | v3.8.0 | Benefit |
+| Feature | v3.6.x | v3.8.1 | Benefit |
 |---------|--------|--------|---------|
 | Multi-process safety | ✅ | ✅ | No file corruption |
 | Persistent cache | ✅ | ✅ | <100ms cache hits |
@@ -88,7 +88,15 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ## Features
 
-### What's New in v3.8.0
+### What's New in v3.8.1
+
+| Feature | Description |
+|---------|-------------|
+| 🔧 **`insert_symbol` fix Ruby/Python** | `inside_start`/`inside_end` now uses AST positions — no more broken insertion for `end`-based or indentation-based languages |
+| 🗄️ **Schema in `get_semantic_repo_map`** | Repo map now shows `db_column` symbols for all ActiveRecord models alongside their methods |
+| 🔗 **Ruby import analysis** | `analyze_impact` and dependency index now track `require`/`require_relative` in Ruby files with false-positive guard for stdlib mixins |
+
+### Previous: v3.8.0
 
 | Feature | Description |
 |---------|-------------|
@@ -164,7 +172,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### `get_semantic_repo_map` Tool
 
-- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.8.0)
+- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.8.1)
 - **Performance**: Synchronous I/O may take 10-30 seconds on large repositories
 - **Recommendation**: Use `@folder` syntax to target specific directories
 
@@ -191,13 +199,13 @@ npx -y mcp-code-context
 
 ---
 
-## Session State (v3.8.0+)
+## Session State (v3.8.1+)
 
-**Important**: v3.8.0 introduces **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
+**Important**: v3.8.1 introduces **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
 
 ### What Changed
 
-| Before (v3.6.x) | After (v3.8.0) |
+| Before (v3.6.x) | After (v3.8.1) |
 |----------------|----------------|
 | Global `LockManager` (shared by all clients) | Session-scoped `sessionStates` Map |
 | Global `ConfirmationStore` (in-memory Map) | Session-scoped confirmation store + SQLite persistence |
@@ -225,7 +233,7 @@ npx -y mcp-code-context
 }
 ```
 
-### New Tools (v3.8.0)
+### New Tools (v3.8.1)
 
 - `get_session_stats` — Get stats for current session only
 - `clear_session_cache` — Clear cache for current session only
@@ -529,7 +537,7 @@ npm run dev
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
 - **Tests:** 83 passing (unit + integration + performance + stress)
 
-### v3.8.0 Key Changes
+### v3.8.1 Key Changes
 
 | Component | Change | Benefit |
 |-----------|--------|---------|

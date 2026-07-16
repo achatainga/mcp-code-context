@@ -84,6 +84,35 @@ describe("RubyParser", () => {
     expect(extracted).toContain("def full_name");
     expect(extracted).toContain("end");
   });
+
+  it("getInsideStartIndex returns index after class header line", () => {
+    const tree = parser.parse(RUBY_FIXTURE);
+    const symbols = parser.findSymbols(tree);
+    const userClass = symbols.find(s => s.name === "User" && s.type === "class");
+    expect(userClass).toBeDefined();
+
+    const idx = parser.getInsideStartIndex(RUBY_FIXTURE, userClass!);
+    // Should be after "class User < ApplicationRecord\n"
+    const inserted = RUBY_FIXTURE.substring(0, idx) + "  # INSERTED\n" + RUBY_FIXTURE.substring(idx);
+    // The inserted content should appear before full_name
+    expect(inserted.indexOf("# INSERTED")).toBeLessThan(inserted.indexOf("def full_name"));
+    // Class declaration must still be present
+    expect(inserted).toContain("class User < ApplicationRecord");
+  });
+
+  it("getInsideEndIndex returns index before end keyword", () => {
+    const tree = parser.parse(RUBY_FIXTURE);
+    const symbols = parser.findSymbols(tree);
+    const userClass = symbols.find(s => s.name === "User" && s.type === "class");
+    expect(userClass).toBeDefined();
+
+    const idx = parser.getInsideEndIndex(RUBY_FIXTURE, userClass!);
+    const inserted = RUBY_FIXTURE.substring(0, idx) + "\n  # APPENDED\n" + RUBY_FIXTURE.substring(idx);
+    // The appended content should appear after admin? method
+    expect(inserted.indexOf("# APPENDED")).toBeGreaterThan(inserted.indexOf("def admin?"));
+    // end keyword must still be present
+    expect(inserted).toMatch(/^end$/m);
+  });
 });
 
 describe("railsSchema", () => {

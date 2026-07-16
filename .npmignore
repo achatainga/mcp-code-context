@@ -115,3 +115,6 @@ scratch.ts
 # Environment
 .env
 .env.*
+
+# Workspace state
+.workspace_state.md

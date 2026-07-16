@@ -1,4 +1,4 @@
-# Security Policy - mcp-code-context v3.8.0
+# Security Policy - mcp-code-context v3.8.1
 
 ## 🔒 Security Improvements in v3.7.1+
 
@@ -208,4 +208,4 @@ node dist-tests/tests/test-security.js
 ---
 
 **Last Updated**: 2026-06-08
-**Version**: 3.8.0
+**Version**: 3.8.1
