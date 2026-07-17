@@ -1,5 +1,5 @@
 /**
- * Java Parser - v3.9.0
+ * Java Parser - v3.9.1
  * Tree-sitter based Java parser
  */
 

@@ -1,5 +1,5 @@
 /**
- * Audit Logger - v3.9.0
+ * Audit Logger - v3.9.1
  * Comprehensive audit trail for all operations
  */
 

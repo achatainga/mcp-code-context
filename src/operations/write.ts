@@ -1,5 +1,5 @@
 /**
- * Write Operations - v3.9.0
+ * Write Operations - v3.9.1
  * FIXES: SecurityValidator in renameSymbol, atomic writes, AST-based positioning
  * CRITICAL: renameSymbol Phase 1 is now pure-functional (no disk writes)
  */

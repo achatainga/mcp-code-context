@@ -1,5 +1,5 @@
 /**
- * Metaprogramming Entry Point Scanner - v3.9.0
+ * Metaprogramming Entry Point Scanner - v3.9.1
  * Identifies where Ruby's "magic" methods are generated in a codebase.
  * Does not resolve what methods are created — it surfaces WHERE to look.
  */

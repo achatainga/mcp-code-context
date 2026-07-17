@@ -1,5 +1,15 @@
 # Changelog
 
+## [3.9.1] - 2026-07-17
+
+### Fixed
+
+- **`get_rails_routes` namespace bug** — routes inside `namespace :admin do` / `namespace :api do` now correctly produce prefixed paths (`/admin/users`, `/api/v1/orders`) and namespaced controllers (`admin/users`, `api/v1/orders`). Root cause: the original regex `/^(?:namespace|scope)\s+[:'"]([^'"]+)['"]/` captured `admin do` instead of `admin` when using symbol syntax (`:admin`). Rewrote parser to handle symbol (`:admin`) and string (`'admin'`) syntax separately.
+- **`get_rails_routes` depth tracking** — replaced fragile `do/end` counter with indentation-based namespace stack. Parser now correctly handles nested namespaces (`api > v1`), `resources` blocks with `member do`, and `scope` blocks without false prefix leakage.
+- **`get_semantic_repo_map` Gemfile + Concerns injection** — repo map XML now appends `<gem>` blocks and `<concern>` entries when a Gemfile and concerns directory are present.
+
+---
+
 ## [3.9.0] - 2026-07-17
 
 ### Added

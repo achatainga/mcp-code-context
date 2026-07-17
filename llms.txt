@@ -1,20 +1,30 @@
-# mcp-code-context v3.9.0
+# mcp-code-context v3.9.1
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline, session-scoped state, and crash recovery.
 
-## What's New in v3.9.0
+## What's New in v3.9.1
 
-🚀 **CRITICAL FIXES - Production Readiness Release**:
+🐛 **Bug Fix Release**:
+- ✅ **`get_rails_routes` namespace fix**: Routes inside `namespace :admin do` now produce `/admin/users` (was `/users`). Controllers correctly namespaced as `admin/users`. Fixed regex that captured `admin do` instead of `admin` with symbol syntax.
+- ✅ **`get_rails_routes` indentation parser**: Replaced fragile `do/end` depth counter with indentation-based stack. Handles nested namespaces (`api/v1`), `member do` blocks, and `scope` correctly.
+- ✅ **Repo map Gems + Concerns**: `get_semantic_repo_map` appends `<gem>` behavior blocks and `<concern>` entries when Gemfile and concerns directories are present.
+
+## Previously Added in v3.9.0
+
+- ✅ **`get_gemfile_context`**: Parse Gemfile, return implicit behaviors for known gems (devise, sidekiq, pundit, kaminari, paper_trail, geocoder, etc.)
+- ✅ **`find_metaprogramming`**: Scan Ruby for `define_method`, `method_missing`, `class_eval`, `ActiveSupport::Concern`, `delegate`, `has_many :through` etc.
+- ✅ **`get_rails_routes`**: Parse `config/routes.rb` into structured route map
+- ✅ **Concern resolution in `analyze_impact`**: Checks `app/models/concerns` and `app/controllers/concerns` before file scan
+
+## Previously Added in v3.8.x
+
 - ✅ **Session-scoped state**: Each MCP client gets isolated locks, confirmation store, rate limiter (no state leakage)
 - ✅ **Crash recovery**: SQLite-backed pending operations store - survive restarts
 - ✅ **Expanded ReDoS protection**: 15+ patterns (was 6) - better security
 - ✅ **Auto-persist before eviction**: CacheManager now persists before LRU eviction
 - ✅ **Higher file limits**: MAX_FILES_REPO_MAP = 2000 (was 500)
-- ✅ **Multi-client tests**: New integration tests for concurrent MCP clients
 - ✅ **Ruby full support**: Complete `RubyParser` with `search()` for `search_code_pattern` compatibility
 - ✅ **ActiveRecord Virtual Schema**: Parses `db/schema.rb` and injects column annotations on AR model reads
-
-## Previously Added in v3.7.x
 
 - ✅ 4 new tools: `search_symbols`, `explain_symbol`, `batch_read`, `get_rate_limit_status`
 - ✅ `diffFormat` parameter on all write tools (`unified`, `compact`, `summary`, `none`)
@@ -149,13 +159,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.9.0 Two-Phase Workflow)
+### Write Tools (v3.9.1 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.9.0):**
+**Important Notes (v3.9.1):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 - ✅ **Session-scoped state**: Each MCP client gets isolated state (locks, confirmation store, rate limiter).
@@ -236,9 +246,36 @@ All write tools follow a **Two-Phase Workflow**:
 
 **Best used when:** Cleaning up deprecated functions or unused code.
 
-## New Tools (v3.9.0)
+## New Tools (v3.9.x)
 
-#### 11. `get_session_stats`
+#### 11. `get_gemfile_context`
+**Purpose:** Parse the Gemfile and return known gem behaviors with their implicit Rails conventions.
+
+**Input:** `projectRoot` (required).
+
+**Returns:** List of all gems, known gems with their implicit behavior descriptions, and an XML annotation block.
+
+**Best used when:** Starting work on a Rails project to understand what auth/authorization/pagination/etc. gems are active without reading docs.
+
+#### 12. `find_metaprogramming`
+**Purpose:** Scan Ruby files for dynamic method generation entry points.
+
+**Input:** `projectRoot` (required), `filePath` (optional — scan single file), `rootDir` (optional — scan subdirectory).
+
+**Returns:** All matches grouped by file, with line number, pattern name, description, and code snippet.
+
+**Best used when:** Investigating where "magic methods" are defined in a Rails project (before using `analyze_impact`).
+
+#### 13. `get_rails_routes`
+**Purpose:** Parse `config/routes.rb` and return a structured route map.
+
+**Input:** `projectRoot` (required).
+
+**Returns:** Array of routes with `method`, `path`, `controller`, `action`. Includes warnings for `only:/except:` and nested resources.
+
+**Best used when:** Understanding API surface of a Rails app, finding what controller handles a given route.
+
+#### 14. `get_session_stats`
 **Purpose:** Get statistics for the current MCP client session.
 
 **Input:** None.
@@ -248,27 +285,21 @@ All write tools follow a **Two-Phase Workflow**:
 - `locksHeld`: Number of file locks currently held
 - `rateLimiterTokens`: Current token balance for this session
 
-**Best used when:** Diagnosing session-specific issues or understanding your client's resource usage.
-
-#### 12. `clear_session_cache`
+#### 15. `clear_session_cache`
 **Purpose:** Clear the cache for the current MCP client session only.
 
 **Input:** None.
 
 **Returns:** `cacheEntriesCleared` - Number of cache entries removed.
 
-**Best used when:** You want to reset your client's cache without affecting other MCP clients.
-
-#### 13. `list_pending_operations`
+#### 16. `list_pending_operations`
 **Purpose:** List all pending operations (for recovery after crash).
 
 **Input:** None.
 
 **Returns:** Array of pending operations with tokens, file paths, and timestamps.
 
-**Best used when:** Recovering work after a server crash.
-
-## Previously Added Tools (v3.9.0)
+## Previously Added Tools (v3.9.x)
 
 #### 14. `parse_file`
 **Purpose:** Parse a file using Tree-sitter and extract all symbols.
@@ -313,7 +344,7 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-## Session State Configuration (v3.9.0+)
+## Session State Configuration (v3.9.1+)
 
 ### Critical: Session-Scoped State
 
@@ -429,6 +460,6 @@ No additional configuration is needed beyond adding the MCP server definition. S
 
 ---
 
-**Version**: 3.9.0  
+**Version**: 3.9.1  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery

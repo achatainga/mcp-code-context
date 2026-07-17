@@ -1,7 +1,7 @@
 /**
- * Ruby Parser - v3.9.0
+ * Ruby Parser - v3.9.1
  * Tree-sitter based Ruby parser
- * v3.9.0: override getInsideStartIndex/getInsideEndIndex for end-based syntax
+ * v3.9.1: override getInsideStartIndex/getInsideEndIndex for end-based syntax
  */
 
 import { Tree, Node } from "web-tree-sitter";

@@ -1,5 +1,5 @@
 /**
- * Logger - v3.9.0
+ * Logger - v3.9.1
  * Structured logging with pino (JSON to stderr, MCP-safe)
  */
 

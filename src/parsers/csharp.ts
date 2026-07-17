@@ -1,5 +1,5 @@
 /**
- * C# Parser - v3.9.0
+ * C# Parser - v3.9.1
  * Tree-sitter based C# parser
  */
 

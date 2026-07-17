@@ -1,5 +1,5 @@
 /**
- * IndexManager Test Suite - v3.9.0
+ * IndexManager Test Suite - v3.9.1
  */
 
 import { IndexManager } from "../src/core/indexManager.js";
