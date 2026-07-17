@@ -124,3 +124,30 @@ export function formatSchemaAnnotation(tableName: string, columns: TableSchema):
     .join("\n");
   return `<!-- ActiveRecord Virtual Schema: ${tableName}\n${cols}\n-->`;
 }
+
+// R5: Concern Resolution - Scan for concerns in app/models/concerns and app/controllers/concerns
+export async function findRailsConcerns(projectRoot: string): Promise<Map<string, string[]>> {
+  const concernMap = new Map<string, string[]>();
+  const concernsDirs = [
+    path.join(projectRoot, "app", "models", "concerns"),
+    path.join(projectRoot, "app", "controllers", "concerns"),
+  ];
+
+  for (const dir of concernsDirs) {
+    try {
+      const files = await fs.readdir(dir, { withFileTypes: true });
+      for (const file of files) {
+        if (file.isFile() && file.name.endsWith(".rb")) {
+          const moduleName = file.name.replace(/\.rb$/, "").split("_").map(
+            part => part.charAt(0).toUpperCase() + part.slice(1)
+          ).join("");
+          concernMap.set(moduleName, [path.join(dir, file.name)]);
+        }
+      }
+    } catch {
+      // Directory doesn't exist, skip
+    }
+  }
+
+  return concernMap;
+}

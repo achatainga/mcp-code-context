@@ -1,5 +1,5 @@
 /**
- * Session Manager - v3.8.1
+ * Session Manager - v3.9.0
  * Manages per-MCP-client state isolation
  * Prevents state leakage between concurrent clients
  */

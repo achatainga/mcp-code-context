@@ -1,0 +1,22 @@
+{
+  "devise": "Authentication: adds current_user helper, authenticate_user! before_action, and columns: encrypted_password, reset_password_token, reset_password_sent_at, remember_created_at, sign_in_count, current_sign_in_at, last_sign_in_at, current_sign_in_ip, last_sign_in_ip, confirmation_token, confirmed_at, confirmation_sent_at, unconfirmed_email, failed_attempts, unlock_token, locked_at",
+  "pundit": "Authorization: adds policy classes in app/policies/, authorize helper, policy_scope helper, and UserPolicy class convention",
+  "cancancan": "Authorization: adds Ability class in app/models/ability.rb, can?/cannot? helpers, authorize_resource/load_and_authorize_resource before_action",
+  "sidekiq": "Background jobs: adds perform_async class method, perform_in, perform_at. Workers in app/workers/ inherit from ApplicationJob or include Sidekiq::Worker",
+  "carrierwave": "File uploads: adds mount_uploader macro, uploader classes in app/uploaders/. Columns: avatar (string), avatar_tmp (string)",
+  "active_storage": "File attachments (Rails built-in): adds has_one_attached/has_many_attached macros. No extra columns — uses active_storage_blobs and active_storage_attachments tables",
+  "ransack": "Search/filter: adds ransack(params) class method, result method, and ransackable_attributes. Used with @q = Model.ransack(params[:q])",
+  "kaminari": "Pagination: adds page(n).per(m) scopes, total_pages, current_page. View helpers: paginate(@collection)",
+  "will_paginate": "Pagination: adds paginate(page:, per_page:) scope. View helpers: will_paginate(@collection)",
+  "paranoia": "Soft delete: adds acts_as_paranoid macro, deleted_at column, destroy soft-deletes, really_destroy! hard-deletes, with_deleted scope",
+  "acts_as_taggable_on": "Tagging: adds acts_as_taggable_on macro, tag_list attribute, tagged_with scope. Tables: tags, taggings",
+  "scenic": "Database views: adds create_view migration helper. Views defined in db/views/",
+  "rolify": "Roles: adds resourcify/rolify macros, has_role?/add_role methods. Tables: roles, users_roles",
+  "friendlyid": "Slug URLs: adds extend FriendlyId, friendly_id :name, use: :slugged macro. Adds slug column",
+  "counter_culture": "Counter caches: adds counter_culture macro for maintaining denormalized counts",
+  "paper_trail": "Versioning/audit: adds has_paper_trail macro, versions association. Table: versions",
+  "money_rails": "Currency: adds monetize macro, Money objects. Columns: *_cents (integer) + *_currency (string)",
+  "ancestry": "Tree structure: adds has_ancestry macro, ancestors/descendants/children scopes. Column: ancestry (string)",
+  "acts_as_list": "Ordering: adds acts_as_list macro, move_higher/move_lower methods. Column: position (integer)",
+  "geocoder": "Geocoding: adds geocoded_by/reverse_geocoded_by macros. Columns: latitude (float), longitude (float)"
+}

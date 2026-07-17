@@ -1,5 +1,5 @@
 /**
- * Semantic Compression - v3.8.1
+ * Semantic Compression - v3.9.0
  * IMPROVEMENTS: Centralized constants + size limits + timeout + index feeding
  */
 
@@ -10,7 +10,8 @@ import { ParserRegistry } from "../parsers/registry.js";
 import { EXCLUDE_DIRS, MAX_FILES_REPO_MAP, MAX_TOTAL_SIZE_BYTES } from "../utils/constants.js";
 import { walkDir } from "../utils/fileWalker.js";
 import { IndexManager } from "../core/indexManager.js";
-import { loadRailsSchema, modelToTable } from "../utils/railsSchema.js";
+import { loadRailsSchema, modelToTable, findRailsConcerns } from "../utils/railsSchema.js";
+import { parseGemfile } from "../utils/gemfileParser.js";
 
 export interface CompressionResult {
   success: boolean;
@@ -82,7 +83,7 @@ async function compressRepository(params: {
 
             totalSymbols += symbols.length;
 
-            // R1: Rails AR schema injection for .rb files in repo map
+                    // R1: Rails AR schema injection for .rb files in repo map
             let fileSymbols = symbols.map(s => ({ type: s.type, name: s.name }));
             if (path.extname(fullPath) === ".rb") {
               const schema = await loadRailsSchema(params.projectRoot).catch(() => null);
@@ -125,6 +126,33 @@ async function compressRepository(params: {
     // Auto-optimize: disable symbols if >100 files or >1000 symbols
     const includeSymbols = params.includeSymbols !== false && files.length <= 100 && totalSymbols <= 1000;
 
+    // Project-wide metadata: Gemfile + Concerns
+    let projectMetadata = "";
+    if (format === "xml") {
+      try {
+        const gemfileResult = await parseGemfile(params.projectRoot);
+        if (gemfileResult && gemfileResult.knownGems.length > 0) {
+          projectMetadata += '\n  <!-- Gemfile: installed gems with implicit behavior -->\n';
+          for (const gem of gemfileResult.knownGems) {
+            projectMetadata += `  <gem name="${gem.name}"${gem.version ? ` version="${gem.version}"` : ""}>\n    ${gem.implicitBehavior}\n  </gem>\n`;
+          }
+        }
+
+        const concernMap = await findRailsConcerns(params.projectRoot);
+        if (concernMap.size > 0) {
+          projectMetadata += '\n  <!-- Rails Concerns -->\n';
+          for (const [concernName, filePaths] of concernMap.entries()) {
+            for (const filePath of filePaths) {
+              const relPath = path.relative(params.directoryPath, filePath);
+              projectMetadata += `  <concern name="${concernName}" file="${relPath}" />\n`;
+            }
+          }
+        }
+      } catch {
+        // Silent fail — metadata is optional
+      }
+    }
+
     if (format === "xml") {
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<repository>\n';
       for (const file of files) {
@@ -139,6 +167,7 @@ async function compressRepository(params: {
           xml += ' />\n';
         }
       }
+      xml += projectMetadata;
       xml += '</repository>';
 
       if (!includeSymbols) {
@@ -156,6 +185,30 @@ async function compressRepository(params: {
           }
         }
         md += `\n`;
+      }
+
+      // Markdown version of metadata
+      try {
+        const gemfileResult = await parseGemfile(params.projectRoot);
+        if (gemfileResult && gemfileResult.knownGems.length > 0) {
+          md += `\n## Gems with Implicit Behavior\n`;
+          for (const gem of gemfileResult.knownGems) {
+            md += `- **${gem.name}**${gem.version ? ` (${gem.version})` : ''}: ${gem.implicitBehavior}\n`;
+          }
+        }
+
+        const concernMap = await findRailsConcerns(params.projectRoot);
+        if (concernMap.size > 0) {
+          md += `\n## Rails Concerns\n`;
+          for (const [concernName, filePaths] of concernMap.entries()) {
+            for (const filePath of filePaths) {
+              const relPath = path.relative(params.directoryPath, filePath);
+              md += `- **${concernName}**: \`${relPath}\`\n`;
+            }
+          }
+        }
+      } catch {
+        // Silent fail
       }
 
       if (!includeSymbols) {

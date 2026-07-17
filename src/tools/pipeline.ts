@@ -21,6 +21,10 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["search_symbols", handlers.handleSearchSymbols],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
+  // Ruby Intelligence tools (v3.9.0)
+  ["get_gemfile_context", handlers.handleGetGemfileContext],
+  ["find_metaprogramming", handlers.handleFindMetaprogramming],
+  ["get_rails_routes", handlers.handleGetRailsRoutes],
   // Write operations
   ["write_file_surgical", handlers.handleWriteFileSurgical],
   ["insert_symbol", handlers.handleInsertSymbol],

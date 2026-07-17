@@ -17,6 +17,17 @@ import type { ReadResult } from "./readCore.js";
  * Only adds include/extend to impact patterns when a matching file exists.
  */
 async function rubyModuleResolvesToFile(moduleName: string, rootDir: string): Promise<boolean> {
+  // First check if it's a known concern
+  try {
+    const { findRailsConcerns } = await import("../utils/railsSchema.js");
+    const concernMap = await findRailsConcerns(rootDir);
+    if (concernMap.has(moduleName)) {
+      return true;
+    }
+  } catch {
+    // fall through to file search
+  }
+
   // Convert ModuleName → module_name (snake_case)
   const snakeName = moduleName
     .replace(/([A-Z])/g, (c, _, i) => i === 0 ? c.toLowerCase() : `_${c.toLowerCase()}`);

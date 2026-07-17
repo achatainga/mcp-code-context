@@ -1,5 +1,5 @@
 /**
- * Fuzzy Search - v3.8.1
+ * Fuzzy Search - v3.9.0
  * Typo-tolerant search with fuse.js
  */
 

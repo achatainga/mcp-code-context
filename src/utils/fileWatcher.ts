@@ -1,5 +1,5 @@
 /**
- * File Watcher - v3.8.1
+ * File Watcher - v3.9.0
  * Auto-invalidate cache on file changes with chokidar
  */
 

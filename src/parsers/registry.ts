@@ -1,5 +1,5 @@
 /**
- * Parser Registry - v3.8.1
+ * Parser Registry - v3.9.0
  * Manages all language parsers
  */
 

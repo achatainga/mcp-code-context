@@ -1,5 +1,5 @@
 /**
- * Go Parser - v3.8.1
+ * Go Parser - v3.9.0
  * Tree-sitter based Go parser
  */
 

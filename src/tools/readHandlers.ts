@@ -15,6 +15,9 @@ import { globalSessionManager } from "../core/sessionManager.js";
 import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toctou.js";
 import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
 import { loadRailsSchema, modelToTable, formatSchemaAnnotation } from "../utils/railsSchema.js";
+import { parseGemfile, formatGemAnnotation } from "../utils/gemfileParser.js";
+import { findMetaprogrammingEntryPoints, formatMetaprogrammingResults } from "../utils/metaprogramming.js";
+import { parseRailsRoutes } from "../utils/railsRoutes.js";
 
 export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
   if (!args.directoryPath || !args.projectRoot) {
@@ -267,4 +270,63 @@ export async function handleBatchRead(args: Record<string, unknown>) {
 
   if (!result.success) throw new Error(result.error);
   return { content: [{ type: "text", text: result.content! }] };
+}
+
+// R7: get_gemfile_context — parse Gemfile and return known gem behaviors
+export async function handleGetGemfileContext(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+
+  const validator = new SecurityValidator(projectRoot);
+  const rootValidation = await validator.validateFilePath(projectRoot);
+  if (!rootValidation.valid) throw new Error(rootValidation.error);
+
+  const result = await parseGemfile(rootValidation.resolvedPath!);
+  if (!result) {
+    return { content: [{ type: "text", text: JSON.stringify({ found: false, message: "No Gemfile found — not a Ruby project" }) }] };
+  }
+
+  const annotation = formatGemAnnotation(result.knownGems);
+  const output = JSON.stringify({
+    total_gems: result.gems.length,
+    known_gems_with_behavior: result.knownGems.length,
+    gems: result.knownGems,
+    annotation,
+  }, null, 2);
+
+  return { content: [{ type: "text", text: output }] };
+}
+
+// R3: find_metaprogramming — scan for dynamic method generation entry points
+export async function handleFindMetaprogramming(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+  const target = args.filePath ? String(args.filePath) : args.rootDir ? String(args.rootDir) : projectRoot;
+  const isFile = Boolean(args.filePath);
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(target);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const matches = await findMetaprogrammingEntryPoints({
+    target: validation.resolvedPath!,
+    projectRoot,
+    isFile,
+  });
+
+  return { content: [{ type: "text", text: formatMetaprogrammingResults(matches) }] };
+}
+
+// R2: get_rails_routes — parse config/routes.rb and return route map
+export async function handleGetRailsRoutes(args: Record<string, unknown>) {
+  const projectRoot = String(args.projectRoot);
+
+  const validator = new SecurityValidator(projectRoot);
+  const rootValidation = await validator.validateFilePath(projectRoot);
+  if (!rootValidation.valid) throw new Error(rootValidation.error);
+
+  const result = await parseRailsRoutes(rootValidation.resolvedPath!);
+  if (!result) {
+    return { content: [{ type: "text", text: JSON.stringify({ found: false, message: "No config/routes.rb found" }) }] };
+  }
+
+  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
 }

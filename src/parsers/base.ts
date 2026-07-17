@@ -1,8 +1,8 @@
 /**
- * Base Parser - v3.8.1
+ * Base Parser - v3.9.0
  * Abstract base for all language parsers
  * IMPROVEMENT: replaceSymbol moved here using AST indices (eliminates indexOf fragility)
- * v3.8.1: getInsideStartIndex/getInsideEndIndex overridable for brace-less languages
+ * v3.9.0: getInsideStartIndex/getInsideEndIndex overridable for brace-less languages
  */
 
 import { Parser, Tree, Language, Node } from "web-tree-sitter";

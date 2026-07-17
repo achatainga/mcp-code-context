@@ -1,5 +1,21 @@
 # Changelog
 
+## [3.9.0] - 2026-07-17
+
+### Added
+
+- **`get_gemfile_context`** (R7) — parses `Gemfile` and returns known gems with their implicit Rails behavior. Uses `gemDescriptions.json` lookup table (updateable without recompile). Includes mtime-keyed cache for zero re-read cost.
+- **`find_metaprogramming`** (R3) — scans Ruby files for dynamic method generation entry points: `define_method`, `method_missing`, `class_eval/module_eval`, `instance_eval`, `send/public_send`, `ActiveSupport::Concern`, `included do`, `attr_accessor/reader/writer`, `delegate :to =>`, `has_many :through`. Accepts single file or full directory scan.
+- **`get_rails_routes`** (R2) — parses `config/routes.rb` and returns a structured route map (method, path, controller, action). Supports `resources`, `resource`, explicit HTTP verbs (`get/post/patch/put/delete`), `namespace/scope` prefixing, `root`, and `do`-block nesting warnings. mtime-keyed cache.
+- **Concern Resolution in `analyze_impact`** (R5) — `rubyModuleResolvesToFile()` now checks `app/models/concerns` and `app/controllers/concerns` via `findRailsConcerns()` before falling back to file system candidates. Prevents false positives for stdlib mixins.
+- **`findRailsConcerns()`** utility — scans both concern directories and returns a `Map<moduleName, filePaths[]>` for use by impact analysis and future tools.
+
+### Changed
+
+- `gemDescriptions.json` — new data file for gem behavior descriptions (bundled in `src/utils/`)
+
+---
+
 ## [3.8.1] - 2026-07-16
 
 ### Added

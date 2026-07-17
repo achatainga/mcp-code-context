@@ -160,7 +160,7 @@ export const CORE_TOOLS = [
       required: ["filePath", "projectRoot", "oldName", "newName"],
     },
   },
-  // ── AST Transform (v3.8.1) ──────────────────────────────────────────────
+  // ── AST Transform (v3.9.0) ──────────────────────────────────────────────
   {
     name: "ast_transform",
     description: "Apply a declarative AST transformation to a symbol. Supports: add_parameter, wrap_with_try_catch, add_decorator, change_return_type, extract_variable. Uses two-phase write (Phase 1: preview diff, Phase 2: confirm with token).",
@@ -197,7 +197,7 @@ export const CORE_TOOLS = [
       required: ["filePath", "projectRoot", "symbolName", "transform"],
     },
   },
-  // ── NEW TOOLS v3.8.1 ──────────────────────────────────────────────────────ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── NEW TOOLS v3.9.0 ──────────────────────────────────────────────────────ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   {
     name: "search_symbols",
     description: "Search symbols by name across the repo using AST (not text search). Finds classes, functions, methods by approximate name.",
@@ -264,5 +264,41 @@ export const CORE_TOOLS = [
       required: [],
     },
   },
-  // ΓöÇΓöÇ END NEW TOOLS ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── NEW TOOLS v3.9.0 — Ruby Intelligence ─────────────────────────────────
+  {
+    name: "get_gemfile_context",
+    description: "Parse Gemfile and return known gem behaviors with implicit Rails conventions. Useful for understanding what capabilities are active in a Ruby project without running the app.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root (REQUIRED) — must contain a Gemfile" },
+      },
+      required: ["projectRoot"],
+    },
+  },
+  {
+    name: "find_metaprogramming",
+    description: "Scan Ruby files for dynamic method generation entry points (define_method, method_missing, class_eval, ActiveSupport::Concern, etc.). Surfaces WHERE to look for magic methods.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        filePath: { type: "string", description: "Scan a single file (optional — omit to scan full project)" },
+        rootDir: { type: "string", description: "Scan a subdirectory (optional — e.g. app/models)" },
+      },
+      required: ["projectRoot"],
+    },
+  },
+  {
+    name: "get_rails_routes",
+    description: "Parse config/routes.rb and return a structured route map (method, path, controller, action). Supports resources, resource, explicit HTTP verbs, namespace/scope, and root.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root (REQUIRED) — must contain config/routes.rb" },
+      },
+      required: ["projectRoot"],
+    },
+  },
+  // ── END NEW TOOLS ────────────────────────────────────────────────────────
 ];

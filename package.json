@@ -1,6 +1,6 @@
 {
   "name": "mcp-code-context",
-  "version": "3.8.1",
+  "version": "3.9.0",
   "description": "Powerful MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Production-ready with persistent caching, structured logging, file watching, fuzzy search, rate limiting, file locking, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Dart, Python, and Ruby (with ActiveRecord Virtual Schema extraction).",
   "type": "module",
   "main": "dist/src/index.js",
@@ -8,7 +8,7 @@
     "mcp-code-context": "dist/src/index.js"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node -e \"require('fs').copyFileSync('src/utils/gemDescriptions.json', 'dist/src/utils/gemDescriptions.json')\"",
     "test": "npm run build && npm run build:tests && node dist-tests/tests/test-security.js && node dist-tests/tests/test-file-lock.js && node dist-tests/tests/test-rate-limiter.js && node dist-tests/tests/test-v3.4.js && node dist-tests/tests/test-backup-manager.js && node dist-tests/tests/test-index-manager.js && node dist-tests/tests/test-wasm-parsers.js",
     "test:ui": "vitest --ui",
     "test:run": "vitest run",
