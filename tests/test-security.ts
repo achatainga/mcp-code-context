@@ -136,14 +136,48 @@ async function testFileSizeValidation() {
   console.log("✅ File Size Validation Tests PASSED\n");
 }
 
+async function testProjectRootFallback() {
+  console.log("🔒 Testing Project Root Fallback & Boundary Resolution (v3.9.2)...");
+  
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "mcp-root-fallback-"));
+  const subDir = path.join(tmpDir, "src");
+  await fs.mkdir(subDir, { recursive: true });
+  const testFile = path.join(subDir, "index.ts");
+  await fs.writeFile(testFile, "export const x = 1;");
+  await fs.writeFile(path.join(tmpDir, "package.json"), "{}");
+
+  const { resolveProjectRoot, findProjectRoot } = await import("../src/utils/projectRoot.js");
+
+  // Test 1: findProjectRoot walks up to package.json
+  const discovered = findProjectRoot(testFile);
+  console.assert(path.resolve(discovered).toLowerCase() === path.resolve(tmpDir).toLowerCase(), "✅ Discovered project root matches parent package.json");
+
+  // Test 2: resolveProjectRoot handles undefined/null string
+  const resolvedFromUndefined = resolveProjectRoot({ projectRoot: "undefined", filePath: testFile });
+  console.assert(path.resolve(resolvedFromUndefined).toLowerCase() === path.resolve(tmpDir).toLowerCase(), "✅ Literal 'undefined' string ignored and resolved via filePath");
+
+  // Test 3: resolveProjectRoot with rootDir
+  const resolvedFromRootDir = resolveProjectRoot({ rootDir: subDir });
+  console.assert(path.resolve(resolvedFromRootDir).toLowerCase() === path.resolve(tmpDir).toLowerCase(), "✅ Resolved via rootDir");
+
+  // Test 4: SecurityValidator constructor handles 'undefined'
+  const validator = new SecurityValidator("undefined");
+  const validation = await validator.validateFilePath(process.cwd());
+  console.assert(validation.valid === true, "✅ SecurityValidator('undefined') safely defaults to process.cwd()");
+
+  await fs.rm(tmpDir, { recursive: true, force: true });
+  console.log("✅ Project Root Fallback Tests PASSED\n");
+}
+
 async function runAllTests() {
-  console.log("🚀 Running Security Test Suite v3.2.0\n");
+  console.log("🚀 Running Security Test Suite v3.9.2\n");
   
   try {
     await testPathTraversal();
     await testReDoS();
     await testRegexInjection();
     await testFileSizeValidation();
+    await testProjectRootFallback();
     
     console.log("✅ ALL SECURITY TESTS PASSED");
     process.exit(0);

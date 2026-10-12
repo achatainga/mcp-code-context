@@ -1,5 +1,5 @@
 /**
- * File Lock Manager - v3.9.1
+ * File Lock Manager - v3.9.2
  * Filesystem-based locks for multi-process safety
  */
 

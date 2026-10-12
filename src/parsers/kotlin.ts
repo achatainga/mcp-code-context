@@ -1,5 +1,5 @@
 /**
- * Kotlin Parser - v3.9.1
+ * Kotlin Parser - v3.9.2
  * Tree-sitter based Kotlin parser
  */
 

@@ -15,6 +15,7 @@ import { BackupManager } from "../utils/backupManager.js";
 import { globalSessionManager } from "../core/sessionManager.js";
 import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toctou.js";
 import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
+import { resolveProjectRoot } from "../utils/projectRoot.js";
 
 export async function handleTwoPhaseWrite(
   args: Record<string, unknown>,
@@ -24,7 +25,7 @@ export async function handleTwoPhaseWrite(
   const confirm = Boolean(args.confirm);
   const token = args.confirmationToken ? String(args.confirmationToken) : undefined;
   const session = getSession();
-  const projectRoot = args.projectRoot ? String(args.projectRoot) : undefined;
+  const projectRoot = resolveProjectRoot(args, args.filePath ? String(args.filePath) : undefined);
 
   // Proactively activate SQLite persistence if projectRoot is provided
   if (projectRoot && !session.confirmationStore.hasPersistentStore()) {
@@ -36,8 +37,8 @@ export async function handleTwoPhaseWrite(
     const pendingOp = await session.confirmationStore.consumePending(token);
     if (!pendingOp) throw new Error(`Invalid or expired confirmation token: ${token}`);
 
-    const projectRoot = String(args.projectRoot);
-    const validator = new SecurityValidator(projectRoot);
+    const effectiveProjectRoot = resolveProjectRoot(args, pendingOp.filePath);
+    const validator = new SecurityValidator(effectiveProjectRoot);
 
     const lockReleases: Array<() => Promise<void>> = [];
 
@@ -64,7 +65,7 @@ export async function handleTwoPhaseWrite(
         }
 
         for (const { resolvedPath, newContent } of resolvedWrites) {
-          await BackupManager.createBackup(resolvedPath, projectRoot);
+          await BackupManager.createBackup(resolvedPath, effectiveProjectRoot);
           await writeFile(resolvedPath, newContent);
         }
       } else {
@@ -80,7 +81,7 @@ export async function handleTwoPhaseWrite(
           pendingOp.filePath,
           pendingOp.originalHash
         );
-        await BackupManager.createBackup(resolvedPath, projectRoot);
+        await BackupManager.createBackup(resolvedPath, effectiveProjectRoot);
         await writeFile(resolvedPath, pendingOp.newContent);
       }
     } finally {
@@ -145,9 +146,12 @@ export async function handleWriteFileSurgical(args: Record<string, unknown>) {
     const parser = getRegistry().getParser(ext);
     if (!parser) throw new Error(`No parser available for ${ext} files`);
 
+    const filePath = String(args.filePath);
+    const projectRoot = resolveProjectRoot(args, filePath);
+
     return await replaceSymbol({
-      filePath: String(args.filePath),
-      projectRoot: String(args.projectRoot),
+      filePath,
+      projectRoot,
       symbolName: String(args.symbolName),
       newContent: String(args.newContent),
       className: args.className ? String(args.className) : undefined,
@@ -162,9 +166,12 @@ export async function handleInsertSymbol(args: Record<string, unknown>) {
     const parser = getRegistry().getParser(ext);
     if (!parser) throw new Error(`No parser available for ${ext} files`);
 
+    const filePath = String(args.filePath);
+    const projectRoot = resolveProjectRoot(args, filePath);
+
     return await insertCode({
-      filePath: String(args.filePath),
-      projectRoot: String(args.projectRoot),
+      filePath,
+      projectRoot,
       code: String(args.code),
       anchorSymbol: args.anchorSymbol ? String(args.anchorSymbol) : undefined,
       position: args.position !== undefined ? String(args.position) as "before" | "after" | "inside_start" | "inside_end" : undefined,
@@ -180,9 +187,12 @@ export async function handleRemoveSymbol(args: Record<string, unknown>) {
     const parser = getRegistry().getParser(ext);
     if (!parser) throw new Error(`No parser available for ${ext} files`);
 
+    const filePath = String(args.filePath);
+    const projectRoot = resolveProjectRoot(args, filePath);
+
     return await removeSymbol({
-      filePath: String(args.filePath),
-      projectRoot: String(args.projectRoot),
+      filePath,
+      projectRoot,
       symbolName: String(args.symbolName),
       className: args.className ? String(args.className) : undefined,
       parser,
@@ -196,12 +206,16 @@ export async function handleRenameSymbol(args: Record<string, unknown>) {
     const parser = getRegistry().getParser(ext);
     if (!parser) throw new Error(`No parser available for ${ext} files`);
 
+    const filePath = String(args.filePath);
+    const projectRoot = resolveProjectRoot(args, filePath);
+    const rootDir = (args.rootDir && args.rootDir !== "undefined") ? String(args.rootDir) : projectRoot;
+
     return await renameSymbol({
-      filePath: String(args.filePath),
-      projectRoot: String(args.projectRoot),
+      filePath,
+      projectRoot,
       oldName: String(args.oldName),
       newName: String(args.newName),
-      rootDir: args.rootDir ? String(args.rootDir) : String(args.projectRoot),
+      rootDir,
       parser,
     });
   });
@@ -218,9 +232,12 @@ export async function handleAstTransform(args: Record<string, unknown>) {
       throw new Error('"transform" object with "kind" is required');
     }
 
+    const filePath = String(args.filePath);
+    const projectRoot = resolveProjectRoot(args, filePath);
+
     return await astTransform({
-      filePath: String(args.filePath),
-      projectRoot: String(args.projectRoot),
+      filePath,
+      projectRoot,
       symbolName: String(args.symbolName),
       className: args.className ? String(args.className) : undefined,
       transform,

@@ -1,5 +1,5 @@
 /**
- * Semantic Compression - v3.9.1
+ * Semantic Compression - v3.9.2
  * IMPROVEMENTS: Centralized constants + size limits + timeout + index feeding
  */
 

@@ -1,7 +1,7 @@
 /**
- * Python Parser - v3.9.1
+ * Python Parser - v3.9.2
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
- * v3.9.1: override getInsideStartIndex/getInsideEndIndex for indentation-based syntax
+ * v3.9.2: override getInsideStartIndex/getInsideEndIndex for indentation-based syntax
  */
 
 import { Parser, Tree, Node } from "web-tree-sitter";

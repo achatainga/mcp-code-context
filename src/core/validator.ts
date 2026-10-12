@@ -1,5 +1,5 @@
 /**
- * Security Validator - v3.9.1
+ * Security Validator - v3.9.2
  * CRITICAL FIX: Path traversal check AFTER normalization
  */
 
@@ -15,9 +15,16 @@ export interface ValidationResult {
 export class SecurityValidator {
   private projectRoot: string;
 
-  constructor(projectRoot: string) {
+  constructor(projectRoot?: string) {
     // normalize: resolve + lowercase for case-insensitive Windows FS comparison
-    this.projectRoot = path.resolve(projectRoot).toLowerCase();
+    const safeRoot =
+      projectRoot &&
+      projectRoot !== "undefined" &&
+      projectRoot !== "null" &&
+      projectRoot.trim().length > 0
+        ? projectRoot
+        : process.cwd();
+    this.projectRoot = path.resolve(safeRoot).toLowerCase();
   }
 
   async validateFilePath(filePath: string): Promise<ValidationResult> {

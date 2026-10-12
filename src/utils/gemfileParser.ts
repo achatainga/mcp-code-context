@@ -1,5 +1,5 @@
 /**
- * Gemfile Parser - v3.9.1
+ * Gemfile Parser - v3.9.2
  * Parses Ruby Gemfile to extract gem dependencies and infer implicit behavior.
  * Uses a JSON data file for gem descriptions so they can be updated without recompile.
  */

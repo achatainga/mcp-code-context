@@ -1,5 +1,5 @@
 /**
- * Confirmation Store - v3.9.1
+ * Confirmation Store - v3.9.2
  * Two-phase write: dry-run preview → confirm with token
  * Stores pending write operations with auto-expiry
  * NOW with SQLite persistence for crash recovery

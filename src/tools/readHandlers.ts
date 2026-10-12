@@ -18,13 +18,14 @@ import { loadRailsSchema, modelToTable, formatSchemaAnnotation } from "../utils/
 import { parseGemfile, formatGemAnnotation } from "../utils/gemfileParser.js";
 import { findMetaprogrammingEntryPoints, formatMetaprogrammingResults } from "../utils/metaprogramming.js";
 import { parseRailsRoutes } from "../utils/railsRoutes.js";
+import { resolveProjectRoot } from "../utils/projectRoot.js";
 
 export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
-  if (!args.directoryPath || !args.projectRoot) {
-    throw new Error("directoryPath and projectRoot are required (e.g. projectRoot: C:\\code\\mcp-code-context)");
+  if (!args.directoryPath) {
+    throw new Error("directoryPath is required (e.g. C:\\code\\mcp-code-context)");
   }
   const directoryPath = String(args.directoryPath);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, directoryPath);
   const format = args.format === "markdown" ? "markdown" : "xml";
 
   const validator = new SecurityValidator(projectRoot);
@@ -47,7 +48,7 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
 
 export async function handleReadFileSurgical(args: Record<string, unknown>) {
   const filePath = String(args.filePath);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, filePath);
   const symbolName = args.symbolName ? String(args.symbolName) : undefined;
   const className = args.className ? String(args.className) : undefined;
 
@@ -116,8 +117,8 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
 
 export async function handleAnalyzeImpact(args: Record<string, unknown>) {
   const filePath = String(args.filePath);
-  const projectRoot = String(args.projectRoot);
-  const rootDir = args.rootDir ? String(args.rootDir) : projectRoot;
+  const projectRoot = resolveProjectRoot(args, filePath);
+  const rootDir = (args.rootDir && args.rootDir !== "undefined") ? String(args.rootDir) : projectRoot;
 
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(filePath);
@@ -133,7 +134,7 @@ export async function handleAnalyzeImpact(args: Record<string, unknown>) {
 
 export async function handleReadFileLines(args: Record<string, unknown>) {
   const filePath = String(args.filePath);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, filePath);
   
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(filePath);
@@ -154,7 +155,7 @@ export async function handleReadFileLines(args: Record<string, unknown>) {
 
 export async function handleSearchCodePattern(args: Record<string, unknown>) {
   const rootDir = String(args.rootDir);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, rootDir);
   
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(rootDir);
@@ -177,7 +178,7 @@ export async function handleSearchCodePattern(args: Record<string, unknown>) {
 
 export async function handleParseFile(args: Record<string, unknown>) {
   const filePath = String(args.filePath);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, filePath);
 
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(filePath);
@@ -201,7 +202,7 @@ export async function handleParseFile(args: Record<string, unknown>) {
 // NEW-02: search_symbols
 export async function handleSearchSymbols(args: Record<string, unknown>) {
   const rootDir = String(args.rootDir);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, rootDir);
 
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(rootDir);
@@ -225,8 +226,8 @@ export async function handleSearchSymbols(args: Record<string, unknown>) {
 // NEW-03: explain_symbol
 export async function handleExplainSymbol(args: Record<string, unknown>) {
   const filePath = String(args.filePath);
-  const projectRoot = String(args.projectRoot);
-  const rootDir = args.rootDir ? String(args.rootDir) : projectRoot;
+  const projectRoot = resolveProjectRoot(args, filePath);
+  const rootDir = (args.rootDir && args.rootDir !== "undefined") ? String(args.rootDir) : projectRoot;
 
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(filePath);
@@ -251,7 +252,7 @@ export async function handleExplainSymbol(args: Record<string, unknown>) {
 
 // NEW-05: batch_read
 export async function handleBatchRead(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
   const reads = args.reads as Array<{ filePath: string; symbolName: string; className?: string }>;
 
   const validator = new SecurityValidator(projectRoot);
@@ -274,7 +275,7 @@ export async function handleBatchRead(args: Record<string, unknown>) {
 
 // R7: get_gemfile_context — parse Gemfile and return known gem behaviors
 export async function handleGetGemfileContext(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
 
   const validator = new SecurityValidator(projectRoot);
   const rootValidation = await validator.validateFilePath(projectRoot);
@@ -298,12 +299,13 @@ export async function handleGetGemfileContext(args: Record<string, unknown>) {
 
 // R3: find_metaprogramming — scan for dynamic method generation entry points
 export async function handleFindMetaprogramming(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
-  const target = args.filePath ? String(args.filePath) : args.rootDir ? String(args.rootDir) : projectRoot;
+  const target = args.filePath ? String(args.filePath) : args.rootDir ? String(args.rootDir) : undefined;
+  const projectRoot = resolveProjectRoot(args, target);
+  const resolvedTarget = target ?? projectRoot;
   const isFile = Boolean(args.filePath);
 
   const validator = new SecurityValidator(projectRoot);
-  const validation = await validator.validateFilePath(target);
+  const validation = await validator.validateFilePath(resolvedTarget);
   if (!validation.valid) throw new Error(validation.error);
 
   const matches = await findMetaprogrammingEntryPoints({
@@ -317,7 +319,7 @@ export async function handleFindMetaprogramming(args: Record<string, unknown>) {
 
 // R2: get_rails_routes — parse config/routes.rb and return route map
 export async function handleGetRailsRoutes(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
 
   const validator = new SecurityValidator(projectRoot);
   const rootValidation = await validator.validateFilePath(projectRoot);

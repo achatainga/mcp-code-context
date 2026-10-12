@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.9.2] - 2026-10-12
+
+### Fixed
+
+- **Project Root Fallback & Boundary Resolution** — fixed critical issue where omitted or `undefined` `projectRoot` arguments were coerced to the literal string `"undefined"`, resolving to `<cwd>/undefined` and causing spurious `outside project boundary` security errors when accessing valid files.
+- **Smart Root Discovery** — introduced `resolveProjectRoot` and `findProjectRoot` in `src/utils/projectRoot.ts`, which automatically walks up the directory tree to discover root markers (`.git`, `package.json`, `composer.json`, `pyproject.toml`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `pom.xml`, `build.gradle`), falling back cleanly to `process.cwd()`.
+- **SecurityValidator Hardening** — `SecurityValidator` constructor now safely handles `undefined`, `null`, or blank inputs without generating an invalid boundary path.
+- **Optional Schema Requirements** — made `projectRoot` optional in tool definitions across both `CORE_TOOLS` and `ADMIN_TOOLS`, allowing LLM agents to execute surgical reads, writes, and symbol lookups with only `filePath` or `rootDir`.
+- **Startup Diagnostics** — added clear banner signature on stdio initialization: `[mcp-code-context] v3.9.2 (LOCAL-DEV-ACTIVE) running on stdio`.
+
+---
+
 ## [3.9.1] - 2026-07-17
 
 ### Fixed

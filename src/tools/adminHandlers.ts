@@ -14,10 +14,11 @@ import { BackupManager } from "../utils/backupManager.js";
 import { globalSessionManager } from "../core/sessionManager.js";
 import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toctou.js";
 import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
+import { resolveProjectRoot } from "../utils/projectRoot.js";
 
 export async function handleRollbackFile(args: Record<string, unknown>) {
   const filePath = String(args.filePath);
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args, filePath);
   const steps = args.steps ? Number(args.steps) : 1;
 
   const validator = new SecurityValidator(projectRoot);
@@ -31,7 +32,7 @@ export async function handleRollbackFile(args: Record<string, unknown>) {
 }
 
 export async function handleCleanBackups(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
 
   const validator = new SecurityValidator(projectRoot);
   // Just validate projectRoot is a valid directory
@@ -67,7 +68,7 @@ export async function handleGetServerStats() {
 }
 
 export async function handleGetCacheStats(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
   const cache = getCacheManager(projectRoot);
   const stats = await cache.getStats();
   
@@ -77,7 +78,7 @@ export async function handleGetCacheStats(args: Record<string, unknown>) {
 }
 
 export async function handleClearCache(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
   const cache = getCacheManager(projectRoot);
   await cache.clear();
   
@@ -87,7 +88,7 @@ export async function handleClearCache(args: Record<string, unknown>) {
 }
 
 export async function handleConfigureFileWatcher(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
   const action = String(args.action);
   const debounceMs = args.debounceMs ? Number(args.debounceMs) : 500;
 
@@ -113,7 +114,7 @@ export async function handleConfigureFileWatcher(args: Record<string, unknown>) 
 }
 
 export async function handleGetFileWatcherStatus(args: Record<string, unknown>) {
-  const projectRoot = String(args.projectRoot);
+  const projectRoot = resolveProjectRoot(args);
   const cache = getCacheManager(projectRoot);
   const status = cache.getWatcherStatus();
   
@@ -144,7 +145,7 @@ export async function handleGetSessionStats() {
 }
 
 export async function handleClearSessionCache(args: Record<string, unknown>) {
-  const projectRoot = args.projectRoot ? String(args.projectRoot) : undefined;
+  const projectRoot = (args.projectRoot && args.projectRoot !== "undefined") ? resolveProjectRoot(args) : undefined;
   const cleared = await globalSessionManager.clearSessionCache(SESSION_ID, projectRoot);
   return { content: [{ type: "text", text: JSON.stringify({ cacheEntriesCleared: cleared }, null, 2) }] };
 }

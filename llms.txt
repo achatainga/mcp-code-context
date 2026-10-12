@@ -1,8 +1,16 @@
-# mcp-code-context v3.9.1
+# mcp-code-context v3.9.2
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline, session-scoped state, and crash recovery.
 
-## What's New in v3.9.1
+## What's New in v3.9.2
+
+🛡️ **Project Root Fallback & Schema Freedom Release**:
+- ✅ **Smart Project Root Discovery**: `resolveProjectRoot` & `findProjectRoot` walk up directory trees detecting `.git`, `package.json`, `composer.json`, `pyproject.toml`, etc. Eliminates false-positive `outside project boundary ".../undefined"` security errors.
+- ✅ **Optional Schema Requirements**: `projectRoot` is now optional across all tools in `CORE_TOOLS` and `ADMIN_TOOLS`. LLM agents can perform surgical operations with just `filePath` or `rootDir`.
+- ✅ **SecurityValidator Guard**: `SecurityValidator` safely defaults `undefined`/`null` roots to `process.cwd()`.
+- ✅ **Active Dev Diagnostic Signature**: Emits `[mcp-code-context] v3.9.2 (LOCAL-DEV-ACTIVE)` on stdio startup.
+
+## Previously Added in v3.9.1
 
 🐛 **Bug Fix Release**:
 - ✅ **`get_rails_routes` namespace fix**: Routes inside `namespace :admin do` now produce `/admin/users` (was `/users`). Controllers correctly namespaced as `admin/users`. Fixed regex that captured `admin do` instead of `admin` with symbol syntax.
@@ -159,13 +167,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.9.1 Two-Phase Workflow)
+### Write Tools (v3.9.2 Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.9.1):**
+**Important Notes (v3.9.2):**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 - ✅ **Session-scoped state**: Each MCP client gets isolated state (locks, confirmation store, rate limiter).
@@ -344,7 +352,7 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-## Session State Configuration (v3.9.1+)
+## Session State Configuration (v3.9.2+)
 
 ### Critical: Session-Scoped State
 
@@ -460,6 +468,6 @@ No additional configuration is needed beyond adding the MCP server definition. S
 
 ---
 
-**Version**: 3.9.1  
+**Version**: 3.9.2  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery

@@ -9,10 +9,10 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         directoryPath: { type: "string", description: "Absolute path to repository root" },
-        projectRoot: { type: "string", description: "Project root for security boundary" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to directoryPath)" },
         format: { type: "string", enum: ["xml", "markdown"], description: "Output format (default: xml)" },
       },
-      required: ["directoryPath", "projectRoot"],
+      required: ["directoryPath"],
     },
   },
   {
@@ -22,11 +22,11 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         symbolName: { type: "string", description: "Symbol name to extract (optional)" },
         className: { type: "string", description: "Class name for scoping (optional)" },
       },
-      required: ["filePath", "projectRoot"],
+      required: ["filePath"],
     },
   },
   {
@@ -36,10 +36,10 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root for security boundary" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         rootDir: { type: "string", description: "Repository root (optional, defaults to projectRoot)" },
       },
-      required: ["filePath", "projectRoot"],
+      required: ["filePath"],
     },
   },
   {
@@ -49,13 +49,13 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root for security boundary" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         startLine: { type: "number", description: "Starting line number (1-indexed)" },
         endLine: { type: "number", description: "Ending line number (1-indexed)" },
         aroundPattern: { type: "string", description: "Search pattern to find and return surrounding lines" },
         contextLines: { type: "number", description: "Number of lines before/after pattern (default: 5)" },
       },
-      required: ["filePath", "projectRoot"],
+      required: ["filePath"],
     },
   },
   {
@@ -65,7 +65,7 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         rootDir: { type: "string", description: "Repository root directory" },
-        projectRoot: { type: "string", description: "Project root for security boundary" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to rootDir)" },
         pattern: { type: "string", description: "Regular expression pattern to search" },
         fileExtensions: { type: "array", items: { type: "string" }, description: "Extensions to search" },
         excludeDirs: { type: "array", items: { type: "string" }, description: "Directories to exclude" },
@@ -74,7 +74,7 @@ export const CORE_TOOLS = [
         fuzzyMatch: { type: "boolean", description: "Enable fuzzy matching (default: false)" },
         fuzzyThreshold: { type: "number", description: "Fuzzy match threshold 0-1 (default: 0.4)" },
       },
-      required: ["rootDir", "projectRoot", "pattern"],
+      required: ["rootDir", "pattern"],
     },
   },
   {
@@ -84,9 +84,9 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
       },
-      required: ["filePath", "projectRoot"],
+      required: ["filePath"],
     },
   },
   {
@@ -96,15 +96,15 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         symbolName: { type: "string", description: "Symbol to replace" },
-        newContent: { type: "string", description: "New code (Phase 1 only ΓÇö omit in Phase 2, server uses stored content)" },
+        newContent: { type: "string", description: "New code (Phase 1 only — omit in Phase 2, server uses stored content)" },
         className: { type: "string", description: "Class name (optional, for scoping)" },
         confirm: { type: "boolean", description: "Set true to apply a pending operation (Phase 2)" },
         confirmationToken: { type: "string", description: "Token from Phase 1 dry-run (Phase 2 only)" },
         diffFormat: { type: "string", enum: ["unified", "compact", "summary", "none"], description: "Diff verbosity in Phase 1 output (default: unified). Use none to skip diff and save tokens." },
       },
-      required: ["filePath", "projectRoot", "symbolName"],
+      required: ["filePath", "symbolName"],
     },
   },
   {
@@ -114,8 +114,8 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
-        code: { type: "string", description: "Code to insert (Phase 1 only ΓÇö omit in Phase 2, server uses stored content)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
+        code: { type: "string", description: "Code to insert (Phase 1 only — omit in Phase 2, server uses stored content)" },
         anchorSymbol: { type: "string", description: "Symbol to position relative to" },
         position: { type: "string", enum: ["before", "after", "inside_start", "inside_end"], description: "Where to insert" },
         className: { type: "string", description: "Class name (optional)" },
@@ -123,7 +123,7 @@ export const CORE_TOOLS = [
         confirmationToken: { type: "string", description: "Token from Phase 1 dry-run (Phase 2 only)" },
         diffFormat: { type: "string", enum: ["unified", "compact", "summary", "none"], description: "Diff verbosity in Phase 1 output (default: unified). Use none to skip diff and save tokens." },
       },
-      required: ["filePath", "projectRoot"],
+      required: ["filePath", "code"],
     },
   },
   {
@@ -133,14 +133,14 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         symbolName: { type: "string", description: "Symbol to remove" },
         className: { type: "string", description: "Class name (optional)" },
         force: { type: "boolean", description: "Skip dependency check" },
         confirm: { type: "boolean", description: "Set true to apply a pending operation" },
         confirmationToken: { type: "string", description: "Token from Phase 1 dry-run" },
       },
-      required: ["filePath", "projectRoot", "symbolName"],
+      required: ["filePath", "symbolName"],
     },
   },
   {
@@ -150,17 +150,17 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "File where symbol is defined" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         oldName: { type: "string", description: "Current name" },
         newName: { type: "string", description: "New name" },
-        rootDir: { type: "string", description: "Repository root (optional)" },
+        rootDir: { type: "string", description: "Repository root (optional, defaults to projectRoot)" },
         confirm: { type: "boolean", description: "Set true to apply a pending operation" },
         confirmationToken: { type: "string", description: "Token from Phase 1 dry-run" },
       },
-      required: ["filePath", "projectRoot", "oldName", "newName"],
+      required: ["filePath", "oldName", "newName"],
     },
   },
-  // ── AST Transform (v3.9.1) ──────────────────────────────────────────────
+  // ── AST Transform (v3.9.2) ──────────────────────────────────────────────
   {
     name: "ast_transform",
     description: "Apply a declarative AST transformation to a symbol. Supports: add_parameter, wrap_with_try_catch, add_decorator, change_return_type, extract_variable. Uses two-phase write (Phase 1: preview diff, Phase 2: confirm with token).",
@@ -168,8 +168,8 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
-        symbolName: { type: "string", description: "Target symbol to transform" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
+        symbolName: { type: "string", targetSymbol: true, description: "Target symbol to transform" },
         className: { type: "string", description: "Class name (optional, for scoping)" },
         transform: {
           type: "object",
@@ -194,10 +194,10 @@ export const CORE_TOOLS = [
         confirmationToken: { type: "string", description: "Token from Phase 1 dry-run (Phase 2 only)" },
         diffFormat: { type: "string", enum: ["unified", "compact", "summary", "none"], description: "Diff verbosity (default: unified)" },
       },
-      required: ["filePath", "projectRoot", "symbolName", "transform"],
+      required: ["filePath", "symbolName", "transform"],
     },
   },
-  // ── NEW TOOLS v3.9.1 ──────────────────────────────────────────────────────ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── NEW TOOLS v3.9.2 ──────────────────────────────────────────────────────
   {
     name: "search_symbols",
     description: "Search symbols by name across the repo using AST (not text search). Finds classes, functions, methods by approximate name.",
@@ -205,7 +205,7 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         rootDir: { type: "string", description: "Directory to search in" },
-        projectRoot: { type: "string", description: "Project root for security boundary" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to rootDir)" },
         query: { type: "string", description: "Symbol name or partial name to search" },
         fuzzy: { type: "boolean", description: "Enable fuzzy name matching (default: false)" },
         types: { type: "array", items: { type: "string" }, description: "Filter by symbol types: class_declaration, function_declaration, method_definition, etc." },
@@ -213,7 +213,7 @@ export const CORE_TOOLS = [
         excludeDirs: { type: "array", items: { type: "string" }, description: "Directories to exclude" },
         maxResults: { type: "number", description: "Maximum results (default: 20)" },
       },
-      required: ["rootDir", "projectRoot", "query"],
+      required: ["rootDir", "query"],
     },
   },
   {
@@ -223,12 +223,12 @@ export const CORE_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
         symbolName: { type: "string", description: "Symbol to explain" },
         className: { type: "string", description: "Class name (optional, for scoping)" },
         rootDir: { type: "string", description: "Root dir for caller search (optional, defaults to projectRoot)" },
       },
-      required: ["filePath", "projectRoot", "symbolName"],
+      required: ["filePath", "symbolName"],
     },
   },
   {
@@ -250,9 +250,9 @@ export const CORE_TOOLS = [
             required: ["filePath", "symbolName"],
           },
         },
-        projectRoot: { type: "string", description: "Project root for security boundary" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
       },
-      required: ["reads", "projectRoot"],
+      required: ["reads"],
     },
   },
   {
@@ -264,16 +264,16 @@ export const CORE_TOOLS = [
       required: [],
     },
   },
-  // ── NEW TOOLS v3.9.1 — Ruby Intelligence ─────────────────────────────────
+  // ── NEW TOOLS v3.9.2 — Ruby Intelligence ─────────────────────────────────
   {
     name: "get_gemfile_context",
     description: "Parse Gemfile and return known gem behaviors with implicit Rails conventions. Useful for understanding what capabilities are active in a Ruby project without running the app.",
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root (REQUIRED) — must contain a Gemfile" },
+        projectRoot: { type: "string", description: "Project root (optional, defaults to current directory) — must contain a Gemfile" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
   {
@@ -282,11 +282,11 @@ export const CORE_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root (optional, defaults to current directory)" },
         filePath: { type: "string", description: "Scan a single file (optional — omit to scan full project)" },
         rootDir: { type: "string", description: "Scan a subdirectory (optional — e.g. app/models)" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
   {
@@ -295,9 +295,9 @@ export const CORE_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root (REQUIRED) — must contain config/routes.rb" },
+        projectRoot: { type: "string", description: "Project root (optional, defaults to current directory) — must contain config/routes.rb" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
   // ── END NEW TOOLS ────────────────────────────────────────────────────────

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * mcp-code-context v3.9.1 - Tree-sitter WASM Edition (thin bootstrap)
+ * mcp-code-context v3.9.2 - Tree-sitter WASM Edition (thin bootstrap)
  */
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
@@ -16,7 +16,7 @@ import { setServerInstances } from "./tools/context.js";
 import { registerPipeline } from "./tools/pipeline.js";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "3.9.1";
+const SERVER_VERSION = "3.9.2";
 
 const server = new Server(
   { name: SERVER_NAME, version: SERVER_VERSION },
@@ -36,7 +36,7 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[${SERVER_NAME}] v${SERVER_VERSION} running on stdio`);
+  console.error(`[${SERVER_NAME}] v${SERVER_VERSION} (LOCAL-DEV-ACTIVE) running on stdio`);
 }
 
 const shutdownHandler = () => {

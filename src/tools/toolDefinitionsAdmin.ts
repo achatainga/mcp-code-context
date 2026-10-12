@@ -8,9 +8,9 @@ export const ADMIN_TOOLS = [
       type: "object" as const,
       properties: {
         filePath: { type: "string", description: "Absolute path to file" },
-        projectRoot: { type: "string", description: "Project root (REQUIRED)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file project root)" },
       },
-      required: ["filePath", "projectRoot"],
+      required: ["filePath"],
     },
   },
   {
@@ -19,9 +19,9 @@ export const ADMIN_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root directory" },
+        projectRoot: { type: "string", description: "Project root directory (optional, defaults to current directory)" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
   {
@@ -38,9 +38,9 @@ export const ADMIN_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root directory" },
+        projectRoot: { type: "string", description: "Project root directory (optional, defaults to current directory)" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
   {
@@ -49,9 +49,9 @@ export const ADMIN_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root directory" },
+        projectRoot: { type: "string", description: "Project root directory (optional, defaults to current directory)" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
   {
@@ -60,11 +60,11 @@ export const ADMIN_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root directory" },
+        projectRoot: { type: "string", description: "Project root directory (optional, defaults to current directory)" },
         action: { type: "string", enum: ["start", "stop"], description: "Action to perform" },
         debounceMs: { type: "number", description: "Debounce delay in ms (default: 500)" },
       },
-      required: ["projectRoot", "action"],
+      required: ["action"],
     },
   },
   {
@@ -73,9 +73,9 @@ export const ADMIN_TOOLS = [
     inputSchema: {
       type: "object" as const,
       properties: {
-        projectRoot: { type: "string", description: "Project root directory" },
+        projectRoot: { type: "string", description: "Project root directory (optional, defaults to current directory)" },
       },
-      required: ["projectRoot"],
+      required: [],
     },
   },
 

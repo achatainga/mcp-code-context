@@ -71,8 +71,8 @@ This MCP server provides **surgical code editing** with Tree-sitter AST parsing.
 
 ## 🚨 Critical Rules
 
-### 1. **ALWAYS Use projectRoot**
-Every tool requires `projectRoot` for security. Use the project's root directory.
+### 1. **Project Root (Auto-Resolved in v3.9.2)**
+While `projectRoot` is supported for explicit boundary locking, in v3.9.2 it is optional and automatically resolved from `filePath` or `rootDir` by walking up to the nearest project marker (`.git`, `package.json`, etc.). You can omit it without fear of boundary errors.
 
 ### 2. **NEVER Skip Phase 1**
 Always preview diffs before applying. Tokens are stored in memory and expire on server restart.
@@ -253,7 +253,7 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.9.1 Features
+## 🚀 v3.9.2 Features
 
 ### New Tools
 - **`get_session_stats`**: Session-scoped stats (pending ops, locks held, rate limiter tokens)
@@ -288,6 +288,6 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.9.1  
+**Version**: 3.9.2  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery
