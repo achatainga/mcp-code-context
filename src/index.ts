@@ -36,7 +36,7 @@ async function main() {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`[${SERVER_NAME}] v${SERVER_VERSION} (LOCAL-DEV-ACTIVE) running on stdio`);
+  console.error(`[${SERVER_NAME}] v${SERVER_VERSION} running on stdio`);
 }
 
 const shutdownHandler = () => {

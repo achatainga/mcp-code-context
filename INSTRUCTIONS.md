@@ -255,12 +255,18 @@ newContent: "{ return 42; }"
 
 ## 🚀 v3.9.2 Features
 
-### New Tools
-- **`get_session_stats`**: Session-scoped stats (pending ops, locks held, rate limiter tokens)
-- **`clear_session_cache`**: Clear cache for current session only (no impact on other clients)
-- **`list_pending_operations`**: List all pending operations (for recovery after crash)
+### Core Improvements
+- ✅ **Smart Project Root Discovery**: `resolveProjectRoot` & `findProjectRoot` automatically detect project markers (`.git`, `package.json`, `composer.json`, `pyproject.toml`, etc.), preventing boundary errors when `projectRoot` is omitted or undefined.
+- ✅ **Optional Schema Requirements**: `projectRoot` is now optional across all tools in `CORE_TOOLS` and `ADMIN_TOOLS`, allowing LLM agents to execute surgical operations with just `filePath` or `rootDir`.
+- ✅ **SecurityValidator Guard**: Robust handling of undefined/null boundaries, safely defaulting to `process.cwd()`.
+- ✅ **Startup Diagnostics**: Stdio initialization signature `[mcp-code-context] v3.9.2 running on stdio`.
 
-### Improvements
+### Previously Added in v3.9.0 - v3.9.1
+- ✅ **Ruby Intelligence**: `get_gemfile_context`, `find_metaprogramming`, `get_rails_routes`, and Rails concerns resolution in `analyze_impact`.
+- ✅ **Semantic Repo Map Enhancements**: Injects `<gem>` behavior blocks and `<concern>` entries when Gemfile and concerns directories exist.
+
+### Previously Added in v3.8.x
+- ✅ **New Tools**: `get_session_stats`, `clear_session_cache`, `list_pending_operations`
 - ✅ **Session-scoped state**: No state leakage between MCP clients
 - ✅ **Crash recovery**: SQLite-backed pending operations store
 - ✅ **Expanded ReDoS protection**: 15+ patterns (was 6)
@@ -289,5 +295,5 @@ See `llms.txt` for complete API reference and technical details.
 ---
 
 **Version**: 3.9.2  
-**Last Updated**: June 8, 2026  
-**Status**: Production-ready with session-scoped state and crash recovery
+**Last Updated**: October 12, 2026  
+**Status**: Production-ready with smart project root discovery and session-scoped state

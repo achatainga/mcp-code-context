@@ -75,7 +75,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### Production-Ready Features
 
-| Feature | v3.6.x | v3.9.2 | Benefit |
+| Feature | v3.6.x | v3.8.0+ | Benefit |
 |---------|--------|--------|---------|
 | Multi-process safety | ✅ | ✅ | No file corruption |
 | Persistent cache | ✅ | ✅ | <100ms cache hits |
@@ -95,7 +95,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 | 🛡️ **Smart Project Root Discovery** | `resolveProjectRoot` & `findProjectRoot` walk up directory trees finding `.git`, `package.json`, `composer.json`, etc. No more `outside project boundary ".../undefined"` security errors. |
 | 🔓 **Optional Schema Requirements** | `projectRoot` is now optional across all tools in `CORE_TOOLS` and `ADMIN_TOOLS`. LLM agents can perform surgical reads, writes, and searches with just `filePath` or `rootDir`. |
 | 🛡️ **SecurityValidator Fallback Guard** | `SecurityValidator` safely handles `undefined`/`null` inputs by falling back to `process.cwd()` instead of normalizing to literal `undefined`. |
-| 📡 **Active Dev Startup Signature** | Startup diagnostics banner prints `[mcp-code-context] v3.9.2 (LOCAL-DEV-ACTIVE)` on stdio initialization. |
+| 📡 **Startup Diagnostics Signature** | Startup diagnostics banner prints `[mcp-code-context] v3.9.2 running on stdio` on stdio initialization. |
 
 ### Previous: v3.9.1
 
@@ -190,7 +190,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ### `get_semantic_repo_map` Tool
 
-- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.9.2)
+- **Max files**: Limited to 2000 files to prevent timeouts (increased from 500 in v3.8.0)
 - **Performance**: Synchronous I/O may take 10-30 seconds on large repositories
 - **Recommendation**: Use `@folder` syntax to target specific directories
 
@@ -217,13 +217,13 @@ npx -y mcp-code-context
 
 ---
 
-## Session State (v3.9.2+)
+## Session State (v3.8.0+)
 
-**Important**: v3.9.2 introduces **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
+**Important**: v3.8.0 introduced **session-scoped state** for each MCP client connection. This prevents state leakage when multiple agents (Amazon Q, Kiro, Cursor, etc.) use the same server instance.
 
 ### What Changed
 
-| Before (v3.6.x) | After (v3.9.2) |
+| Before (v3.6.x) | After (v3.8.0+) |
 |----------------|----------------|
 | Global `LockManager` (shared by all clients) | Session-scoped `sessionStates` Map |
 | Global `ConfirmationStore` (in-memory Map) | Session-scoped confirmation store + SQLite persistence |
@@ -558,7 +558,7 @@ npm run dev
 - **Portability:** 100% WASM - no native dependencies, works on all platforms
 - **Tests:** 83 passing (unit + integration + performance + stress)
 
-### v3.9.2 Key Changes
+### Architectural Evolution (v3.8.0+)
 
 | Component | Change | Benefit |
 |-----------|--------|---------|

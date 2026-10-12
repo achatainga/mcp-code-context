@@ -8,7 +8,7 @@
 - ✅ **Smart Project Root Discovery**: `resolveProjectRoot` & `findProjectRoot` walk up directory trees detecting `.git`, `package.json`, `composer.json`, `pyproject.toml`, etc. Eliminates false-positive `outside project boundary ".../undefined"` security errors.
 - ✅ **Optional Schema Requirements**: `projectRoot` is now optional across all tools in `CORE_TOOLS` and `ADMIN_TOOLS`. LLM agents can perform surgical operations with just `filePath` or `rootDir`.
 - ✅ **SecurityValidator Guard**: `SecurityValidator` safely defaults `undefined`/`null` roots to `process.cwd()`.
-- ✅ **Active Dev Diagnostic Signature**: Emits `[mcp-code-context] v3.9.2 (LOCAL-DEV-ACTIVE)` on stdio startup.
+- ✅ **Startup Diagnostics Signature**: Emits `[mcp-code-context] v3.9.2 running on stdio` on startup.
 
 ## Previously Added in v3.9.1
 
@@ -167,13 +167,13 @@ This MCP server solves two problems:
 - `steps` (optional): Number of versions to go back (1-5, default: 1).
 **What it does:** Reverts the file to the state it was in before the last 1-5 modifications.
 
-### Write Tools (v3.9.2 Two-Phase Workflow)
+### Write Tools (Two-Phase Workflow)
 
 All write tools follow a **Two-Phase Workflow**:
 1. **Phase 1 (Preview)**: Call without a token to get a unified `diff` and a `confirmationToken`.
 2. **Phase 2 (Apply)**: Call with `confirmationToken` and `confirm: true` to apply the changes.
 
-**Important Notes (v3.9.2):**
+**Important Safety Features:**
 - ✅ **Windows CRLF Support**: Fully resolved. All operations work correctly on Windows files with CRLF line endings.
 - ✅ **Parameter Brace Handling**: Methods with braces in parameters (e.g., `{int? cart}`) are now handled correctly.
 - ✅ **Session-scoped state**: Each MCP client gets isolated state (locks, confirmation store, rate limiter).
@@ -352,7 +352,7 @@ All write tools follow a **Two-Phase Workflow**:
 5. **Phase 2: Apply Edit** → Verify the diff, then call with the token and `confirm: true`.
 6. **Recovery** → Use `rollback_file` if needed.
 
-## Session State Configuration (v3.9.2+)
+## Session State Configuration (v3.8.0+)
 
 ### Critical: Session-Scoped State
 

@@ -33,7 +33,7 @@ function estimateChangeRatio(oldText: string, newText: string): number {
 /**
  * Generates an early fallback diff for large files with many changes.
  * Avoids O(n+d²) degradation from Myers algorithm.
- * FIX-07: Added in v3.9.2.
+ * FIX-07: Added in v3.9.1.
  * 
  * @param oldText - Original file content
  * @param newText - Modified file content

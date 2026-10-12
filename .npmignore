@@ -4,9 +4,10 @@ src-v2-legacy/
 tests/
 edge_case_tests/
 
-# TypeScript config
+# TypeScript & Test config
 tsconfig.json
 tsconfig.tests.json
+vitest.config.ts
 *.tsbuildinfo
 
 # Git

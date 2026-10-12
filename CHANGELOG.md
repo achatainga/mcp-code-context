@@ -8,7 +8,7 @@
 - **Smart Root Discovery** — introduced `resolveProjectRoot` and `findProjectRoot` in `src/utils/projectRoot.ts`, which automatically walks up the directory tree to discover root markers (`.git`, `package.json`, `composer.json`, `pyproject.toml`, `requirements.txt`, `Cargo.toml`, `go.mod`, `Gemfile`, `pom.xml`, `build.gradle`), falling back cleanly to `process.cwd()`.
 - **SecurityValidator Hardening** — `SecurityValidator` constructor now safely handles `undefined`, `null`, or blank inputs without generating an invalid boundary path.
 - **Optional Schema Requirements** — made `projectRoot` optional in tool definitions across both `CORE_TOOLS` and `ADMIN_TOOLS`, allowing LLM agents to execute surgical reads, writes, and symbol lookups with only `filePath` or `rootDir`.
-- **Startup Diagnostics** — added clear banner signature on stdio initialization: `[mcp-code-context] v3.9.2 (LOCAL-DEV-ACTIVE) running on stdio`.
+- **Startup Diagnostics** — added clear banner signature on stdio initialization: `[mcp-code-context] v3.9.2 running on stdio`.
 
 ---
 
