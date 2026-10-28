@@ -15,6 +15,7 @@ import { globalSessionManager } from "../core/sessionManager.js";
 import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toctou.js";
 import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
 import { loadRailsSchema, modelToTable, formatSchemaAnnotation } from "../utils/railsSchema.js";
+import { loadUnifiedVirtualSchema, formatUnifiedSchemaAnnotation } from "../utils/virtualSchema.js";
 import { parseGemfile, formatGemAnnotation } from "../utils/gemfileParser.js";
 import { findMetaprogrammingEntryPoints, formatMetaprogrammingResults } from "../utils/metaprogramming.js";
 import { parseRailsRoutes } from "../utils/railsRoutes.js";
@@ -84,29 +85,38 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
     }
   }
 
-  // ActiveRecord Virtual Schema injection
-  if (path.extname(filePath) === ".rb") {
-    // When extracting a symbol, `content` is only the method body — no class declaration.
-    // We need the full file to detect AR inheritance, but guard with stat first to
-    // avoid allocating >5MB files without the streaming guard.
+  // Unified Virtual ORM Schema injection (ActiveRecord, Eloquent, Django)
+  const fileExt = path.extname(filePath);
+  if (fileExt === ".rb" || fileExt === ".php" || fileExt === ".py") {
     let sourceForDetection = content;
     if (symbolName) {
       const fileStat = await fs.stat(validation.resolvedPath!);
       if (fileStat.size <= 5 * 1024 * 1024) {
         sourceForDetection = await fs.readFile(validation.resolvedPath!, "utf-8");
       }
-      // Files >5MB: skip schema injection for symbol extracts — not worth the memory cost
     }
-    const arMatch = sourceForDetection.match(
-      /class\s+(\w+)\s*<\s*(?:ApplicationRecord|ActiveRecord::Base)/
-    );
-    if (arMatch) {
-      const schema = await loadRailsSchema(projectRoot);
-      if (schema) {
-        const tableName = modelToTable(arMatch[1]);
-        const columns = schema[tableName];
+
+    let modelName: string | null = null;
+    let detectedFramework: "ActiveRecord" | "Eloquent" | "Django" = "ActiveRecord";
+
+    if (fileExt === ".rb") {
+      const m = sourceForDetection.match(/class\s+(\w+)\s*<\s*(?:ApplicationRecord|ActiveRecord::Base)/);
+      if (m) { modelName = m[1]; detectedFramework = "ActiveRecord"; }
+    } else if (fileExt === ".php") {
+      const m = sourceForDetection.match(/class\s+(\w+)\s+extends\s+(?:Model|Authenticatable)/);
+      if (m) { modelName = m[1]; detectedFramework = "Eloquent"; }
+    } else if (fileExt === ".py") {
+      const m = sourceForDetection.match(/class\s+(\w+)\s*\([^)]*models\.Model[^)]*\):/);
+      if (m) { modelName = m[1]; detectedFramework = "Django"; }
+    }
+
+    if (modelName) {
+      const unified = await loadUnifiedVirtualSchema(projectRoot, fileExt).catch(() => null);
+      if (unified && unified.schema) {
+        const tableName = modelToTable(modelName);
+        const columns = unified.schema[tableName];
         if (columns && Object.keys(columns).length > 0) {
-          content = formatSchemaAnnotation(tableName, columns) + "\n" + content;
+          content = formatUnifiedSchemaAnnotation(detectedFramework, tableName, columns) + "\n" + content;
         }
       }
     }

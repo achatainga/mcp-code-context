@@ -11,6 +11,7 @@ import { EXCLUDE_DIRS, MAX_FILES_REPO_MAP, MAX_TOTAL_SIZE_BYTES } from "../utils
 import { walkDir } from "../utils/fileWalker.js";
 import { IndexManager } from "../core/indexManager.js";
 import { loadRailsSchema, modelToTable, findRailsConcerns } from "../utils/railsSchema.js";
+import { loadUnifiedVirtualSchema } from "../utils/virtualSchema.js";
 import { parseGemfile } from "../utils/gemfileParser.js";
 
 export interface CompressionResult {
@@ -85,8 +86,10 @@ async function compressRepository(params: {
 
                     // R1: Rails AR schema injection for .rb files in repo map
             let fileSymbols = symbols.map(s => ({ type: s.type, name: s.name }));
-            if (path.extname(fullPath) === ".rb") {
-              const schema = await loadRailsSchema(params.projectRoot).catch(() => null);
+            const ext = path.extname(fullPath);
+            if (ext === ".rb" || ext === ".php" || ext === ".py") {
+              const unified = await loadUnifiedVirtualSchema(params.projectRoot, ext).catch(() => null);
+              const schema = unified?.schema;
               if (schema) {
                 for (const sym of symbols) {
                   if (sym.type === "class") {

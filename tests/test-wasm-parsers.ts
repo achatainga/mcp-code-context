@@ -472,7 +472,8 @@ async function runTests() {
     process.exit(1);
   } else {
     console.log('\n🎉 ALL TESTS PASSED!');
-    process.exit(0);
+    process.exitCode = 0;
+    return;
   }
 }
 

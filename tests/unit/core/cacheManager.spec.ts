@@ -75,7 +75,9 @@ describe('CacheManager', () => {
     cache.persistOnExit();
 
     // Verify cache file exists
-    const cacheFiles = fs.readdirSync(path.join(tmpdir(), 'mcp-cache'));
-    expect(cacheFiles.length).toBeGreaterThan(0);
+    const dbPath = (cache as any).dbPath;
+    expect(fs.existsSync(dbPath)).toBe(true);
+    const stats = fs.statSync(dbPath);
+    expect(stats.size).toBeGreaterThan(0);
   });
 });
