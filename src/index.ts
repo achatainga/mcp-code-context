@@ -167,9 +167,15 @@ const shutdownHandler = () => {
     });
 };
 
-process.on("SIGINT", shutdownHandler);
-process.on("SIGTERM", shutdownHandler);
-process.on("exit", shutdownHandler);
+let isShuttingDown = false;
+const safeShutdown = () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
+  shutdownHandler();
+};
+
+process.on("SIGINT", safeShutdown);
+process.on("SIGTERM", safeShutdown);
 
 main().catch((error) => {
   console.error("Server error:", error);
