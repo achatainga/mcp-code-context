@@ -10,7 +10,7 @@ export const CORE_TOOLS = [
       properties: {
         directoryPath: { type: "string", description: "Absolute path to repository root" },
         projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to directoryPath)" },
-        format: { type: "string", enum: ["xml", "markdown"], description: "Output format (default: xml)" },
+        format: { type: "string", enum: ["xml", "markdown", "html"], description: "Output format (default: xml, markdown, or html for interactive visual architecture dashboard)" },
       },
       required: ["directoryPath"],
     },

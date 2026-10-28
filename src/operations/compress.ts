@@ -31,7 +31,7 @@ interface CompressedFile {
 async function compressRepository(params: {
   directoryPath: string;
   projectRoot: string;
-  format?: "xml" | "markdown";
+  format?: "xml" | "markdown" | "html";
   registry: ParserRegistry;
   maxDepth?: number;
   includeSymbols?: boolean;
@@ -131,6 +131,113 @@ async function compressRepository(params: {
 
     // Project-wide metadata: Gemfile + Concerns
     let projectMetadata = "";
+        if (format === "html") {
+      const escapedPath = params.directoryPath.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const filesJson = JSON.stringify(files.map(f => ({
+        path: f.path,
+        symbols: f.symbols
+      })));
+
+      const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Architecture Map - ${escapedPath}</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card-bg: #1e293b;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent: #f26419;
+      --badge-class: #38bdf8;
+      --badge-fn: #4ade80;
+      --badge-db: #f59e0b;
+      --badge-other: #a78bfa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; }
+    body { background: var(--bg); color: var(--text); padding: 24px; }
+    header { margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 16px; }
+    h1 { font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+    .badge { font-size: 0.75rem; padding: 2px 8px; border-radius: 9999px; background: var(--accent); color: white; font-weight: bold; }
+    .stats { display: flex; gap: 16px; margin-top: 12px; font-size: 0.875rem; color: var(--text-muted); }
+    .stat-val { color: var(--text); font-weight: bold; }
+    .controls { margin-bottom: 20px; display: flex; gap: 12px; }
+    input#search { flex: 1; padding: 10px 14px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 0.9rem; }
+    input#search:focus { outline: 2px solid var(--accent); border-color: transparent; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 16px; }
+    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; padding: 16px; transition: border-color 0.2s; }
+    .card:hover { border-color: var(--accent); }
+    .card-path { font-weight: bold; font-size: 0.875rem; color: #38bdf8; word-break: break-all; margin-bottom: 8px; }
+    .symbols-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .sym-badge { font-size: 0.75rem; padding: 3px 6px; border-radius: 4px; background: #0f172a; border: 1px solid var(--border); }
+    .sym-class { border-color: var(--badge-class); color: var(--badge-class); }
+    .sym-function { border-color: var(--badge-fn); color: var(--badge-fn); }
+    .sym-db { border-color: var(--badge-db); color: var(--badge-db); }
+    .empty-note { font-size: 0.75rem; color: var(--text-muted); font-style: italic; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1><span>Architecture & Semantic Repo Map</span> <span class="badge">v4.0.0 Enterprise</span></h1>
+    <div class="stats">
+      <div>Files: <span class="stat-val">${files.length}</span></div>
+      <div>Indexed Symbols: <span class="stat-val">${totalSymbols}</span></div>
+      <div>Path: <span class="stat-val">${escapedPath}</span></div>
+    </div>
+  </header>
+
+  <div class="controls">
+    <input type="text" id="search" placeholder="Filter files or symbols (e.g. User, Controller, handle, schema)..." autofocus>
+  </div>
+
+  <div class="grid" id="fileGrid"></div>
+
+  <script>
+    const files = ${filesJson};
+    const grid = document.getElementById("fileGrid");
+    const search = document.getElementById("search");
+
+    function render(list) {
+      grid.innerHTML = "";
+      if (list.length === 0) {
+        grid.innerHTML = '<div style="color: var(--text-muted); grid-column: 1/-1;">No matching files found.</div>';
+        return;
+      }
+      for (const f of list) {
+        const card = document.createElement("div");
+        card.className = "card";
+        const symHtml = f.symbols.length > 0 
+          ? f.symbols.map(s => {
+              const cls = s.type === "class" ? "sym-class" : s.type === "db_column" ? "sym-db" : "sym-function";
+              return '<span class="sym-badge ' + cls + '">' + s.type + ': ' + s.name + '</span>';
+            }).join("")
+          : '<span class="empty-note">No exported AST symbols</span>';
+        card.innerHTML = '<div class="card-path">' + f.path + '</div><div class="symbols-list">' + symHtml + '</div>';
+        grid.appendChild(card);
+      }
+    }
+
+    search.addEventListener("input", (e) => {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q) { render(files); return; }
+      const filtered = files.filter(f => 
+        f.path.toLowerCase().includes(q) || 
+        f.symbols.some(s => s.name.toLowerCase().includes(q) || s.type.toLowerCase().includes(q))
+      );
+      render(filtered);
+    });
+
+    render(files);
+  </script>
+</body>
+</html>`;
+
+      return { success: true, content: html };
+    }
+
     if (format === "xml") {
       try {
         const gemfileResult = await parseGemfile(params.projectRoot);
@@ -155,6 +262,8 @@ async function compressRepository(params: {
         // Silent fail — metadata is optional
       }
     }
+
+        
 
     if (format === "xml") {
       let xml = '<?xml version="1.0" encoding="UTF-8"?>\n<repository>\n';

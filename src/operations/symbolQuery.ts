@@ -149,6 +149,55 @@ export async function explainSymbol(params: {
     // Extract signature (first line of the symbol)
     const signature = extracted ? extracted.split('\n')[0].trim() : '';
 
+    // Vector 3: Inverted LSP - Type Skeleton & Contract Extraction
+    let inferredTypeSkeleton = "";
+    let returnType = "";
+    const parameters: Array<{ name: string; type?: string }> = [];
+    let docstring = "";
+
+    if (extracted) {
+      // 1. Docstring / JSDoc / PHPDoc
+      const docMatch = extracted.match(/\/\*\*[\s\S]*?\*\/|"""[\s\S]*?"""|'''[\s\S]*?'''/);
+      if (docMatch) {
+        docstring = docMatch[0].trim();
+      }
+
+      // 2. Class / Interface Skeleton vs Function/Method Skeleton
+      if (sym.type.includes("class") || sym.type.includes("interface") || sym.type.includes("struct")) {
+        const methodMatches = Array.from(
+          extracted.matchAll(/(?:public|private|protected|async|static|\s)*([a-zA-Z0-9_]+)\s*\(([^)]*)\)(?:\s*:\s*([^{;]+))?/g)
+        );
+        const methodSignatures: string[] = [];
+        for (const m of methodMatches) {
+          const methodName = m[1];
+          if (["if", "for", "while", "switch", "catch", "constructor"].includes(methodName)) continue;
+          const paramsStr = m[2].trim();
+          const retStr = m[3] ? m[3].trim() : "void";
+          methodSignatures.push(`  ${methodName}(${paramsStr}): ${retStr};`);
+        }
+        inferredTypeSkeleton = `${sym.type} ${sym.name} {\n${methodSignatures.slice(0, 25).join("\n")}\n}`;
+      } else {
+        const paramMatch = extracted.match(/(?:function\s+|def\s+|async\s+)*[a-zA-Z0-9_]+\s*\(([^)]*)\)(?:\s*(?:->|:)\s*([^{;=]+))?/);
+        if (paramMatch) {
+          const rawParams = paramMatch[1].trim();
+          returnType = paramMatch[2] ? paramMatch[2].trim() : "unknown";
+          if (rawParams) {
+            const splitParams = rawParams.split(",");
+            for (const p of splitParams) {
+              const pClean = p.trim();
+              if (!pClean) continue;
+              const [pName, pType] = pClean.split(":").map(s => s.trim());
+              parameters.push({
+                name: pName,
+                type: pType || (pName.startsWith("$") ? "mixed" : "any"),
+              });
+            }
+          }
+          inferredTypeSkeleton = `(${rawParams}) => ${returnType}`;
+        }
+      }
+    }
+
     // Find callers (files that reference this symbol name)
     const callers: string[] = [];
     await walkDir(params.rootDir, {
@@ -166,6 +215,10 @@ export async function explainSymbol(params: {
       type: sym.type,
       className: sym.className,
       signature,
+      inferredTypeSkeleton: inferredTypeSkeleton || undefined,
+      returnType: returnType || undefined,
+      parameters: parameters.length > 0 ? parameters : undefined,
+      docstring: docstring || undefined,
       startLine: sym.startLine,
       endLine: sym.endLine,
       file: params.filePath,

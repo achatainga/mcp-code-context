@@ -49,18 +49,44 @@ export interface RemoveOptions {
   parser: BaseParser;
 }
 
+function findSyntaxError(node: any): { line: number; column: number; text: string } | null {
+  if (!node.hasError) return null;
+  if (node.type === "ERROR" || node.isMissing) {
+    const row = (node.startPosition?.row ?? 0) + 1;
+    const col = (node.startPosition?.column ?? 0) + 1;
+    const txt = (node.text || "").substring(0, 40).replace(/\s+/g, " ").trim();
+    return { line: row, column: col, text: txt || "<unknown token>" };
+  }
+  const count = node.childCount ?? 0;
+  for (let i = 0; i < count; i++) {
+    const child = node.child(i);
+    if (child) {
+      const found = findSyntaxError(child);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
 /**
- * Validate syntax of generated code
+ * Validate syntax of generated code (Vector 1: Syntax Firewall)
  */
 export function validateSyntax(content: string, parser: BaseParser): { valid: boolean; error?: string } {
   try {
     const tree = parser.parse(content);
     if (tree.rootNode.hasError) {
-      return { valid: false, error: "Generated code has syntax errors" };
+      const err = findSyntaxError(tree.rootNode);
+      const detail = err
+        ? `at line ${err.line}, column ${err.column} near '${err.text}'`
+        : "unbalanced braces or invalid syntax structure";
+      return {
+        valid: false,
+        error: `Syntax Firewall Blocked: Syntax error detected ${detail}. Correct the proposed code syntax before Phase 2 confirmation.`,
+      };
     }
     return { valid: true };
   } catch (error) {
-    return { valid: false, error: `Syntax validation failed: ${error}` };
+    return { valid: false, error: `Syntax Firewall Blocked: ${error}` };
   }
 }
 

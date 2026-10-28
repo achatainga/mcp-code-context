@@ -14,7 +14,7 @@ import { streamFile } from "../utils/streaming.js";
 import { BackupManager } from "../utils/backupManager.js";
 import { globalSessionManager } from "../core/sessionManager.js";
 import { verifyFileUnchanged, assertNoPendingWriteConflict } from "../utils/toctou.js";
-import { getSession, getCacheManager, getRegistry, SESSION_ID } from "./context.js";
+import { getSession, getCacheManager, getRegistry, SESSION_ID, notifyResourceUpdated } from "./context.js";
 import { resolveProjectRoot } from "../utils/projectRoot.js";
 
 export async function handleTwoPhaseWrite(
@@ -67,6 +67,7 @@ export async function handleTwoPhaseWrite(
         for (const { resolvedPath, newContent } of resolvedWrites) {
           await BackupManager.createBackup(resolvedPath, effectiveProjectRoot);
           await writeFile(resolvedPath, newContent);
+          notifyResourceUpdated(resolvedPath);
         }
       } else {
         // TOCTOU fix: Lock-Before-Verify for single file path
@@ -83,6 +84,7 @@ export async function handleTwoPhaseWrite(
         );
         await BackupManager.createBackup(resolvedPath, effectiveProjectRoot);
         await writeFile(resolvedPath, pendingOp.newContent);
+        notifyResourceUpdated(resolvedPath);
       }
     } finally {
       for (const release of lockReleases) {

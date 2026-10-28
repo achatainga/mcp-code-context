@@ -37,10 +37,34 @@ export abstract class BaseParser {
     this.parser.setLanguage(language);
   }
 
+  private treeCache = new Map<string, { tree: Tree }>();
+
   parse(content: string, oldTree?: Tree): Tree {
     const tree = this.parser.parse(content, oldTree);
     if (!tree) throw new Error(`${this.languageName} parsing failed`);
     return tree;
+  }
+
+  /**
+   * Incremental parse with automatic tree delta reuse (Vector 2: Sub-millisecond AST re-parsing)
+   */
+  parseIncremental(filePath: string, content: string): Tree {
+    const cached = this.treeCache.get(filePath);
+    const tree = this.parse(content, cached?.tree);
+    if (this.treeCache.size > 100) {
+      const first = this.treeCache.keys().next().value;
+      if (first) this.treeCache.delete(first);
+    }
+    this.treeCache.set(filePath, { tree });
+    return tree;
+  }
+
+  clearTreeCache(filePath?: string): void {
+    if (filePath) {
+      this.treeCache.delete(filePath);
+    } else {
+      this.treeCache.clear();
+    }
   }
 
   abstract extractSymbol(

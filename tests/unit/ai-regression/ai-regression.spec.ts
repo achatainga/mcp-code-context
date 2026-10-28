@@ -53,7 +53,8 @@ describe("AI Regression Test Suite — Blind Spot & Hallucination Elimination", 
       expect(text).toContain("validateEmail");
       // Anti-explosion assertion: must NOT contain the full sample.ts (UserService class, etc.)
       expect(text).not.toContain("class UserService");
-      expect(text.length).toBeLessThan(fullContent.length * 0.4);
+      const pureContent = text.replace(/<!-- \[CodeContext Efficiency\][\s\S]*?-->\n\n/, "");
+      expect(pureContent.length).toBeLessThan(fullContent.length * 0.4);
     });
 
     it("get_semantic_repo_map delivers compressed structural skeleton (>75% token compression)", async () => {

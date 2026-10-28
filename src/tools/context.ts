@@ -27,3 +27,20 @@ export function getSession(): ReturnType<typeof globalSessionManager.getOrCreate
 export function getCacheManager(projectRoot: string) {
   return globalSessionManager.getCacheManager(SESSION_ID, projectRoot);
 }
+
+type ResourceBroadcaster = (filePath: string) => void;
+let broadcaster: ResourceBroadcaster | null = null;
+
+export function setResourceBroadcaster(fn: ResourceBroadcaster): void {
+  broadcaster = fn;
+}
+
+export function notifyResourceUpdated(filePath: string): void {
+  if (broadcaster) {
+    try {
+      broadcaster(filePath);
+    } catch {
+      // Non-blocking notification
+    }
+  }
+}

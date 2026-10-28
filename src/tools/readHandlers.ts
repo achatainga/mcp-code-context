@@ -27,7 +27,7 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
   }
   const directoryPath = String(args.directoryPath);
   const projectRoot = resolveProjectRoot(args, directoryPath);
-  const format = args.format === "markdown" ? "markdown" : "xml";
+  const format = args.format === "markdown" ? "markdown" : args.format === "html" ? "html" : "xml";
 
   const validator = new SecurityValidator(projectRoot);
   const validation = await validator.validateFilePath(directoryPath);
@@ -39,7 +39,7 @@ export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
     directoryPath: validation.resolvedPath!, 
     projectRoot,
     registry: getRegistry(),
-    format: format as "xml" | "markdown" 
+    format: format as "xml" | "markdown" | "html" 
   });
   if (!result.success) throw new Error(result.error);
   return {
@@ -122,7 +122,20 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
     }
   }
 
-  return { content: [{ type: "text", text: content }] };
+    // Vector 5: Token Budget Efficiency Header
+  let efficiencyHeader = "";
+  try {
+    const stat = await fs.stat(validation.resolvedPath!);
+    const rawTokens = Math.max(1, Math.ceil(stat.size / 4));
+    const deliveredTokens = Math.max(1, Math.ceil(content.length / 4));
+    const saved = Math.max(0, rawTokens - deliveredTokens);
+    const ratio = ((saved / rawTokens) * 100).toFixed(1);
+    efficiencyHeader = `<!-- [CodeContext Efficiency]: Raw: ~${rawTokens} tokens | Delivered: ~${deliveredTokens} tokens | Saved: ~${saved} tokens (${ratio}% compression) -->\n\n`;
+  } catch {
+    // Non-blocking header computation
+  }
+
+  return { content: [{ type: "text", text: efficiencyHeader + content }] };
 }
 
 export async function handleAnalyzeImpact(args: Record<string, unknown>) {
