@@ -83,3 +83,6 @@ scripts/restore-*.mjs
 
 # Workspace state
 .workspace_state.md
+
+# Test generated artifacts
+test-repo-map.html
