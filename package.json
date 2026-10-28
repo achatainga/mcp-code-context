@@ -15,6 +15,7 @@
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest --watch",
     "test:vectors": "vitest run tests/unit/vectors/vectors.spec.ts",
+    "test:e2e-provider": "node tests/e2e_local_provider_test.mjs",
     "build:tests": "tsc -p tsconfig.tests.json",
     "start": "node dist/src/index.js",
     "dev": "npm run build && node dist/src/index.js",
