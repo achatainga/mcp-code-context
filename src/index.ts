@@ -6,9 +6,11 @@
  */
 
 import http from "node:http";
+import { randomUUID } from "node:crypto";
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import { CodeContextEngine } from "./core/engine.js";
 import { ParserRegistry } from "./parsers/registry.js";
@@ -21,17 +23,19 @@ import { registerPipeline } from "./tools/pipeline.js";
 const SERVER_NAME = "mcp-code-context";
 const SERVER_VERSION = "4.0.0";
 
-const server = new Server(
-  { name: SERVER_NAME, version: SERVER_VERSION },
-  { capabilities: { tools: {} } }
-);
+export function createServerInstance(): Server {
+  const server = new Server(
+    { name: SERVER_NAME, version: SERVER_VERSION },
+    { capabilities: { tools: {} } }
+  );
 
-server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
-
-registerPipeline(server);
+  server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS }));
+  registerPipeline(server);
+  return server;
+}
 
 let httpServer: http.Server | null = null;
-const sseTransports = new Map<string, SSEServerTransport>();
+const sseTransports = new Map<string, { transport: SSEServerTransport; server: Server }>();
 
 async function main() {
   const engine = new CodeContextEngine();
@@ -47,10 +51,17 @@ async function main() {
     const port = parseInt(process.env.PORT || (portArg ? portArg.split("=")[1] : "3000"), 10);
     const host = process.env.HOST || "127.0.0.1";
 
+    // Setup stateless Streamable HTTP transport for /mcp endpoint
+    const streamableTransport = new StreamableHTTPServerTransport({
+      sessionIdGenerator: undefined, // Stateless mode for high-throughput single-endpoint MCP
+    });
+    const streamableServer = createServerInstance();
+    await streamableServer.connect(streamableTransport);
+
     httpServer = http.createServer(async (req, res) => {
       res.setHeader("Access-Control-Allow-Origin", "*");
-      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+      res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS, DELETE");
+      res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Session-Id");
 
       if (req.method === "OPTIONS") {
         res.writeHead(200);
@@ -60,6 +71,7 @@ async function main() {
 
       const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
+      // Health check endpoint
       if (url.pathname === "/" || url.pathname === "/health") {
         res.writeHead(200, { "Content-Type": "application/json" });
         res.end(
@@ -67,33 +79,52 @@ async function main() {
             status: "ok",
             server: SERVER_NAME,
             version: SERVER_VERSION,
-            transports: ["stdio", "sse", "streamable-http"],
+            transports: {
+              streamableHttp: "/mcp",
+              legacySse: "/sse",
+              legacyMessage: "/message",
+              stdio: "available",
+            },
             toolsCount: TOOLS.length,
           })
         );
         return;
       }
 
+      // Modern Streamable HTTP endpoint (/mcp)
+      if (url.pathname === "/mcp") {
+        await streamableTransport.handleRequest(req, res);
+        return;
+      }
+
+      // Legacy SSE endpoint (/sse) for backward compatibility
       if (url.pathname === "/sse") {
         const transport = new SSEServerTransport("/message", res);
-        sseTransports.set(transport.sessionId, transport);
+        const server = createServerInstance();
+        sseTransports.set(transport.sessionId, { transport, server });
+
+        res.on("close", () => {
+          sseTransports.delete(transport.sessionId);
+        });
+
         await server.connect(transport);
         return;
       }
 
+      // Legacy SSE message endpoint (/message)
       if (url.pathname === "/message" && req.method === "POST") {
         const sessionId = url.searchParams.get("sessionId");
-        const transport = sessionId
+        const session = sessionId
           ? sseTransports.get(sessionId)
           : Array.from(sseTransports.values())[0];
 
-        if (!transport) {
+        if (!session) {
           res.writeHead(400, { "Content-Type": "application/json" });
           res.end(JSON.stringify({ error: "No active SSE transport session found" }));
           return;
         }
 
-        await transport.handlePostMessage(req, res);
+        await session.transport.handlePostMessage(req, res);
         return;
       }
 
@@ -102,9 +133,12 @@ async function main() {
     });
 
     httpServer.listen(port, host, () => {
-      console.error(`[${SERVER_NAME}] v${SERVER_VERSION} listening on http://${host}:${port} (Streamable HTTP / SSE)`);
+      console.error(
+        `[${SERVER_NAME}] v${SERVER_VERSION} listening on http://${host}:${port} (Streamable HTTP: /mcp | SSE: /sse)`
+      );
     });
   } else {
+    const server = createServerInstance();
     const transport = new StdioServerTransport();
     await server.connect(transport);
     console.error(`[${SERVER_NAME}] v${SERVER_VERSION} running on stdio`);
