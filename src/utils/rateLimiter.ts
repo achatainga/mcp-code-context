@@ -157,6 +157,12 @@ export const OPERATION_COSTS = {
   generate_ast_impact_report: 30,
   query_code_ast: 20,
   incremental_ast_diff: 10,
+  get_ast_complexity_matrix: 15,
+  generate_ast_mocks: 15,
+  detect_dead_ast_symbols: 25,
+  resolve_lexical_scope: 15,
+  sql_ast_validator: 20,
+  ast_codemod_transpile: 20,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,

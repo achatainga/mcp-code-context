@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, queryCodeAst, incrementalAstDiff, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, queryCodeAst, incrementalAstDiff, getAstComplexityMatrix, generateAstMocks, detectDeadAstSymbols, resolveLexicalScope, validateSqlAst, astCodemodTranspile, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -473,6 +473,169 @@ export async function handleIncrementalAstDiff(args: Record<string, unknown>) {
     projectRoot,
     oldCode: args.oldCode ? String(args.oldCode) : undefined,
     newCode: args.newCode ? String(args.newCode) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02k: get_ast_complexity_matrix (v5.6.0)
+export async function handleGetAstComplexityMatrix(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await getAstComplexityMatrix({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    threshold: args.threshold ? Number(args.threshold) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02l: generate_ast_mocks (v5.6.0)
+export async function handleGenerateAstMocks(args: Record<string, unknown>) {
+  if (!args.symbolName) throw new Error("symbolName is required for generate_ast_mocks");
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await generateAstMocks({
+    filePath: resolvedTarget,
+    projectRoot,
+    symbolName: String(args.symbolName),
+    format: args.format as any,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02m: detect_dead_ast_symbols (v5.7.0)
+export async function handleDetectDeadAstSymbols(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await detectDeadAstSymbols({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02n: resolve_lexical_scope (v5.7.0)
+export async function handleResolveLexicalScope(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await resolveLexicalScope({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    proposedRename: args.proposedRename as any,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02o: sql_ast_validator (v6.0.0)
+export async function handleValidateSqlAst(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await validateSqlAst({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02p: ast_codemod_transpile (v6.0.0)
+export async function handleAstCodemodTranspile(args: Record<string, unknown>) {
+  if (!args.rule) throw new Error("rule is required for ast_codemod_transpile (e.g. 'cjs-to-esm', 'strip-console')");
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await astCodemodTranspile({
+    filePath: resolvedTarget,
+    projectRoot,
+    rule: args.rule as any,
+    code: args.code ? String(args.code) : undefined,
     registry,
   });
 

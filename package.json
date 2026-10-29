@@ -1,7 +1,7 @@
 {
   "name": "mcp-code-context",
-  "version": "5.1.0",
-  "description": "Powerful Enterprise MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Dual transport: Stdio + Streamable HTTP/SSE. Production-ready with persistent caching, Test Impact Analysis (TIA), 3-hop Call Hierarchy with Mermaid export, Virtual ORM, Cross-Language Wire Contract validation, Offline Conceptual Vector Search, Native S-Expression Tree-sitter Query DSL (query_code_ast), O(log N) Incremental Re-Parsing (incremental_ast_diff), Anti-Hallucination Import Verifier, Static Taint Flow Analyzer, Duck-Type Backfilling, Architecture Boundary Linter, and Lossless AST Context Compactor. Supports TypeScript, JavaScript, PHP, Python, Ruby, Java, Go, C#, Rust, and Kotlin.",
+  "version": "6.0.0",
+  "description": "Next-Gen Enterprise MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Dual transport: Stdio + Streamable HTTP/SSE. Production-ready with persistent caching, Test Impact Analysis (TIA), 3-hop Call Hierarchy with Mermaid export, Virtual ORM, Cross-Language Wire Contract validation, Offline Conceptual Vector Search, Native S-Expression Tree-sitter Query DSL (query_code_ast), O(log N) Incremental Re-Parsing (incremental_ast_diff), Cognitive & Cyclomatic AST Profiler (get_ast_complexity_matrix), Zero-Hallucination Mock Generator (generate_ast_mocks), Zombie Export Eliminator (detect_dead_ast_symbols), Scope-Aware Semantic Renamer (resolve_lexical_scope), Embedded SQL Validator (sql_ast_validator), Lossless CST Codemods (ast_codemod_transpile), Anti-Hallucination Import Verifier, Static Taint Flow Analyzer, Duck-Type Backfilling, Architecture Boundary Linter, and Lossless AST Context Compactor. Supports TypeScript, JavaScript, PHP, Python, Ruby, Java, Go, C#, Rust, and Kotlin.",
   "type": "module",
   "main": "dist/src/index.js",
   "bin": {

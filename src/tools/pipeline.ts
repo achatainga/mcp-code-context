@@ -28,6 +28,12 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["generate_ast_impact_report", handlers.handleGenerateAstImpactReport],
   ["query_code_ast", handlers.handleQueryCodeAst],
   ["incremental_ast_diff", handlers.handleIncrementalAstDiff],
+  ["get_ast_complexity_matrix", handlers.handleGetAstComplexityMatrix],
+  ["generate_ast_mocks", handlers.handleGenerateAstMocks],
+  ["detect_dead_ast_symbols", handlers.handleDetectDeadAstSymbols],
+  ["resolve_lexical_scope", handlers.handleResolveLexicalScope],
+  ["sql_ast_validator", handlers.handleValidateSqlAst],
+  ["ast_codemod_transpile", handlers.handleAstCodemodTranspile],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
   // Ruby Intelligence tools (v3.9.0)

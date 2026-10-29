@@ -380,6 +380,94 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "get_ast_complexity_matrix",
+    description: "Computes McCabe Cyclomatic and Sonar Cognitive Complexity per function/method using Tree-sitter AST, identifying high-risk structural hotspots.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        threshold: { type: "number", description: "Minimum cognitive complexity threshold to filter (e.g. 10)" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "generate_ast_mocks",
+    description: "Generates zero-hallucination typed factory mocks, fixtures, or JSON samples directly from TypeScript interfaces/types or classes.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        symbolName: { type: "string", description: "Name of the interface, type alias, or class to mock" },
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        format: { type: "string", enum: ["factory", "fixture", "inline_json"], description: "Output mock format (default: 'factory')" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+      required: ["symbolName"],
+    },
+  },
+  {
+    name: "detect_dead_ast_symbols",
+    description: "Detects dead or unconsumed exports, unused internal functions, and unreachable statements after return/throw using AST reachability analysis.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "resolve_lexical_scope",
+    description: "Resolves lexical scope chains (closures, blocks, functions) and detects variable shadowing or identifier collision before renaming.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        proposedRename: {
+          type: "object",
+          properties: {
+            targetSymbol: { type: "string" },
+            newSymbolName: { type: "string" },
+            atLine: { type: "number" },
+          },
+          required: ["targetSymbol", "newSymbolName", "atLine"],
+          description: "Optional rename simulation to verify if newSymbolName collides with existing scope variables",
+        },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "sql_ast_validator",
+    description: "Extracts and parses embedded SQL queries from TypeScript/Python/PHP code, validating syntax, checking for SQL injection risk, and cross-referencing virtual schemas.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "ast_codemod_transpile",
+    description: "Applies lossless Concrete Syntax Tree (CST) structural codemods preserving exact comments and formatting (e.g. CommonJS require to ESM import, strip console).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        rule: { type: "string", enum: ["cjs-to-esm", "strip-console"], description: "Codemod transformation rule to apply" },
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+      required: ["rule"],
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {
