@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -383,6 +383,25 @@ export async function handleEnforceArchitectureRules(args: Record<string, unknow
     projectRoot,
     rules: args.rules as any,
     content: args.content ? String(args.content) : undefined,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02g: compact_context_ledger (v4.7.0)
+export async function handleCompactContextLedger(args: Record<string, unknown>) {
+  if (!args.filePaths) throw new Error("filePaths is required for compact_context_ledger");
+  const projectRoot = resolveProjectRoot(args, ".");
+  const registry = getRegistry();
+
+  const result = await compactContextLedger({
+    filePaths: args.filePaths as string[] | string,
+    projectRoot,
+    dropPrivate: args.dropPrivate as boolean | undefined,
+    includeDocstrings: args.includeDocstrings as boolean | undefined,
+    content: args.content ? String(args.content) : undefined,
+    registry,
   });
 
   if (!result.success) throw new Error(result.error);

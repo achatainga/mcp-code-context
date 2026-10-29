@@ -153,6 +153,7 @@ export const OPERATION_COSTS = {
   trace_taint_flow: 25,
   backfill_types: 15,
   enforce_architecture_rules: 15,
+  compact_context_ledger: 15,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,

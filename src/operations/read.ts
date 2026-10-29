@@ -9,3 +9,4 @@ export { verifyImportIntegrity } from "./importIntegrity.js";
 export { traceTaintFlow } from "./taintAnalysis.js";
 export { backfillTypes } from "./typeInference.js";
 export { enforceArchitectureRules } from "./architectureLinter.js";
+export { compactContextLedger } from "./contextCompactor.js";
