@@ -167,4 +167,23 @@ export function dangerousRun(req: any) {
     expect(mcpRes.content[0].text).toContain("COMMAND_INJECTION");
     expect(mcpRes.content[0].text).toContain("VULNERABILITY DETECTED");
   });
+
+  it("handles sourceParam containing regex special characters without syntax errors", async () => {
+    const result = await traceTaintFlow({
+      filePath: sampleFile,
+      projectRoot,
+      sourceParam: "user[id]",
+      dangerousSink: "COMMAND_INJECTION",
+      content: `
+export function runCustom(param: any) {
+  const clean = param;
+  exec(clean);
+}
+`,
+      registry,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.content).toBeDefined();
+  });
 });

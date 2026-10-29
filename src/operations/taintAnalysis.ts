@@ -136,6 +136,10 @@ interface TaintVariable {
   isSanitized: boolean;
 }
 
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 export async function traceTaintFlow(params: {
   filePath: string;
   projectRoot: string;
@@ -218,7 +222,7 @@ export async function traceTaintFlow(params: {
 
         // Check if any currently tainted variable appears in assignedExpr
         for (const [taintedName, taintInfo] of taintedVars.entries()) {
-          const varRegex = new RegExp(`\\b${taintedName}\\b`);
+          const varRegex = new RegExp(`\\b${escapeRegex(taintedName)}\\b`);
           if (varRegex.test(assignedExpr) && targetVar !== taintedName) {
             const isSanitizedNow = taintInfo.isSanitized || lineHasSanitizer;
             taintedVars.set(targetVar, {
@@ -248,7 +252,7 @@ export async function traceTaintFlow(params: {
 
           // Check if any tainted variable is passed to the sink arguments
           for (const [taintedName, taintInfo] of taintedVars.entries()) {
-            const varRegex = new RegExp(`\\b${taintedName}\\b`);
+            const varRegex = new RegExp(`\\b${escapeRegex(taintedName)}\\b`);
             if (varRegex.test(sinkArgs) && !taintInfo.isSanitized && !lineHasSanitizer) {
               findings.push({
                 vulnerabilityType: sink.category,
