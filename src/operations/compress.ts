@@ -136,7 +136,7 @@ async function compressRepository(params: {
       const filesJson = JSON.stringify(files.map(f => ({
         path: f.path,
         symbols: f.symbols
-      })));
+      }))).replace(/</g, "\\u003c");
 
       const html = `<!DOCTYPE html>
 <html lang="en">

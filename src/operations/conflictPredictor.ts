@@ -1,10 +1,16 @@
-import { exec } from "node:child_process";
+import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { analyzeImpact } from "./impactAnalysis.js";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+
+const GIT_REF_REGEX = /^[a-zA-Z0-9_.~^/@{}-]+$/;
+
+function isValidGitRef(ref: string): boolean {
+  return typeof ref === "string" && GIT_REF_REGEX.test(ref) && !ref.startsWith("-");
+}
 
 export interface SemanticConflict {
   file: string;
@@ -32,11 +38,18 @@ export async function predictSemanticConflicts(params: {
   const baseRef = params.baseBranch || "HEAD~1";
   const targetRef = params.targetBranch || "HEAD";
 
+  if (!isValidGitRef(baseRef)) {
+    throw new Error(`Invalid git base reference: '${baseRef}'. Only standard ref names are permitted.`);
+  }
+  if (!isValidGitRef(targetRef)) {
+    throw new Error(`Invalid git target reference: '${targetRef}'. Only standard ref names are permitted.`);
+  }
+
   const conflicts: SemanticConflict[] = [];
 
   try {
-    // 1. Get changed files between base and target
-    const { stdout: diffOutput } = await execAsync(`git diff --name-status ${baseRef} ${targetRef}`, {
+    // 1. Get changed files between base and target (safe argv execution without shell)
+    const { stdout: diffOutput } = await execFileAsync("git", ["diff", "--name-status", baseRef, targetRef], {
       cwd: params.projectRoot,
     });
 
@@ -87,7 +100,7 @@ export async function predictSemanticConflicts(params: {
       // Check modified files for symbol-level AST diff
       if (status.startsWith("M")) {
         try {
-          const { stdout: filePatch } = await execAsync(`git diff -U0 ${baseRef} ${targetRef} -- "${relFile}"`, {
+          const { stdout: filePatch } = await execFileAsync("git", ["diff", "-U0", baseRef, targetRef, "--", relFile], {
             cwd: params.projectRoot,
           });
 

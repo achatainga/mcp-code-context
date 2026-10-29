@@ -119,62 +119,68 @@ export async function getCallHierarchy(params: {
 
   // 2. CALLERS (Who calls this symbol?)
   if (direction === "callers" || direction === "both") {
+    // Collect candidate caller files in a single pass to eliminate redundant disk I/O thrashing
+    const candidateCallerFiles: string[] = [];
+    await walkDir(params.projectRoot, {
+      extensions: SUPPORTED_EXTENSIONS,
+      excludeDirs: EXCLUDE_DIRS,
+      onFile: async (callerPath: string) => {
+        candidateCallerFiles.push(callerPath);
+      },
+    });
+
     let currentTargets = [{ name: params.symbolName, relFile: relRootFile }];
 
     for (let hop = 1; hop <= maxHops; hop++) {
       const nextTargets: typeof currentTargets = [];
 
       for (const target of currentTargets) {
-        await walkDir(params.projectRoot, {
-          extensions: SUPPORTED_EXTENSIONS,
-          excludeDirs: EXCLUDE_DIRS,
-          onFile: async (callerPath: string) => {
-            try {
-              const content = await fs.readFile(callerPath, "utf-8");
-              if (!content.includes(target.name)) return;
+        for (const callerPath of candidateCallerFiles) {
+          try {
+            const content = await fs.readFile(callerPath, "utf-8");
+            if (!content.includes(target.name)) continue;
 
-              const relCaller = path.relative(params.projectRoot, callerPath).replace(/\\/g, "/");
-              if (relCaller === target.relFile && hop === 1 && !content.includes(`this.${target.name}`)) {
-                // Skip self-reference declaration in target file unless explicitly invoking this.target
-              }
-
-              // Locate enclosing function/method that calls target.name
-              const lines = content.split("\n");
-              let currentEnclosingFunction = path.basename(callerPath, path.extname(callerPath));
-
-              for (const line of lines) {
-                const funcDefMatch = line.match(/(?:function|def|async|class)\s+([a-zA-Z0-9_]+)|([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{/);
-                if (funcDefMatch) {
-                  currentEnclosingFunction = funcDefMatch[1] || funcDefMatch[2];
-                }
-
-                if (line.includes(target.name) && currentEnclosingFunction !== target.name) {
-                  const key = `${relCaller}:${currentEnclosingFunction}`;
-                  if (!visitedSymbols.has(key)) {
-                    visitedSymbols.add(key);
-
-                    nodes.push({
-                      name: currentEnclosingFunction,
-                      file: relCaller,
-                      hop,
-                      direction: "caller",
-                      parent: target.name,
-                    });
-
-                    mermaidEdges.push(`  "${currentEnclosingFunction}" --> "${target.name}"`);
-
-                    if (hop < maxHops) {
-                      nextTargets.push({ name: currentEnclosingFunction, relFile: relCaller });
-                    }
-                  }
-                  break;
-                }
-              }
-            } catch {
-              // ignore
+            const relCaller = path.relative(params.projectRoot, callerPath).replace(/\\/g, "/");
+            if (relCaller === target.relFile && hop === 1 && !content.includes(`this.${target.name}`)) {
+              // Skip self-reference declaration in target file unless explicitly invoking this.target
             }
-          },
-        });
+
+            // Locate enclosing function/method that calls target.name
+            const lines = content.split("\n");
+            let currentEnclosingFunction = path.basename(callerPath, path.extname(callerPath));
+
+            for (const line of lines) {
+              const funcDefMatch = line.match(/(?:function|def|async|class)\s+([a-zA-Z0-9_]+)|([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{/);
+              if (funcDefMatch) {
+                currentEnclosingFunction = funcDefMatch[1] || funcDefMatch[2];
+              }
+
+              if (line.includes(target.name) && currentEnclosingFunction !== target.name) {
+                const key = `${relCaller}:${currentEnclosingFunction}`;
+                if (!visitedSymbols.has(key)) {
+                  visitedSymbols.add(key);
+
+                  nodes.push({
+                    name: currentEnclosingFunction,
+                    file: relCaller,
+                    hop,
+                    direction: "caller",
+                    parent: target.name,
+                  });
+
+                  mermaidEdges.push(`  "${currentEnclosingFunction}" --> "${target.name}"`);
+
+                  if (hop < maxHops) {
+                    nextTargets.push({ name: currentEnclosingFunction, relFile: relCaller });
+                  }
+                }
+                break;
+              }
+            }
+          } catch {
+            // ignore
+          }
+        }
       }
 
       currentTargets = nextTargets;

@@ -114,13 +114,16 @@ async function main() {
       // Legacy SSE message endpoint (/message)
       if (url.pathname === "/message" && req.method === "POST") {
         const sessionId = url.searchParams.get("sessionId");
-        const session = sessionId
-          ? sseTransports.get(sessionId)
-          : Array.from(sseTransports.values())[0];
-
-        if (!session) {
+        if (!sessionId) {
           res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "No active SSE transport session found" }));
+          res.end(JSON.stringify({ error: "Missing required 'sessionId' query parameter" }));
+          return;
+        }
+
+        const session = sseTransports.get(sessionId);
+        if (!session) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "SSE transport session not found or expired" }));
           return;
         }
 

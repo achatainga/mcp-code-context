@@ -16,4 +16,30 @@ describe("Semantic Merge Conflict Predictor", () => {
     expect(Array.isArray(result.conflicts)).toBe(true);
     expect(result.summary).toBeDefined();
   });
+
+  it("should reject malicious git ref inputs containing command injection syntax or flags", async () => {
+    await expect(
+      predictSemanticConflicts({
+        baseBranch: "HEAD & echo PWNED",
+        targetBranch: "HEAD",
+        projectRoot: process.cwd(),
+      })
+    ).rejects.toThrow("Invalid git base reference");
+
+    await expect(
+      predictSemanticConflicts({
+        baseBranch: "HEAD; calc.exe",
+        targetBranch: "HEAD",
+        projectRoot: process.cwd(),
+      })
+    ).rejects.toThrow("Invalid git base reference");
+
+    await expect(
+      predictSemanticConflicts({
+        baseBranch: "--upload-pack=evil",
+        targetBranch: "HEAD",
+        projectRoot: process.cwd(),
+      })
+    ).rejects.toThrow("Invalid git base reference");
+  });
 });
