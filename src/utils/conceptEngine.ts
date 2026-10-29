@@ -182,7 +182,10 @@ export function buildConceptVector(tokens: string[]): {
     for (const [category, keywords] of Object.entries(CONCEPT_TAXONOMY)) {
       for (const kw of keywords) {
         const stemmedKw = lightStem(kw);
-        if (token === kw || token === stemmedKw || token.includes(stemmedKw) || stemmedKw.includes(token)) {
+        const isExact = token === kw || token === stemmedKw;
+        const isPrefixOrSubstring = (token.length >= 4 && stemmedKw.length >= 4) &&
+          (token.startsWith(stemmedKw) || stemmedKw.startsWith(token));
+        if (isExact || isPrefixOrSubstring) {
           categoryWeights[category] = (categoryWeights[category] || 0) + 1;
         }
       }
