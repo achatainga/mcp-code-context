@@ -7,6 +7,7 @@
 export const EXCLUDE_DIRS = [
   "node_modules",
   "dist",
+  "dist-tests",
   "build",
   ".git",
   "vendor",

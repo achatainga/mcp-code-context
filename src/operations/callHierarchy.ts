@@ -141,8 +141,9 @@ export async function getCallHierarchy(params: {
             if (!content.includes(target.name)) continue;
 
             const relCaller = path.relative(params.projectRoot, callerPath).replace(/\\/g, "/");
-            if (relCaller === target.relFile && hop === 1 && !content.includes(`this.${target.name}`)) {
-              // Skip self-reference declaration in target file unless explicitly invoking this.target
+            if (relCaller === target.relFile) {
+              // Skip self file for caller detection
+              continue;
             }
 
             // Locate enclosing function/method that calls target.name
@@ -150,12 +151,18 @@ export async function getCallHierarchy(params: {
             let currentEnclosingFunction = path.basename(callerPath, path.extname(callerPath));
 
             for (const line of lines) {
-              const funcDefMatch = line.match(/(?:function|def|async|class)\s+([a-zA-Z0-9_]+)|([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{/);
+              const funcDefMatch = line.match(/(?:(?:export|default|async|public|private|protected|static)\s+)*(?:function|def|class)\s+([a-zA-Z0-9_]+)|(?:(?:public|private|protected|async|static)\s+)*([a-zA-Z0-9_]+)\s*\([^)]*\)\s*\{/);
               if (funcDefMatch) {
-                currentEnclosingFunction = funcDefMatch[1] || funcDefMatch[2];
+                const candidate = funcDefMatch[1] || funcDefMatch[2];
+                if (candidate && !["function", "class", "if", "for", "while", "switch", "catch", "return", "const", "let", "var", "default"].includes(candidate)) {
+                  currentEnclosingFunction = candidate;
+                }
               }
 
               if (line.includes(target.name) && currentEnclosingFunction !== target.name) {
+                if (["function", "class", "if", "for", "while", "switch", "catch", "return", "const", "let", "var"].includes(currentEnclosingFunction)) {
+                  continue;
+                }
                 const key = `${relCaller}:${currentEnclosingFunction}`;
                 if (!visitedSymbols.has(key)) {
                   visitedSymbols.add(key);
