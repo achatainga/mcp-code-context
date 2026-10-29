@@ -25,6 +25,11 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["get_gemfile_context", handlers.handleGetGemfileContext],
   ["find_metaprogramming", handlers.handleFindMetaprogramming],
   ["get_rails_routes", handlers.handleGetRailsRoutes],
+  // Enterprise & Intelligence tools (v4.1.0)
+  ["get_impacted_tests", handlers.handleGetImpactedTests],
+  ["get_call_hierarchy", handlers.handleGetCallHierarchy],
+  ["validate_wire_contract", handlers.handleValidateWireContract],
+  ["predict_semantic_conflicts", handlers.handlePredictSemanticConflicts],
   // Write operations
   ["write_file_surgical", handlers.handleWriteFileSurgical],
   ["insert_symbol", handlers.handleInsertSymbol],

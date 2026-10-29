@@ -300,5 +300,60 @@ export const CORE_TOOLS = [
       required: [],
     },
   },
+  {
+    name: "get_impacted_tests",
+    description: "Test Impact Analysis (TIA): Map modified AST symbols to target test suites and detect minimal test runner commands.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to the modified source file" },
+        symbolName: { type: "string", description: "Name of the modified symbol (optional)" },
+        projectRoot: { type: "string", description: "Project root boundary (optional)" },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
+    name: "get_call_hierarchy",
+    description: "AST-based 3-Hop Call Hierarchy: Trace callers and callees up to 3 hops with Mermaid graph TD visualization.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to file" },
+        symbolName: { type: "string", description: "Name of function or method to trace" },
+        direction: { type: "string", enum: ["callers", "callees", "both"], description: "Traversal direction (default: both)" },
+        maxHops: { type: "number", description: "Maximum hops to trace (default: 3, max: 5)" },
+        projectRoot: { type: "string", description: "Project root boundary (optional)" },
+      },
+      required: ["filePath", "symbolName"],
+    },
+  },
+  {
+    name: "validate_wire_contract",
+    description: "Cross-Language Wire Contract Validator: Verify frontend TypeScript interfaces against backend models/schemas for drift, type mismatches, and naming conventions.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        frontendFile: { type: "string", description: "Absolute path to frontend file containing TypeScript interface/type" },
+        backendFile: { type: "string", description: "Absolute path to backend model/migration/entity file (optional)" },
+        endpoint: { type: "string", description: "API endpoint route (e.g. /api/users) (optional)" },
+        projectRoot: { type: "string", description: "Project root boundary (optional)" },
+      },
+      required: ["frontendFile"],
+    },
+  },
+  {
+    name: "predict_semantic_conflicts",
+    description: "Semantic Merge Conflict Predictor: Analyze AST divergence across Git branches/worktrees before merge to identify breaking symbol changes and affected dependents.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        baseBranch: { type: "string", description: "Base Git ref or branch (default: HEAD~1)" },
+        targetBranch: { type: "string", description: "Target Git ref or branch (default: HEAD)" },
+        projectRoot: { type: "string", description: "Project root boundary (optional)" },
+      },
+      required: [],
+    },
+  },
   // ── END NEW TOOLS ────────────────────────────────────────────────────────
 ];

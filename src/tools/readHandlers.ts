@@ -20,6 +20,10 @@ import { parseGemfile, formatGemAnnotation } from "../utils/gemfileParser.js";
 import { findMetaprogrammingEntryPoints, formatMetaprogrammingResults } from "../utils/metaprogramming.js";
 import { parseRailsRoutes } from "../utils/railsRoutes.js";
 import { resolveProjectRoot } from "../utils/projectRoot.js";
+import { getImpactedTests } from "../operations/testImpact.js";
+import { getCallHierarchy } from "../operations/callHierarchy.js";
+import { validateWireContract } from "../operations/wireContract.js";
+import { predictSemanticConflicts } from "../operations/conflictPredictor.js";
 
 export async function handleGetSemanticRepoMap(args: Record<string, unknown>) {
   if (!args.directoryPath) {
@@ -362,6 +366,96 @@ export async function handleGetRailsRoutes(args: Record<string, unknown>) {
   if (!result) {
     return { content: [{ type: "text", text: JSON.stringify({ found: false, message: "No config/routes.rb found" }) }] };
   }
+
+  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+}
+
+// TIA: get_impacted_tests — map modified AST symbols to target test suites
+export async function handleGetImpactedTests(args: Record<string, unknown>) {
+  if (!args.filePath) throw new Error("filePath is required");
+  const filePath = String(args.filePath);
+  const projectRoot = resolveProjectRoot(args, filePath);
+  const symbolName = args.symbolName ? String(args.symbolName) : undefined;
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const result = await getImpactedTests({
+    filePath: validation.resolvedPath!,
+    symbolName,
+    projectRoot,
+  });
+
+  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+}
+
+// 3-Hop Call Hierarchy: get_call_hierarchy
+export async function handleGetCallHierarchy(args: Record<string, unknown>) {
+  if (!args.filePath) throw new Error("filePath is required");
+  if (!args.symbolName) throw new Error("symbolName is required");
+
+  const filePath = String(args.filePath);
+  const symbolName = String(args.symbolName);
+  const projectRoot = resolveProjectRoot(args, filePath);
+  const direction = (args.direction as "callers" | "callees" | "both") || "both";
+  const maxHops = args.maxHops ? Number(args.maxHops) : 3;
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const result = await getCallHierarchy({
+    filePath: validation.resolvedPath!,
+    symbolName,
+    direction,
+    maxHops,
+    projectRoot,
+  });
+
+  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+}
+
+// Cross-Language Wire Contract: validate_wire_contract
+export async function handleValidateWireContract(args: Record<string, unknown>) {
+  if (!args.frontendFile) throw new Error("frontendFile is required");
+  const frontendFile = String(args.frontendFile);
+  const projectRoot = resolveProjectRoot(args, frontendFile);
+  const backendFile = args.backendFile ? String(args.backendFile) : undefined;
+  const endpoint = args.endpoint ? String(args.endpoint) : undefined;
+
+  const validator = new SecurityValidator(projectRoot);
+  const feVal = await validator.validateFilePath(frontendFile);
+  if (!feVal.valid) throw new Error(feVal.error);
+
+  let bePath: string | undefined = undefined;
+  if (backendFile) {
+    const beVal = await validator.validateFilePath(backendFile);
+    if (!beVal.valid) throw new Error(beVal.error);
+    bePath = beVal.resolvedPath;
+  }
+
+  const result = await validateWireContract({
+    frontendFile: feVal.resolvedPath!,
+    backendFile: bePath,
+    endpoint,
+    projectRoot,
+  });
+
+  return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
+}
+
+// Semantic Merge Conflict Predictor: predict_semantic_conflicts
+export async function handlePredictSemanticConflicts(args: Record<string, unknown>) {
+  const projectRoot = resolveProjectRoot(args);
+  const baseBranch = args.baseBranch ? String(args.baseBranch) : undefined;
+  const targetBranch = args.targetBranch ? String(args.targetBranch) : undefined;
+
+  const result = await predictSemanticConflicts({
+    baseBranch,
+    targetBranch,
+    projectRoot,
+  });
 
   return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
 }

@@ -154,4 +154,8 @@ export const OPERATION_COSTS = {
   get_session_stats: 1,
   clear_session_cache: 2,
   list_pending_operations: 1,
+  get_impacted_tests: 15,
+  get_call_hierarchy: 20,
+  validate_wire_contract: 10,
+  predict_semantic_conflicts: 25,
 } as const;
