@@ -51,6 +51,7 @@ export async function predictSemanticConflicts(params: {
     // 1. Get changed files between base and target (safe argv execution without shell)
     const { stdout: diffOutput } = await execFileAsync("git", ["diff", "--name-status", baseRef, targetRef], {
       cwd: params.projectRoot,
+      timeout: 15000,
     });
 
     const lines = diffOutput.trim().split("\n").filter(Boolean);

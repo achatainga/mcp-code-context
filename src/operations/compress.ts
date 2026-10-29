@@ -216,13 +216,31 @@ async function compressRepository(params: {
       for (const f of list) {
         const card = document.createElement("div");
         card.className = "card";
-        const symHtml = f.symbols.length > 0 
-          ? f.symbols.map(s => {
-              const cls = s.type === "class" ? "sym-class" : s.type === "db_column" ? "sym-db" : "sym-function";
-              return '<span class="sym-badge ' + cls + '">' + s.type + ': ' + s.name + '</span>';
-            }).join("")
-          : '<span class="empty-note">No exported AST symbols</span>';
-        card.innerHTML = '<div class="card-path">' + f.path + '</div><div class="symbols-list">' + symHtml + '</div>';
+
+        const pathEl = document.createElement("div");
+        pathEl.className = "card-path";
+        pathEl.textContent = f.path;
+        card.appendChild(pathEl);
+
+        const symListEl = document.createElement("div");
+        symListEl.className = "symbols-list";
+
+        if (f.symbols.length > 0) {
+          for (const s of f.symbols) {
+            const badge = document.createElement("span");
+            const cls = s.type === "class" ? "sym-class" : s.type === "db_column" ? "sym-db" : "sym-function";
+            badge.className = "sym-badge " + cls;
+            badge.textContent = s.type + ": " + s.name;
+            symListEl.appendChild(badge);
+          }
+        } else {
+          const emptyNote = document.createElement("span");
+          emptyNote.className = "empty-note";
+          emptyNote.textContent = "No exported AST symbols";
+          symListEl.appendChild(emptyNote);
+        }
+
+        card.appendChild(symListEl);
         grid.appendChild(card);
       }
     }

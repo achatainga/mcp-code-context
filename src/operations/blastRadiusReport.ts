@@ -87,12 +87,12 @@ export async function generateAstImpactReport(params: {
 
     let diffOutput = "";
     try {
-      const res = await execFileAsync("git", diffArgs, { cwd: params.projectRoot });
+      const res = await execFileAsync("git", diffArgs, { cwd: params.projectRoot, timeout: 15000 });
       diffOutput = res.stdout;
     } catch {
       // Fallback: If baseRef doesn't exist, try diffing against HEAD~1 or uncommitted changes
       try {
-        const fallback = await execFileAsync("git", ["diff", "--name-status", "HEAD~1"], { cwd: params.projectRoot });
+        const fallback = await execFileAsync("git", ["diff", "--name-status", "HEAD~1"], { cwd: params.projectRoot, timeout: 15000 });
         diffOutput = fallback.stdout;
       } catch {
         diffOutput = "";

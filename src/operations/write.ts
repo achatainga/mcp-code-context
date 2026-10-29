@@ -72,8 +72,9 @@ function findSyntaxError(node: any): { line: number; column: number; text: strin
  * Validate syntax of generated code (Vector 1: Syntax Firewall)
  */
 export function validateSyntax(content: string, parser: BaseParser): { valid: boolean; error?: string } {
+  let tree: any = null;
   try {
-    const tree = parser.parse(content);
+    tree = parser.parse(content);
     if (tree.rootNode.hasError) {
       const err = findSyntaxError(tree.rootNode);
       const detail = err
@@ -87,6 +88,12 @@ export function validateSyntax(content: string, parser: BaseParser): { valid: bo
     return { valid: true };
   } catch (error) {
     return { valid: false, error: `Syntax Firewall Blocked: ${error}` };
+  } finally {
+    try {
+      tree?.delete();
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -106,33 +113,43 @@ export async function replaceSymbol(options: ReplaceOptions): Promise<WriteResul
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
     const originalHash = createHash('sha256').update(content).digest('hex');
-    const tree = parser.parse(content);
+    let tree: any = null;
 
-    // Use AST-based replacement
-    let result: string;
     try {
-      result = parser.replaceSymbol(content, tree, symbolName, newContent, className);
-    } catch (replaceError) {
+      tree = parser.parse(content);
+
+      // Use AST-based replacement
+      let result: string;
+      try {
+        result = parser.replaceSymbol(content, tree, symbolName, newContent, className);
+      } catch (replaceError) {
+        return {
+          success: false,
+          error: replaceError instanceof Error ? replaceError.message : String(replaceError),
+        };
+      }
+
+      // Validate syntax of the resulting file
+      const syntaxCheck = validateSyntax(result, parser);
+      if (!syntaxCheck.valid) {
+        return { success: false, error: syntaxCheck.error };
+      }
+
+      const diff = generateDiff(content, result);
+
       return {
-        success: false,
-        error: replaceError instanceof Error ? replaceError.message : String(replaceError),
+        success: true,
+        newContent: result,
+        diff,
+        originalHash,
       };
+    } finally {
+      try {
+        tree?.delete();
+      } catch {
+        // ignore
+      }
     }
-
-    // Validate syntax of the resulting file
-    const syntaxCheck = validateSyntax(result, parser);
-    if (!syntaxCheck.valid) {
-      return { success: false, error: syntaxCheck.error };
-    }
-
-    const diff = generateDiff(content, result);
-
-    return {
-      success: true,
-      newContent: result,
-      diff,
-      originalHash,
-    };
   } catch (error) {
     return {
       success: false,
@@ -156,59 +173,69 @@ export async function insertCode(options: InsertOptions): Promise<WriteResult> {
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
     const originalHash = createHash('sha256').update(content).digest('hex');
-    const tree = parser.parse(content);
+    let tree: any = null;
 
-    let insertIndex: number;
+    try {
+      tree = parser.parse(content);
 
-    if (!anchorSymbol) {
-      // Insert at end
-      insertIndex = content.length;
-    } else {
-      // Find anchor using AST
-      const symbols = parser.findSymbols(tree);
-      const anchorNode = symbols.find(s =>
-        s.name === anchorSymbol && (!className || s.className === className)
-      );
+      let insertIndex: number;
 
-      if (!anchorNode) {
-        return { success: false, error: `Anchor symbol "${anchorSymbol}" not found` };
+      if (!anchorSymbol) {
+        // Insert at end
+        insertIndex = content.length;
+      } else {
+        // Find anchor using AST
+        const symbols = parser.findSymbols(tree);
+        const anchorNode = symbols.find(s =>
+          s.name === anchorSymbol && (!className || s.className === className)
+        );
+
+        if (!anchorNode) {
+          return { success: false, error: `Anchor symbol "${anchorSymbol}" not found` };
+        }
+
+        // Use AST indices for positioning
+        switch (position) {
+          case "before":
+            insertIndex = anchorNode.startIndex;
+            break;
+          case "after":
+            insertIndex = anchorNode.endIndex;
+            break;
+          case "inside_start":
+            insertIndex = parser.getInsideStartIndex(content, anchorNode);
+            break;
+          case "inside_end":
+            insertIndex = parser.getInsideEndIndex(content, anchorNode);
+            break;
+          default:
+            insertIndex = anchorNode.endIndex;
+        }
       }
 
-      // Use AST indices for positioning
-      switch (position) {
-        case "before":
-          insertIndex = anchorNode.startIndex;
-          break;
-        case "after":
-          insertIndex = anchorNode.endIndex;
-          break;
-        case "inside_start":
-          insertIndex = parser.getInsideStartIndex(content, anchorNode);
-          break;
-        case "inside_end":
-          insertIndex = parser.getInsideEndIndex(content, anchorNode);
-          break;
-        default:
-          insertIndex = anchorNode.endIndex;
+      const result = content.substring(0, insertIndex) + "\n" + code + "\n" + content.substring(insertIndex);
+
+      // Validate syntax
+      const syntaxCheck = validateSyntax(result, parser);
+      if (!syntaxCheck.valid) {
+        return { success: false, error: syntaxCheck.error };
+      }
+
+      const diff = generateDiff(content, result);
+
+      return {
+        success: true,
+        newContent: result,
+        diff,
+        originalHash,
+      };
+    } finally {
+      try {
+        tree?.delete();
+      } catch {
+        // ignore
       }
     }
-
-    const result = content.substring(0, insertIndex) + "\n" + code + "\n" + content.substring(insertIndex);
-
-    // Validate syntax
-    const syntaxCheck = validateSyntax(result, parser);
-    if (!syntaxCheck.valid) {
-      return { success: false, error: syntaxCheck.error };
-    }
-
-    const diff = generateDiff(content, result);
-
-    return {
-      success: true,
-      newContent: result,
-      diff,
-      originalHash,
-    };
   } catch (error) {
     return {
       success: false,
@@ -231,34 +258,44 @@ export async function removeSymbol(options: RemoveOptions): Promise<WriteResult>
 
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
-    const tree = parser.parse(content);
+    let tree: any = null;
 
-    // Use findSymbols for AST-based location
-    const symbols = parser.findSymbols(tree);
-    const target = symbols.find(s =>
-      s.name === symbolName && (!className || s.className === className)
-    );
+    try {
+      tree = parser.parse(content);
 
-    if (!target) {
-      return { success: false, error: `Symbol "${symbolName}" not found` };
+      // Use findSymbols for AST-based location
+      const symbols = parser.findSymbols(tree);
+      const target = symbols.find(s =>
+        s.name === symbolName && (!className || s.className === className)
+      );
+
+      if (!target) {
+        return { success: false, error: `Symbol "${symbolName}" not found` };
+      }
+
+      // Use AST startIndex/endIndex instead of indexOf
+      const result = content.substring(0, target.startIndex) + content.substring(target.endIndex);
+
+      // Validate syntax
+      const syntaxCheck = validateSyntax(result, parser);
+      if (!syntaxCheck.valid) {
+        return { success: false, error: syntaxCheck.error };
+      }
+
+      const diff = generateDiff(content, result);
+
+      return {
+        success: true,
+        newContent: result,
+        diff,
+      };
+    } finally {
+      try {
+        tree?.delete();
+      } catch {
+        // ignore
+      }
     }
-
-    // Use AST startIndex/endIndex instead of indexOf
-    const result = content.substring(0, target.startIndex) + content.substring(target.endIndex);
-
-    // Validate syntax
-    const syntaxCheck = validateSyntax(result, parser);
-    if (!syntaxCheck.valid) {
-      return { success: false, error: syntaxCheck.error };
-    }
-
-    const diff = generateDiff(content, result);
-
-    return {
-      success: true,
-      newContent: result,
-      diff,
-    };
   } catch (error) {
     return {
       success: false,

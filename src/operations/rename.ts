@@ -135,46 +135,55 @@ export async function renameSymbol(params: {
 
     const { resolvedPath, sanitizedOld } = validation;
     const content = await fs.readFile(resolvedPath!, "utf-8");
-    const tree = params.parser.parse(content);
-    const symbols = params.parser.findSymbols(tree);
+    let tree: any = null;
+    try {
+      tree = params.parser.parse(content);
+      const symbols = params.parser.findSymbols(tree);
 
-    const targetSymbol = symbols.find((s) => s.name === params.oldName);
-    if (!targetSymbol) {
-      return { success: false, error: `Symbol "${params.oldName}" not found in ${params.filePath}` };
+      const targetSymbol = symbols.find((s) => s.name === params.oldName);
+      if (!targetSymbol) {
+        return { success: false, error: `Symbol "${params.oldName}" not found in ${params.filePath}` };
+      }
+
+      const symbolSlice = content.substring(targetSymbol.startIndex, targetSymbol.endIndex);
+      const symbolReplace = await safeRegexReplaceAll(`\\b${sanitizedOld}\\b`, params.newName, symbolSlice);
+      if (symbolReplace.timedOut) {
+        return { success: false, error: symbolReplace.error ?? "Regex timed out during rename (ReDoS prevented)" };
+      }
+      if (!symbolReplace.success || symbolReplace.output === undefined) {
+        return { success: false, error: symbolReplace.error ?? "Rename replace failed" };
+      }
+
+      const newContent =
+        content.substring(0, targetSymbol.startIndex) +
+        symbolReplace.output +
+        content.substring(targetSymbol.endIndex);
+
+      const dependents = await findDependentFiles(params.rootDir, sanitizedOld!, params.projectRoot);
+      const { pendingWrites, diff } = await generateRenameChanges(
+        params.oldName,
+        params.newName,
+        sanitizedOld!,
+        resolvedPath!,
+        content,
+        newContent,
+        dependents
+      );
+
+      return {
+        success: true,
+        newContent,
+        diff,
+        originalHash: createHash("sha256").update(content).digest("hex"),
+        pendingWrites,
+      };
+    } finally {
+      try {
+        tree?.delete();
+      } catch {
+        // Safe deallocation of WASM linear memory
+      }
     }
-
-    const symbolSlice = content.substring(targetSymbol.startIndex, targetSymbol.endIndex);
-    const symbolReplace = await safeRegexReplaceAll(`\\b${sanitizedOld}\\b`, params.newName, symbolSlice);
-    if (symbolReplace.timedOut) {
-      return { success: false, error: symbolReplace.error ?? "Regex timed out during rename (ReDoS prevented)" };
-    }
-    if (!symbolReplace.success || symbolReplace.output === undefined) {
-      return { success: false, error: symbolReplace.error ?? "Rename replace failed" };
-    }
-
-    const newContent =
-      content.substring(0, targetSymbol.startIndex) +
-      symbolReplace.output +
-      content.substring(targetSymbol.endIndex);
-
-    const dependents = await findDependentFiles(params.rootDir, sanitizedOld!, params.projectRoot);
-    const { pendingWrites, diff } = await generateRenameChanges(
-      params.oldName,
-      params.newName,
-      sanitizedOld!,
-      resolvedPath!,
-      content,
-      newContent,
-      dependents
-    );
-
-    return {
-      success: true,
-      newContent,
-      diff,
-      originalHash: createHash("sha256").update(content).digest("hex"),
-      pendingWrites,
-    };
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : String(error) };
   }

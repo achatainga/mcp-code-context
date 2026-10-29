@@ -58,10 +58,11 @@ export async function astTransform(options: AstTransformOptions): Promise<WriteR
     return { success: false, error: validation.error };
   }
 
+  let tree: any = null;
   try {
     const content = await fs.readFile(validation.resolvedPath!, "utf-8");
     const originalHash = createHash("sha256").update(content).digest("hex");
-    const tree = parser.parse(content);
+    tree = parser.parse(content);
 
     const symbols = parser.findSymbols(tree);
     const target = symbols.find(
@@ -117,6 +118,12 @@ export async function astTransform(options: AstTransformOptions): Promise<WriteR
       success: false,
       error: error instanceof Error ? error.message : String(error),
     };
+  } finally {
+    try {
+      tree?.delete();
+    } catch {
+      // Safe deallocation of WASM linear memory
+    }
   }
 }
 
