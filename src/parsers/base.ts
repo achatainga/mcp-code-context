@@ -51,9 +51,24 @@ export abstract class BaseParser {
   parseIncremental(filePath: string, content: string): Tree {
     const cached = this.treeCache.get(filePath);
     const tree = this.parse(content, cached?.tree);
+    if (cached?.tree && cached.tree !== tree) {
+      try {
+        cached.tree.delete();
+      } catch {
+        // Safe disposal: ignore if already disposed in WASM linear memory
+      }
+    }
     if (this.treeCache.size > 100) {
       const first = this.treeCache.keys().next().value;
-      if (first) this.treeCache.delete(first);
+      if (first) {
+        const evicted = this.treeCache.get(first);
+        try {
+          evicted?.tree?.delete();
+        } catch {
+          // Safe disposal
+        }
+        this.treeCache.delete(first);
+      }
     }
     this.treeCache.set(filePath, { tree });
     return tree;
@@ -61,8 +76,21 @@ export abstract class BaseParser {
 
   clearTreeCache(filePath?: string): void {
     if (filePath) {
+      const entry = this.treeCache.get(filePath);
+      try {
+        entry?.tree?.delete();
+      } catch {
+        // Safe disposal
+      }
       this.treeCache.delete(filePath);
     } else {
+      for (const entry of this.treeCache.values()) {
+        try {
+          entry?.tree?.delete();
+        } catch {
+          // Safe disposal
+        }
+      }
       this.treeCache.clear();
     }
   }

@@ -165,12 +165,15 @@ export async function explainSymbol(params: {
       // 2. Class / Interface Skeleton vs Function/Method Skeleton
       if (sym.type.includes("class") || sym.type.includes("interface") || sym.type.includes("struct")) {
         const methodMatches = Array.from(
-          extracted.matchAll(/(?:public|private|protected|async|static|\s)*([a-zA-Z0-9_]+)\s*\(([^)]*)\)(?:\s*:\s*([^{;]+))?/g)
+          extracted.matchAll(/(?:^|[\r\n;{}])\s*(?:(?:public|private|protected|async|static|readonly|override)\s+)*([a-zA-Z0-9_]+)\s*\(([^)]*)\)(?:\s*:\s*([^{;=]+))?/g)
         );
         const methodSignatures: string[] = [];
+        const seenMethods = new Set<string>();
         for (const m of methodMatches) {
           const methodName = m[1];
-          if (["if", "for", "while", "switch", "catch", "constructor"].includes(methodName)) continue;
+          if (["if", "for", "while", "switch", "catch", "constructor", "return", "throw", "yield", "new"].includes(methodName)) continue;
+          if (seenMethods.has(methodName)) continue;
+          seenMethods.add(methodName);
           const paramsStr = m[2].trim();
           const retStr = m[3] ? m[3].trim() : "void";
           methodSignatures.push(`  ${methodName}(${paramsStr}): ${retStr};`);
