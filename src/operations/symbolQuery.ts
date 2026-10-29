@@ -71,20 +71,37 @@ export async function searchSymbols(params: {
         const parser = registry.getParser(ext);
         if (!parser) return;
 
-        const content = await fs.readFile(fullPath, 'utf-8');
-        const tree = parser.parse(content);
-        const symbols = parser.findSymbols(tree);
+        let content: string;
+        try {
+          content = await fs.readFile(fullPath, 'utf-8');
+        } catch {
+          return;
+        }
 
-        for (const sym of symbols) {
-          if (params.types && params.types.length > 0 && !params.types.includes(sym.type)) continue;
-          results.push({
-            name: sym.name,
-            type: sym.type,
-            file: fullPath,
-            startLine: sym.startLine,
-            endLine: sym.endLine,
-            className: sym.className,
-          });
+        let tree;
+        try {
+          tree = parser.parse(content);
+          const symbols = parser.findSymbols(tree);
+
+          for (const sym of symbols) {
+            if (params.types && params.types.length > 0 && !params.types.includes(sym.type)) continue;
+            results.push({
+              name: sym.name,
+              type: sym.type,
+              file: fullPath,
+              startLine: sym.startLine,
+              endLine: sym.endLine,
+              className: sym.className,
+            });
+          }
+        } catch {
+          return;
+        } finally {
+          try {
+            tree?.delete();
+          } catch {
+            // Safe deallocation of WASM linear memory
+          }
         }
       },
     });
@@ -130,21 +147,33 @@ export async function explainSymbol(params: {
 }): Promise<ReadResult> {
   try {
     const content = await fs.readFile(params.filePath, 'utf-8');
-    const tree = params.parser.parse(content);
-    const symbols = params.parser.findSymbols(tree);
+    let tree;
+    let symbols;
+    let sym;
+    let extracted: string | null = null;
+    try {
+      tree = params.parser.parse(content);
+      symbols = params.parser.findSymbols(tree);
 
-    const sym = symbols.find(s =>
-      s.name === params.symbolName && (!params.className || s.className === params.className)
-    );
+      sym = symbols.find(s =>
+        s.name === params.symbolName && (!params.className || s.className === params.className)
+      );
 
-    if (!sym) {
-      return {
-        success: false,
-        error: `Symbol "${params.symbolName}" not found. Available: ${symbols.map(s => s.name).join(', ')}`,
-      };
+      if (!sym) {
+        return {
+          success: false,
+          error: `Symbol "${params.symbolName}" not found. Available: ${symbols.map(s => s.name).join(', ')}`,
+        };
+      }
+
+      extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
+    } finally {
+      try {
+        tree?.delete();
+      } catch {
+        // Safe disposal of WASM tree
+      }
     }
-
-    const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
 
     // Extract signature (first line of the symbol)
     const signature = extracted ? extracted.split('\n')[0].trim() : '';

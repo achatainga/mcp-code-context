@@ -63,23 +63,30 @@ async function compressRepository(params: {
               .digest("hex");
 
             const symbols = await (async () => {
-              // Skip re-parsing if index is up to date
-              if (!(await indexManager.isStale(fullPath, fileHash))) {
-                const tree = parser.parse(content);
-                return parser.findSymbols(tree);
+              let tree;
+              try {
+                tree = parser.parse(content);
+                const syms = parser.findSymbols(tree);
+
+                // Skip re-indexing if index is up to date
+                if (await indexManager.isStale(fullPath, fileHash)) {
+                  // Extract import dependencies
+                  const deps = extractImports(content, fullPath, params.directoryPath);
+
+                  // Feed index (fire-and-forget, never blocks the repo map)
+                  indexManager.indexFile(fullPath, fileHash, syms, deps).catch(() => {
+                    // Index feeding is fire-and-forget — never blocks repo map generation
+                  });
+                }
+
+                return syms;
+              } finally {
+                try {
+                  tree?.delete();
+                } catch {
+                  // Safe disposal of WASM tree
+                }
               }
-              const tree = parser.parse(content);
-              const syms = parser.findSymbols(tree);
-
-              // Extract import dependencies
-              const deps = extractImports(content, fullPath, params.directoryPath);
-
-              // Feed index (fire-and-forget, never blocks the repo map)
-              indexManager.indexFile(fullPath, fileHash, syms, deps).catch(() => {
-                // Index feeding is fire-and-forget — never blocks repo map generation
-              });
-
-              return syms;
             })();
 
             totalSymbols += symbols.length;

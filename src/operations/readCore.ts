@@ -4,7 +4,7 @@
 
 import * as fs from "node:fs/promises";
 import * as crypto from "node:crypto";
-import { BaseParser } from "../parsers/base.js";
+import { BaseParser, type SymbolInfo } from "../parsers/base.js";
 import { safeRegexFindFirst } from "../utils/safeRegex.js";
 import { validateRegexPattern } from "../utils/regexValidator.js";
 import { CacheManager } from "../core/cacheManager.js";
@@ -48,8 +48,14 @@ export async function extractSymbol(params: {
         
         if (symbol) {
           const content = await fs.readFile(params.filePath, "utf-8");
-          const tree = params.parser.parse(content);
-          const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
+          let tree;
+          let extracted: string | null = null;
+          try {
+            tree = params.parser.parse(content);
+            extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
+          } finally {
+            try { tree?.delete(); } catch {}
+          }
           
           if (extracted) {
             return { success: true, content: extracted };
@@ -60,26 +66,32 @@ export async function extractSymbol(params: {
     
     // Cache miss - parse file
     const content = await fs.readFile(params.filePath, "utf-8");
-    const tree = params.parser.parse(content);
-    const symbols = params.parser.findSymbols(tree);
-    
-    // Update cache
-    if (cache) {
-      const hash = await getFileHash(params.filePath);
-      const stat = await fs.stat(params.filePath);
-      await cache.set({
-        filePath: params.filePath,
-        hash,
-        symbols,
-        lastModified: stat.mtimeMs,
-        cachedAt: Date.now(),
-      });
+    let tree;
+    let symbols: SymbolInfo[] = [];
+    let extracted: string | null = null;
+    try {
+      tree = params.parser.parse(content);
+      symbols = params.parser.findSymbols(tree);
+
+      // Update cache
+      if (cache) {
+        const hash = await getFileHash(params.filePath);
+        const stat = await fs.stat(params.filePath);
+        await cache.set({
+          filePath: params.filePath,
+          hash,
+          symbols,
+          lastModified: stat.mtimeMs,
+          cachedAt: Date.now(),
+        });
+      }
+
+      extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
+    } finally {
+      try { tree?.delete(); } catch {}
     }
 
-    const extracted = params.parser.extractSymbol(tree, params.symbolName, params.className);
-
     if (!extracted) {
-      const symbols = params.parser.findSymbols(tree);
       return {
         success: false,
         error: `Symbol "${params.symbolName}" not found. Available: ${symbols.map(s => s.name).join(", ")}`,
