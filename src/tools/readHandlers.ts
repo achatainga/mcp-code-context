@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, queryCodeAst, incrementalAstDiff, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -418,6 +418,62 @@ export async function handleGenerateAstImpactReport(args: Record<string, unknown
     projectRoot,
     includeTests: args.includeTests !== undefined ? Boolean(args.includeTests) : true,
     includeArchitecture: args.includeArchitecture !== undefined ? Boolean(args.includeArchitecture) : true,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02i: query_code_ast (v5.1.0)
+export async function handleQueryCodeAst(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await queryCodeAst({
+    filePath: resolvedTarget,
+    projectRoot,
+    query: args.query ? String(args.query) : undefined,
+    template: args.template as any,
+    code: args.code ? String(args.code) : undefined,
+    limit: args.limit ? Number(args.limit) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02j: incremental_ast_diff (v5.1.0)
+export async function handleIncrementalAstDiff(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.oldCode) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await incrementalAstDiff({
+    filePath: resolvedTarget,
+    projectRoot,
+    oldCode: args.oldCode ? String(args.oldCode) : undefined,
+    newCode: args.newCode ? String(args.newCode) : undefined,
+    registry,
   });
 
   if (!result.success) throw new Error(result.error);

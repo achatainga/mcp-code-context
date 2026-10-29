@@ -155,6 +155,8 @@ export const OPERATION_COSTS = {
   enforce_architecture_rules: 15,
   compact_context_ledger: 15,
   generate_ast_impact_report: 30,
+  query_code_ast: 20,
+  incremental_ast_diff: 10,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,

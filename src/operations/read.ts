@@ -11,3 +11,5 @@ export { backfillTypes } from "./typeInference.js";
 export { enforceArchitectureRules } from "./architectureLinter.js";
 export { compactContextLedger } from "./contextCompactor.js";
 export { generateAstImpactReport } from "./blastRadiusReport.js";
+export { queryCodeAst } from "./astQuery.js";
+export { incrementalAstDiff } from "./incrementalDiff.js";

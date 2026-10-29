@@ -347,6 +347,39 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "query_code_ast",
+    description: "Execute native Tree-sitter S-Expression (Scheme DSL) queries or pre-built architectural pattern templates directly against source code in memory via WebAssembly.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        query: { type: "string", description: "Tree-sitter S-Expression pattern (e.g. '(catch_clause (statement_block) @empty_catch)')" },
+        template: {
+          type: "string",
+          enum: ["empty-catch", "excessive-params", "nested-ternary", "eval-call", "todo-comment", "console-log", "print-call"],
+          description: "Pre-built AST query pattern template",
+        },
+        code: { type: "string", description: "Optional raw code content to query directly in memory" },
+        limit: { type: "number", description: "Maximum number of AST matches to return (default: 50)" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "incremental_ast_diff",
+    description: "High-performance O(log N) AST incremental re-parsing and diffing using WebAssembly Tree-sitter. Pinpoints exact changed syntax subtrees and validates AST integrity before saving.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        oldCode: { type: "string", description: "Previous source code buffer" },
+        newCode: { type: "string", description: "New or edited source code buffer" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+      required: ["newCode"],
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {

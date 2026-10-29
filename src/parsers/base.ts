@@ -37,6 +37,14 @@ export abstract class BaseParser {
     this.parser.setLanguage(language);
   }
 
+  getLanguage(): Language {
+    return this.language;
+  }
+
+  getParser(): Parser {
+    return this.parser;
+  }
+
   private treeCache = new Map<string, { tree: Tree }>();
 
   parse(content: string, oldTree?: Tree): Tree {

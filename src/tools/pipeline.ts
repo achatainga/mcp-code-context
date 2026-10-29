@@ -26,6 +26,8 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["enforce_architecture_rules", handlers.handleEnforceArchitectureRules],
   ["compact_context_ledger", handlers.handleCompactContextLedger],
   ["generate_ast_impact_report", handlers.handleGenerateAstImpactReport],
+  ["query_code_ast", handlers.handleQueryCodeAst],
+  ["incremental_ast_diff", handlers.handleIncrementalAstDiff],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
   // Ruby Intelligence tools (v3.9.0)
