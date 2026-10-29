@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, queryCodeAst, incrementalAstDiff, getAstComplexityMatrix, generateAstMocks, detectDeadAstSymbols, resolveLexicalScope, validateSqlAst, astCodemodTranspile, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, queryCodeAst, incrementalAstDiff, getAstComplexityMatrix, generateAstMocks, detectDeadAstSymbols, resolveLexicalScope, validateSqlAst, astCodemodTranspile, detectAsyncEventloopBlockers, verifyEnvContractDrift, auditErrorHandlingContracts, extractApiRouteMatrix, flattenClassHierarchy, detectCircularDependencies, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -636,6 +636,154 @@ export async function handleAstCodemodTranspile(args: Record<string, unknown>) {
     projectRoot,
     rule: args.rule as any,
     code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02q: detect_async_eventloop_blockers (v7.0.0)
+export async function handleDetectAsyncEventloopBlockers(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await detectAsyncEventloopBlockers({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02r: verify_env_contract_drift (v7.0.0)
+export async function handleVerifyEnvContractDrift(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await verifyEnvContractDrift({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    envExampleContent: args.envExampleContent ? String(args.envExampleContent) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02s: audit_error_handling_contracts (v7.0.0)
+export async function handleAuditErrorHandlingContracts(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await auditErrorHandlingContracts({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02t: extract_api_route_matrix (v7.0.0)
+export async function handleExtractApiRouteMatrix(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await extractApiRouteMatrix({
+    filePath: resolvedTarget,
+    projectRoot,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02u: flatten_class_hierarchy (v7.0.0)
+export async function handleFlattenClassHierarchy(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.code) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const registry = getRegistry();
+
+  const result = await flattenClassHierarchy({
+    filePath: resolvedTarget,
+    projectRoot,
+    className: args.className ? String(args.className) : undefined,
+    code: args.code ? String(args.code) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02v: detect_circular_dependencies (v7.0.0)
+export async function handleDetectCircularDependencies(args: Record<string, unknown>) {
+  const projectRoot = resolveProjectRoot(args, ".");
+  const registry = getRegistry();
+
+  const result = await detectCircularDependencies({
+    projectRoot,
+    filesMap: args.filesMap as any,
+    filePaths: args.filePaths as any,
     registry,
   });
 

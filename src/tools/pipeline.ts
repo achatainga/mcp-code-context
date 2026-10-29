@@ -34,6 +34,12 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["resolve_lexical_scope", handlers.handleResolveLexicalScope],
   ["sql_ast_validator", handlers.handleValidateSqlAst],
   ["ast_codemod_transpile", handlers.handleAstCodemodTranspile],
+  ["detect_async_eventloop_blockers", handlers.handleDetectAsyncEventloopBlockers],
+  ["verify_env_contract_drift", handlers.handleVerifyEnvContractDrift],
+  ["audit_error_handling_contracts", handlers.handleAuditErrorHandlingContracts],
+  ["extract_api_route_matrix", handlers.handleExtractApiRouteMatrix],
+  ["flatten_class_hierarchy", handlers.handleFlattenClassHierarchy],
+  ["detect_circular_dependencies", handlers.handleDetectCircularDependencies],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
   // Ruby Intelligence tools (v3.9.0)

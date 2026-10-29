@@ -163,6 +163,12 @@ export const OPERATION_COSTS = {
   resolve_lexical_scope: 15,
   sql_ast_validator: 20,
   ast_codemod_transpile: 20,
+  detect_async_eventloop_blockers: 15,
+  verify_env_contract_drift: 15,
+  audit_error_handling_contracts: 15,
+  extract_api_route_matrix: 15,
+  flatten_class_hierarchy: 15,
+  detect_circular_dependencies: 25,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,

@@ -468,6 +468,80 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "detect_async_eventloop_blockers",
+    description: "Scans async functions for synchronous blocking APIs (time.sleep, fs.readFileSync, execSync) that freeze single-threaded event loops.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "verify_env_contract_drift",
+    description: "Verifies environment variable parity between source code (process.env, os.getenv) and .env.example, detecting undocumented and zombie config keys.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        envExampleContent: { type: "string", description: "Optional .env.example raw content to compare against" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "audit_error_handling_contracts",
+    description: "Audits exception handling contracts, catching empty catch blocks, swallowed errors without logging, and suppressed critical process termination signals.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "extract_api_route_matrix",
+    description: "Extracts HTTP REST routes, path parameters, and handlers from FastAPI, Express, NestJS, and WP REST directly from AST without executing code.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "flatten_class_hierarchy",
+    description: "Flattens complex class hierarchies by resolving PHP traits, mixins, and inherited base classes into a unified virtual class interface.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Absolute path to source file" },
+        className: { type: "string", description: "Name of the class to flatten (optional)" },
+        code: { type: "string", description: "Optional raw code content" },
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+      },
+    },
+  },
+  {
+    name: "detect_circular_dependencies",
+    description: "Detects circular import cycles across project modules using Tarjan's strongly connected components algorithm on AST dependency graphs.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        projectRoot: { type: "string", description: "Project root directory (optional)" },
+        filePaths: { type: "array", items: { type: "string" }, description: "List of absolute or relative file paths to analyze" },
+        filesMap: { type: "object", description: "Optional in-memory map of relativeFilePath -> fileContent" },
+      },
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {
