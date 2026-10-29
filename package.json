@@ -1,6 +1,6 @@
 {
   "name": "mcp-code-context",
-  "version": "4.4.0",
+  "version": "4.5.0",
   "description": "Powerful Enterprise MCP server with Tree-sitter WASM parsers for 100% AST accuracy. Zero native dependencies. Dual transport: Stdio + Streamable HTTP/SSE. Production-ready with persistent caching, Test Impact Analysis (TIA), 3-hop Call Hierarchy with Mermaid export, Virtual ORM (Prisma, Drizzle, ActiveRecord, Eloquent, Django), Cross-Language Wire Contract validation, Offline Conceptual Vector Search (search_code_concept), Anti-Hallucination Import Verifier (verify_import_integrity), Static Source-to-Sink Taint Flow Analyzer (trace_taint_flow), rate limiting, and ReDoS protection. Supports TypeScript, JavaScript, PHP, Python, Ruby, Java, Go, C#, Rust, and Kotlin.",
   "type": "module",
   "main": "dist/src/index.js",

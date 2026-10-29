@@ -22,6 +22,7 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["search_code_concept", handlers.handleSearchCodeConcept],
   ["verify_import_integrity", handlers.handleVerifyImportIntegrity],
   ["trace_taint_flow", handlers.handleTraceTaintFlow],
+  ["backfill_types", handlers.handleBackfillTypes],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
   // Ruby Intelligence tools (v3.9.0)

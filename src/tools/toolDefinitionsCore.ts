@@ -262,6 +262,25 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "backfill_types",
+    description: "Inspect AST property accesses (param.id, param.name.trim(), param.age > 18, param.save()), method calls, and return expressions to infer strict TypeScript interfaces or Python TypedDict / BaseModel definitions for untyped or legacy code.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Path to file to infer types for" },
+        projectRoot: { type: "string", description: "Project root directory (optional, resolved automatically)" },
+        symbolName: { type: "string", description: "Optional specific function or method name to infer types for" },
+        targetLanguage: { 
+          type: "string", 
+          enum: ["typescript", "python"],
+          description: "Target type system to generate ('typescript' or 'python', defaults based on file extension)" 
+        },
+        content: { type: "string", description: "Optional proposed content to analyze before saving to disk" },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {
