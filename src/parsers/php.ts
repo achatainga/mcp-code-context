@@ -1,5 +1,5 @@
 /**
- * PHP Parser - v3.9.2
+ * PHP Parser - v7.0.0
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  */
 

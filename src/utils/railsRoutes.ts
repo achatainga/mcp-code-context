@@ -1,5 +1,5 @@
 /**
- * Rails Routes Parser - v3.9.2
+ * Rails Routes Parser - v7.0.0
  * Parses config/routes.rb to map HTTP routes to controller actions.
  * Uses indentation-based namespace tracking (immune to do/end counting errors).
  * Supports: resources, resource, explicit HTTP verbs, namespace/scope, root.

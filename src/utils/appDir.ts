@@ -1,5 +1,5 @@
 /**
- * App Directory - v3.9.2
+ * App Directory - v7.0.0
  * Centralizes ~/.mcp-code-context/ path resolution across all OS.
  * Fallback to os.tmpdir() in environments without HOME (CI, Docker).
  */

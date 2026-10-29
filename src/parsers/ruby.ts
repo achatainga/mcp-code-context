@@ -1,5 +1,5 @@
 /**
- * Ruby Parser - v3.9.2
+ * Ruby Parser - v7.0.0
  * Tree-sitter based Ruby parser
  * v3.9.1: override getInsideStartIndex/getInsideEndIndex for end-based syntax
  */

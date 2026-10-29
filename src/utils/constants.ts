@@ -1,6 +1,6 @@
 /**
  * Constants - Centralized configuration
- * v3.9.2
+ * v7.0.0
  */
 
 // Directory exclusions

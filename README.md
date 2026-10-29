@@ -52,7 +52,7 @@ LLMs working with code face two bottlenecks:
 
 ## The Solution
 
-`mcp-code-context` provides **25 tools** — covering reading, writing, AST transformation, search, and session management — all operating at the **symbol level** (functions, classes, methods). Tools support a `className` scope to correctly isolate identical symbol names in the same file (e.g. Flutter `build()` methods). Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
+`mcp-code-context` provides **53 tools** — covering reading, writing, AST transformation, search, and session management — all operating at the **symbol level** (functions, classes, methods). Tools support a `className` scope to correctly isolate identical symbol names in the same file (e.g. Flutter `build()` methods). Read tools extract structural skeletons. Write tools splice changes into the exact AST location.
 
 | File | Original | Compressed | Reduction |
 |------|----------|------------|-----------|
@@ -88,7 +88,28 @@ Built to be robust and precise. Both read and write engines are tested against r
 
 ## Features
 
-### What's New in v3.9.2
+### What's New in v7.0.0 (Enterprise Polyglot)
+
+| Feature | Description |
+|---------|-------------|
+| 🧬 **53 Pure AST WebAssembly Tools** | Full enterprise polyglot suite with zero native dependencies across TypeScript, Python, PHP, Dart, Java, Go, C#, Ruby, Rust, and Kotlin. |
+| 🔍 **`query_code_ast`** | Tree-sitter S-expression queries with syntax highlighting and regex capture filtering. |
+| ⚡ **`incremental_ast_diff`** | O(log N) tree diffing with `tree.edit()` for instantaneous change detection. |
+| 📊 **`get_ast_complexity_matrix`** | McCabe Cyclomatic and Sonar Cognitive complexity analysis. |
+| 🧪 **`generate_ast_mocks`** | Strongly-typed mocks/factories without LLM hallucination. |
+| 🧟 **`detect_dead_ast_symbols`** | Dead code and zombie export detection across the workspace. |
+| 🌐 **`resolve_lexical_scope`** | Complete lexical scope tree and variable shadowing detector. |
+| 🛡️ **`sql_ast_validator`** | Embedded SQL taint analysis and syntax validator. |
+| 🔄 **`ast_codemod_transpile`** | CST-preserving code transformations (CJS-to-ESM, console stripping). |
+| ⏱️ **`detect_async_eventloop_blockers`** | Event loop blocking calls detector in async functions. |
+| 🔐 **`verify_env_contract_drift`** | Drift auditor between code `process.env` calls and `.env.example`. |
+| 🚨 **`audit_error_handling_contracts`** | Empty catch and missing telemetry detector. |
+| 🛣️ **`extract_api_route_matrix`** | Static endpoint extraction for Express, FastAPI, and Rails. |
+| 🌳 **`flatten_class_hierarchy`** | Inheritance flattener resolving ancestor methods and traits. |
+| 🔁 **`detect_circular_dependencies`** | Tarjan's SCC O(V+E) import cycle detector. |
+| 📡 **Startup Diagnostics Signature** | Startup banner prints `[mcp-code-context] v7.0.0 running on stdio`. |
+
+### Previous: v3.9.2
 
 | Feature | Description |
 |---------|-------------|
@@ -362,7 +383,7 @@ Any MCP-compatible client can use this server. The transport is **stdio** (JSON-
 
 ## Tools
 
-### Tool Reference (25 tools)
+### Tool Reference (53 tools)
 
 #### Read Tools
 

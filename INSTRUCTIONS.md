@@ -71,8 +71,8 @@ This MCP server provides **surgical code editing** with Tree-sitter AST parsing.
 
 ## 🚨 Critical Rules
 
-### 1. **Project Root (Auto-Resolved in v3.9.2)**
-While `projectRoot` is supported for explicit boundary locking, in v3.9.2 it is optional and automatically resolved from `filePath` or `rootDir` by walking up to the nearest project marker (`.git`, `package.json`, etc.). You can omit it without fear of boundary errors.
+### 1. **Project Root (Auto-Resolved in v7.0.0)**
+While `projectRoot` is supported for explicit boundary locking, in v7.0.0 it is optional and automatically resolved from `filePath` or `rootDir` by walking up to the nearest project marker (`.git`, `package.json`, etc.). You can omit it without fear of boundary errors.
 
 ### 2. **NEVER Skip Phase 1**
 Always preview diffs before applying. Tokens are stored in memory and expire on server restart.
@@ -253,7 +253,18 @@ newContent: "{ return 42; }"
 
 ---
 
-## 🚀 v3.9.2 Features
+## 🚀 v7.0.0 Features (Enterprise Polyglot)
+
+### 53 Pure AST WebAssembly Tools
+- ✅ **Full Enterprise Suite**: 53 pure AST tools with zero native compilation dependencies.
+- ✅ **Structural S-Expression DSL**: `query_code_ast` with tree-sitter queries.
+- ✅ **Fast Tree Diffing**: `incremental_ast_diff` with `tree.edit()`.
+- ✅ **Metrics & Auditing**: `get_ast_complexity_matrix`, `detect_dead_ast_symbols`, `resolve_lexical_scope`, `sql_ast_validator`, `ast_codemod_transpile`, `detect_async_eventloop_blockers`, `verify_env_contract_drift`, `audit_error_handling_contracts`, `extract_api_route_matrix`, `flatten_class_hierarchy`, `detect_circular_dependencies`.
+- ✅ **Startup Diagnostics**: Stdio initialization signature `[mcp-code-context] v7.0.0 running on stdio`.
+
+---
+
+## 🚀 Previous: v3.9.2 Features
 
 ### Core Improvements
 - ✅ **Smart Project Root Discovery**: `resolveProjectRoot` & `findProjectRoot` automatically detect project markers (`.git`, `package.json`, `composer.json`, `pyproject.toml`, etc.), preventing boundary errors when `projectRoot` is omitted or undefined.
@@ -294,6 +305,6 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 3.9.2  
+**Version**: 7.0.0  
 **Last Updated**: October 12, 2026  
 **Status**: Production-ready with smart project root discovery and session-scoped state

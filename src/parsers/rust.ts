@@ -1,5 +1,5 @@
 /**
- * Rust Parser - v3.9.2
+ * Rust Parser - v7.0.0
  * Tree-sitter based Rust parser
  */
 

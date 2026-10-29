@@ -1,5 +1,29 @@
 # Changelog
 
+## [7.0.0] - 2026-10-29
+
+### Added
+- **53 Pure AST WebAssembly Tools Suite**: Expanded total tool coverage to 53 production-ready AST operations with zero native dependencies.
+- **Enterprise AST Operations**:
+  - `query_code_ast`: Native S-Expression Tree-sitter query engine with syntax highlighting and regex capture filters.
+  - `incremental_ast_diff`: O(log N) tree diffing with `tree.edit()` for instantaneous change detection without full re-parsing.
+  - `get_ast_complexity_matrix`: McCabe Cyclomatic and Sonar Cognitive complexity scoring per symbol.
+  - `generate_ast_mocks`: Typed mock and factory generator for unit tests across TypeScript, Python, and Go.
+  - `detect_dead_ast_symbols`: Dead code and zombie export detector across workspace.
+  - `resolve_lexical_scope`: Lexical scope resolver with variable shadowing and conflict detection.
+  - `sql_ast_validator`: SQL injection taint analysis and AST query validation.
+  - `ast_codemod_transpile`: AST-level codemod transformations (e.g., CJS to ESM, console stripping).
+  - `detect_async_eventloop_blockers`: Node.js/Python event loop blocking call detector in async contexts.
+  - `verify_env_contract_drift`: Environment variable usage auditor against `.env.example` specifications.
+  - `audit_error_handling_contracts`: Empty catch block and missing error telemetry auditor.
+  - `extract_api_route_matrix`: REST endpoint extractor for Express, FastAPI, and Rails.
+  - `flatten_class_hierarchy`: Inheritance flattener resolving ancestor methods and properties.
+  - `detect_circular_dependencies`: Tarjan's strongly connected components (SCC) O(V+E) import cycle detector.
+  - `verify_import_integrity`, `trace_taint_flow`, `backfill_types`, `enforce_architecture_rules`, `compact_context_ledger`, `generate_ast_impact_report`.
+- **Startup Diagnostics**: Stdio initialization banner now emits `[mcp-code-context] v7.0.0 running on stdio`.
+
+---
+
 ## [3.9.2] - 2026-10-12
 
 ### Fixed
