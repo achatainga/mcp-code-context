@@ -66,11 +66,11 @@ Every feature evaluated in this canonical roadmap is scored on a **0 to 100 AST 
 | 5 | `predict_semantic_conflicts` | **Semantic Pre-Merge Conflict Predictor** | Tier 2 | **93** | v4.5 | ✅ Shipped & Certified |
 | 6 | `search_code_concept` | **Offline WASM Concept & Semantic Vector Search** | Tier 3 | **96** | v4.2 | ✅ Shipped & Certified |
 | 7 | `verify_import_integrity` | **Anti-Hallucination Import Verifier** | Tier 3 | **92** | v4.3 | ✅ Shipped & Certified |
-| 8 | `trace_taint_flow` | **Source-to-Sink Static AST Taint Analyzer** | Tier 3 | **95** | v5.1 | 🚀 In Active Implementation |
-| 9 | `backfill_types` | **AST Duck-Type Backfiller & Inference** | Tier 3 | **91** | v5.1 | 📋 Queued |
-| 10 | `enforce_architecture_rules` | **AST Architectural Boundary Guardrails** | Tier 3 | **89** | v5.1 | 📋 Queued |
-| 11 | `compact_context_ledger` | **Lossless AST Snapshot Context Compactor** | Tier 4 | **91** | v5.2 | 📋 Queued |
-| 12 | `generate_ast_impact_report` | **Cryptographic AST Impact & Blast Radius Report** | Tier 4 | **90** | v5.2 | 📋 Queued |
+| 8 | `trace_taint_flow` | **Source-to-Sink Static AST Taint Analyzer** | Tier 3 | **95** | v4.4 | ✅ Shipped & Certified |
+| 9 | `backfill_types` | **AST Duck-Type Backfiller & Inference** | Tier 3 | **91** | v4.5 | ✅ Shipped & Certified |
+| 10 | `enforce_architecture_rules` | **AST Architectural Boundary Guardrails** | Tier 3 | **89** | v4.6 | ✅ Shipped & Certified |
+| 11 | `compact_context_ledger` | **Lossless AST Snapshot Context Compactor** | Tier 4 | **91** | v4.7 | ✅ Shipped & Certified |
+| 12 | `generate_ast_impact_report` | **Cryptographic AST Impact & Blast Radius Report** | Tier 4 | **90** | v5.0 | ✅ Shipped & Certified |
 
 ---
 
@@ -132,35 +132,35 @@ Every feature evaluated in this canonical roadmap is scored on a **0 to 100 AST 
 ---
 
 ### FEATURE 8: Source-to-Sink AST Static Dataflow Taint Analyzer
-- **Score:** `95/100` | **Status:** 📋 QUEUED (v5.1) | **Tool:** `trace_taint_flow`
+- **Score:** `95/100` | **Status:** ✅ SHIPPED in v4.4 | **Tool:** `trace_taint_flow`
 - **Pain Point:** AI agents introduce SQL injections, SSRF, command injection, and XSS by concatenating untrusted inputs directly into query builders or subshells.
 - **Architecture:** Static intra-procedural and bounded inter-procedural dataflow graph tracking from untrusted Sources (`req.query`, `$_GET`) to dangerous Sinks (`db.query()`, `exec()`, `eval()`, `innerHTML`) without passing sanitizers.
 
 ---
 
 ### FEATURE 9: AST Cross-File Type Inference & Duck-Type Backfiller
-- **Score:** `91/100` | **Status:** 📋 QUEUED (v5.1) | **Tool:** `backfill_types`
+- **Score:** `91/100` | **Status:** ✅ SHIPPED in v4.5 | **Tool:** `backfill_types`
 - **Pain Point:** Legacy JavaScript, Python, or Ruby codebases lack types, forcing the agent to guess argument structures and causing errors when upgrading to TypeScript or Pydantic.
 - **Architecture:** Analyzes AST call sites and property accesses across the codebase, generating strict TypeScript interfaces or Python Type Hints automatically.
 
 ---
 
 ### FEATURE 10: AST-Driven Architectural Boundary Guardrails
-- **Score:** `89/100` | **Status:** 📋 QUEUED (v5.1) | **Tool:** `enforce_architecture_rules`
+- **Score:** `89/100` | **Status:** ✅ SHIPPED in v4.6 | **Tool:** `enforce_architecture_rules`
 - **Pain Point:** AI agents constantly violate architectural boundaries: importing raw database models into React UI components, or calling UI hooks inside domain business services.
 - **Architecture:** Reads architectural configuration (`.architecturerc.json`) and flags illegal AST import dependencies before writes are committed.
 
 ---
 
 ### FEATURE 11: Lossless AST Snapshot Context Compactor
-- **Score:** `91/100` | **Status:** 📋 QUEUED (v5.2) | **Tool:** `compact_context_ledger`
+- **Score:** `91/100` | **Status:** ✅ SHIPPED in v4.7 | **Tool:** `compact_context_ledger`
 - **Pain Point:** Long sessions force manual `/compact`, which causes loss of critical architectural decisions, variable constraints, and past bug resolutions.
 - **Architecture:** Compresses visited files into pure AST outlines (signatures only, dropping bodies), saving 80% to 90% of tokens while retaining full structural interface fidelity.
 
 ---
 
 ### FEATURE 12: Cryptographic AST Impact & Blast Radius Report
-- **Score:** `90/100` | **Status:** 📋 QUEUED (v5.2) | **Tool:** `generate_ast_impact_report`
+- **Score:** `90/100` | **Status:** ✅ SHIPPED in v5.0 | **Tool:** `generate_ast_impact_report`
 - **Pain Point:** PR reviewers and agent supervisors need an objective, verifiable summary of what code was modified, what symbols changed, and what tests are impacted without running external CI/CD.
 - **Architecture:** Compiles a deterministic Markdown + SHA256 digest summarizing AST diffs, impacted test suites (TIA), and wire contract status for instant PR attachment.
 
@@ -178,7 +178,7 @@ flowchart TD
         T5["Semantic Conflict Predictor"]
     end
 
-    subgraph Tier3["Tier 3 (v5.0 - v5.1) — PURE AST COGNITIVE MOAT"]
+    subgraph Tier3["Tier 3 (v4.2 - v4.6) — SHIPPED & CERTIFIED"]
         T6["search_code_concept (Offline Vectors)"]
         T7["verify_import_integrity (Anti-Hallucination)"]
         T8["trace_taint_flow (Static Source-Sink)"]
@@ -186,7 +186,7 @@ flowchart TD
         T10["enforce_architecture_rules (Guardrails)"]
     end
 
-    subgraph Tier4["Tier 4 (v5.2) — CONTEXT ECONOMICS"]
+    subgraph Tier4["Tier 4 (v4.7 - v5.0) — SHIPPED & CERTIFIED"]
         T11["compact_context_ledger (AST Outlines)"]
         T12["generate_ast_impact_report (PR Blast Radius)"]
     end
@@ -197,5 +197,5 @@ flowchart TD
 | Fase | Hito | Estado | Enfoque Principal |
 |---|:---:|:---:|---|
 | **Tier 1 & 2** | `v4.1` / `v4.5` | ✅ **Certificado** | Virtual ORM, TIA, Call Hierarchy 3-Hop, Contratos Wire y Conflictos Semánticos |
-| **Tier 3** | `v5.0` / `v5.1` | 🚀 **En Desarrollo** | Búsqueda Conceptual Offline, Verificador de Imports y Flujo de Taint Estático |
-| **Tier 4** | `v5.2` | 📋 **En Cola** | Compresor de Contexto a Firmas AST y Reporte Criptográfico de Blast Radius |
+| **Tier 3** | `v4.2` - `v4.6` | ✅ **Certificado** | Búsqueda Conceptual Offline, Verificador de Imports, Flujo de Taint Estático, Inferencia Duck-Type y Guardrails Arquitectónicos |
+| **Tier 4** | `v4.7` - `v5.0` | ✅ **Certificado** | Compresor de Contexto a Firmas AST y Reporte Criptográfico de Blast Radius con Digest SHA-256 |
