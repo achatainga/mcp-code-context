@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -254,6 +254,34 @@ export async function handleSearchSymbols(args: Record<string, unknown>) {
     fileExtensions: args.fileExtensions as string[] | undefined,
     excludeDirs: args.excludeDirs as string[] | undefined,
     maxResults: args.maxResults as number | undefined,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+
+// NEW-02b: search_code_concept (v5.0.0)
+export async function handleSearchCodeConcept(args: Record<string, unknown>) {
+  const rootDir = (args.rootDir && args.rootDir !== "undefined") ? String(args.rootDir) : undefined;
+  const projectRoot = resolveProjectRoot(args, rootDir);
+  const targetDir = rootDir || projectRoot;
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(targetDir);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const registry = getRegistry();
+
+  const result = await searchCodeConcept({
+    rootDir: validation.resolvedPath!,
+    projectRoot,
+    query: String(args.query || ""),
+    threshold: args.threshold !== undefined ? Number(args.threshold) : undefined,
+    maxResults: args.maxResults !== undefined ? Number(args.maxResults) : undefined,
+    fileExtensions: args.fileExtensions as string[] | undefined,
+    excludeDirs: args.excludeDirs as string[] | undefined,
+    registry,
   });
 
   if (!result.success) throw new Error(result.error);

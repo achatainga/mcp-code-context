@@ -4,3 +4,4 @@ export { extractSymbol, readLines } from "./readCore.js";
 export { searchPattern } from "./searchOperation.js";
 export { analyzeImpact } from "./impactAnalysis.js";
 export { searchSymbols, explainSymbol, batchRead } from "./symbolQuery.js";
+export { searchCodeConcept } from "./conceptSearch.js";

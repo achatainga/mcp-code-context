@@ -217,6 +217,23 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "search_code_concept",
+    description: "Search symbols and code by conceptual intent, domain semantics, and docstrings using offline in-memory vectors. Finds functions even when the exact name is unknown (e.g. searching 'VIP discount' finds 'applyLoyaltyRebate').",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        query: { type: "string", description: "Conceptual query (e.g. 'VIP customer discount calculation', 'auth token refresh', 'database transaction rollback')" },
+        rootDir: { type: "string", description: "Directory to search in (optional, defaults to projectRoot)" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to rootDir)" },
+        threshold: { type: "number", description: "Minimum relevance similarity threshold 0.0 - 1.0 (default: 0.25)" },
+        maxResults: { type: "number", description: "Maximum results to return (default: 15)" },
+        fileExtensions: { type: "array", items: { type: "string" }, description: "Filter by file extensions (e.g. ['.ts', '.py'])" },
+        excludeDirs: { type: "array", items: { type: "string" }, description: "Directories to exclude from search" },
+      },
+      required: ["query"],
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {

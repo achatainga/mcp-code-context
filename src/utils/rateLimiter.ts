@@ -148,6 +148,7 @@ export const OPERATION_COSTS = {
   configure_file_watcher: 1,
   get_file_watcher_status: 1,
   get_rate_limit_status: 1,
+  search_code_concept: 30,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,

@@ -19,6 +19,7 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["search_code_pattern", handlers.handleSearchCodePattern],
   ["parse_file", handlers.handleParseFile],
   ["search_symbols", handlers.handleSearchSymbols],
+  ["search_code_concept", handlers.handleSearchCodeConcept],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
   // Ruby Intelligence tools (v3.9.0)
