@@ -235,9 +235,15 @@ function resolveLocalPath(fileDir: string, importSource: string, projectRoot: st
     targetBase = path.resolve(fileDir, importSource);
   }
 
+  // Strip .js / .jsx if present for TS NodeNext ESM resolution
+  const noExt = targetBase.replace(/\.(js|jsx|mjs|cjs)$/, "");
+
   // Candidate extensions
   const candidates = [
     targetBase,
+    `${noExt}.ts`,
+    `${noExt}.tsx`,
+    `${noExt}.d.ts`,
     `${targetBase}.ts`,
     `${targetBase}.tsx`,
     `${targetBase}.d.ts`,
@@ -251,6 +257,8 @@ function resolveLocalPath(fileDir: string, importSource: string, projectRoot: st
     path.join(targetBase, "index.js"),
     path.join(targetBase, "index.jsx"),
     path.join(targetBase, "__init__.py"),
+    path.join(noExt, "index.ts"),
+    path.join(noExt, "index.tsx"),
   ];
 
   for (const cand of candidates) {
