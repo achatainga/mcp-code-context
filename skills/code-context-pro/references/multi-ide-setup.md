@@ -61,7 +61,9 @@ In your MCP settings (`cline_mcp_settings.json` or Roo Code settings):
         "read_file_surgical",
         "search_symbols",
         "explain_symbol",
-        "analyze_impact"
+        "analyze_impact",
+        "get_impacted_tests",
+        "get_call_hierarchy"
       ]
     }
   }

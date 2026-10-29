@@ -1,7 +1,7 @@
 ---
 name: code-context-pro
-version: 4.0.0
-description: "Enterprise AST Code Intelligence & Surgical Refactoring Engine for Claude Code, Cursor, and Windsurf. Reduces token consumption by 75%-88% using Tree-sitter WASM parsers, virtual ORM schema extraction, and atomic 2-phase write protocol with rollback."
+version: 4.1.0
+description: "Enterprise AST Code Intelligence & Surgical Refactoring Engine for Claude Code, Cursor, and Windsurf. Reduces token consumption by 75%-88% using Tree-sitter WASM parsers, virtual ORM schema extraction (Prisma, Drizzle, Rails, Laravel, Django), Test Impact Analysis (TIA), 3-hop Call Hierarchy with Mermaid export, and atomic 2-phase write protocol with rollback."
 author: "Alejandro Chataing <a.chataing.a@gmail.com>"
 license: "Commercial (Agensi.io Tier 1)"
 price: "$29.00 USD"
@@ -10,7 +10,7 @@ category: "Developer Tools / Code Intelligence"
 compatibility: "Claude Code, Cursor, Windsurf, Antigravity, Amazon Q, Copilot"
 ---
 
-# CodeContext Pro v4.0.0 Enterprise — AI Brain Operating System
+# CodeContext Pro v4.1.0 Enterprise — AI Brain Operating System
 
 > *"Never feed a 1,000-line file into your attention window when a 15-line symbol is all you need."*
 
@@ -90,36 +90,76 @@ flowchart TD
 
 ## 🗄️ 4. VIRTUAL ORM SCHEMA INTELLIGENCE (ZERO DB CONNECTION)
 
-CodeContext Pro v4.0.0 automatically extracts and injects virtual database schemas into class definitions without requiring an active MySQL, Postgres, or SQLite connection:
+CodeContext Pro v4.1.0 automatically extracts and injects virtual database schemas into class definitions and surgical reads without requiring an active MySQL, Postgres, or SQLite connection:
 
 | Framework | Source File Detected | Extracted Schema Artifacts |
 | :--- | :--- | :--- |
+| **Prisma ORM** | `prisma/schema.prisma` | Models, fields, native types, relations, defaults, and `@@map` |
+| **Drizzle ORM** | `src/db/schema.ts` / `schema.ts` | Tables (`pgTable`, `mysqlTable`, `sqliteTable`), columns, types, modifiers |
 | **Ruby on Rails** | `db/schema.rb` | Table columns, types, nullability, defaults for `ApplicationRecord` |
 | **Laravel Eloquent** | `database/migrations/*.php` | Fluent blueprint columns (`$table->string`, `foreignId`, `timestamps`) |
 | **Django ORM** | `**/models.py` | Model fields (`CharField`, `ForeignKey`, `DecimalField`, `DateTimeField`) |
 
 ### Example Schema Annotation in `read_file_surgical`:
-When reading `app/Models/Order.php`:
-```php
-<!-- Eloquent Virtual Schema: orders
-  <column name="id" type="bigint primary key" />
-  <column name="reference_code" type="string" />
-  <column name="customer_id" type="foreignId" />
-  <column name="total_amount" type="decimal" />
-  <column name="status" type="string" />
-  <column name="created_at" type="timestamp" />
+When reading `src/models/user.ts` (Prisma):
+```typescript
+<!-- Prisma Virtual Schema: users
+  <column name="id" type="String @id @default(cuid())" />
+  <column name="email" type="String @unique" />
+  <column name="role" type="Role @default(USER)" />
+  <column name="createdAt" type="DateTime @default(now())" />
 -->
-class Order extends Model {
-    protected $fillable = ['reference_code', 'total_amount', 'status'];
-    ...
-}
+export interface User { ... }
 ```
 
 ---
 
 ## 🛠️ 5. TOOL CHEATSHEET & PRACTICAL SCENARIOS
 
-### Scenario A: Refactoring a Function with AST Safety
+### Scenario A: Targeted Test Impact Analysis (TIA)
+When modifying a function, don't run 500 tests in CI:
+```typescript
+get_impacted_tests({
+  filePath: "src/services/userService.ts",
+  symbolName: "findUser"
+});
+// Returns: Minimal test runner command: "npx vitest run tests/unit/userService.spec.ts"
+// Token & Execution Savings: 90%+
+```
+
+### Scenario B: 3-Hop Call Hierarchy with Mermaid Diagram
+Visualize complete caller and callee execution chains:
+```typescript
+get_call_hierarchy({
+  filePath: "src/services/authService.ts",
+  symbolName: "authenticate",
+  direction: "both",
+  maxHops: 3
+});
+// Returns structured nodes and Mermaid diagram ready for visual rendering!
+```
+
+### Scenario C: Cross-Language Wire Contract Validation
+Ensure frontend TypeScript DTOs match backend models:
+```typescript
+validate_wire_contract({
+  frontendFile: "src/types/UserDTO.ts",
+  backendFile: "app/Models/User.php"
+});
+// Detects field type discrepancies, missing columns, and camelCase vs snake_case drift
+```
+
+### Scenario D: Semantic Merge Conflict Prediction
+Analyze AST divergence between branches before merging:
+```typescript
+predict_semantic_conflicts({
+  baseBranch: "origin/main",
+  targetBranch: "HEAD"
+});
+// Identifies broken signatures, removed methods, and impacted external callers
+```
+
+### Scenario E: Refactoring a Function with AST Safety
 ```typescript
 // 1. Inspect function without loading the 800-line file
 read_file_surgical({

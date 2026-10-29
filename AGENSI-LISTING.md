@@ -1,6 +1,6 @@
 # 📦 AGENSI.IO COMMERCIAL PRODUCT LISTING DOSSIER
 **Marketplace URL**: [https://www.agensi.io/sell](https://www.agensi.io/sell)  
-**Product**: CodeContext Pro (v4.0.0 Enterprise)  
+**Product**: CodeContext Pro (v4.1.0 Enterprise)  
 **Target Audience**: 65,000+ Monthly Active Developers & AI Engineers (Claude Code, Cursor, Windsurf)  
 **Creator**: Alejandro Chataing  
 
@@ -9,17 +9,17 @@
 ## 🏷️ 1. LISTING METADATA & HERO COPY
 
 ### Product Title
-> **CodeContext Pro v4.0.0 — Enterprise AST Code Intelligence & Token Optimizer for Claude, Cursor & Windsurf**
+> **CodeContext Pro v4.1.0 — Enterprise AST Code Intelligence, Test Impact Analysis & Token Optimizer for Claude, Cursor & Windsurf**
 
 ### High-Impact Tagline
-> *"Cut your LLM token bills by 85% and eliminate hallucinated code edits with Tree-sitter WASM surgical refactoring and zero-DB virtual ORM schemas."*
+> *"Cut your LLM token bills by 85% and eliminate hallucinated code edits with Tree-sitter WASM surgical refactoring, Test Impact Analysis, and zero-DB virtual ORM schemas (Prisma, Drizzle, Rails, Laravel, Django)."*
 
 ### Category
 - Primary: **Developer Tools & Infrastructure**
 - Secondary: **Context Optimization & Token Compression**
 
 ### Badges / Tags
-`#TreeSitter` `#TokenOptimizer` `#ModelContextProtocol` `#ClaudeCode` `#Cursor` `#Windsurf` `#ActiveRecord` `#Eloquent` `#Django`
+`#TreeSitter` `#TokenOptimizer` `#ModelContextProtocol` `#ClaudeCode` `#Cursor` `#Windsurf` `#Prisma` `#Drizzle` `#ActiveRecord` `#Eloquent` `#Django` `#TestImpactAnalysis` `#CallHierarchy`
 
 ---
 
