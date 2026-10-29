@@ -10,3 +10,4 @@ export { traceTaintFlow } from "./taintAnalysis.js";
 export { backfillTypes } from "./typeInference.js";
 export { enforceArchitectureRules } from "./architectureLinter.js";
 export { compactContextLedger } from "./contextCompactor.js";
+export { generateAstImpactReport } from "./blastRadiusReport.js";

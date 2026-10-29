@@ -25,6 +25,7 @@ const TOOL_REGISTRY = new Map<string, ToolHandler>([
   ["backfill_types", handlers.handleBackfillTypes],
   ["enforce_architecture_rules", handlers.handleEnforceArchitectureRules],
   ["compact_context_ledger", handlers.handleCompactContextLedger],
+  ["generate_ast_impact_report", handlers.handleGenerateAstImpactReport],
   ["explain_symbol", handlers.handleExplainSymbol],
   ["batch_read", handlers.handleBatchRead],
   // Ruby Intelligence tools (v3.9.0)

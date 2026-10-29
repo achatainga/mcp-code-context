@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, compactContextLedger, generateAstImpactReport, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -402,6 +402,22 @@ export async function handleCompactContextLedger(args: Record<string, unknown>) 
     includeDocstrings: args.includeDocstrings as boolean | undefined,
     content: args.content ? String(args.content) : undefined,
     registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02h: generate_ast_impact_report (v5.0.0)
+export async function handleGenerateAstImpactReport(args: Record<string, unknown>) {
+  const projectRoot = resolveProjectRoot(args, ".");
+
+  const result = await generateAstImpactReport({
+    baseBranch: args.baseBranch ? String(args.baseBranch) : undefined,
+    targetBranch: args.targetBranch ? String(args.targetBranch) : undefined,
+    projectRoot,
+    includeTests: args.includeTests !== undefined ? Boolean(args.includeTests) : true,
+    includeArchitecture: args.includeArchitecture !== undefined ? Boolean(args.includeArchitecture) : true,
   });
 
   if (!result.success) throw new Error(result.error);

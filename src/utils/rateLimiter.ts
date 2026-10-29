@@ -154,6 +154,7 @@ export const OPERATION_COSTS = {
   backfill_types: 15,
   enforce_architecture_rules: 15,
   compact_context_ledger: 15,
+  generate_ast_impact_report: 30,
   search_symbols: 40,  // Full repo AST walk
   explain_symbol: 10,
   batch_read: 10,

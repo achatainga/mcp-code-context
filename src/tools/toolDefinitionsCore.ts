@@ -333,6 +333,20 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "generate_ast_impact_report",
+    description: "Generate an objective cryptographic PR blast radius report with SHA-256 digest, identifying changed symbols across git refs or working tree, impacted test suites via TIA, and verifying architectural boundary compliance.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        baseBranch: { type: "string", description: "Base git ref or branch to compare against (default: 'main')" },
+        targetBranch: { type: "string", description: "Target git ref or 'WORKING_TREE' for uncommitted changes (default: 'HEAD')" },
+        projectRoot: { type: "string", description: "Project root directory (optional, resolved automatically)" },
+        includeTests: { type: "boolean", description: "Whether to run Test Impact Analysis on modified symbols (default: true)" },
+        includeArchitecture: { type: "boolean", description: "Whether to verify architectural boundary rules (default: true)" },
+      },
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {
