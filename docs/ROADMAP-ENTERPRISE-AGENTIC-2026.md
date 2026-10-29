@@ -169,22 +169,33 @@ Every feature evaluated in this canonical roadmap is scored on a **0 to 100 AST 
 ## 🗺️ 5. EXECUTION PHASING PLAN
 
 ```mermaid
-gantt
-    title MCP-CODE-CONTEXT PURE AST ROADMAP (2026)
-    dateFormat  YYYY-MM-DD
-    section Tier 1 & 2 (Shipped)
-    Virtual ORM (Prisma & Drizzle)       :done, t1, 2026-10-25, 2026-10-28
-    Test Impact Analysis (TIA)           :done, t2, 2026-10-25, 2026-10-28
-    3-Hop Call Hierarchy (Mermaid)       :done, t3, 2026-10-26, 2026-10-28
-    Cross-Language Wire Validator        :done, t4, 2026-10-27, 2026-10-29
-    Semantic Conflict Predictor          :done, t5, 2026-10-27, 2026-10-29
-    section Tier 3 (v5.0 Core Moat)
-    Offline Concept Search (search_code_concept) :active, t6, 2026-10-29, 2026-11-03
-    Anti-Hallucination Import Verifier  :t7, 2026-11-03, 2026-11-08
-    Static Taint Analyzer (trace_taint_flow) :t8, 2026-11-08, 2026-11-15
-    AST Duck-Type Backfiller (backfill_types) :t9, 2026-11-15, 2026-11-22
-    Architectural Guardrails (enforce_architecture_rules) :t10, 2026-11-22, 2026-11-30
-    section Tier 4 (v5.2 Context Economics)
-    Lossless AST Context Compactor       :t11, 2026-12-01, 2026-12-10
-    AST Impact & Blast Radius Report     :t12, 2026-12-10, 2026-12-20
+flowchart TD
+    subgraph Tier1_2["Tier 1 & 2 (v4.1 - v4.5) — SHIPPED & CERTIFIED"]
+        T1["Virtual ORM (Prisma & Drizzle)"]
+        T2["Test Impact Analysis (TIA)"]
+        T3["3-Hop Call Hierarchy (Mermaid)"]
+        T4["Cross-Language Wire Validator"]
+        T5["Semantic Conflict Predictor"]
+    end
+
+    subgraph Tier3["Tier 3 (v5.0 - v5.1) — PURE AST COGNITIVE MOAT"]
+        T6["search_code_concept (Offline Vectors)"]
+        T7["verify_import_integrity (Anti-Hallucination)"]
+        T8["trace_taint_flow (Static Source-Sink)"]
+        T9["backfill_types (AST Type Inference)"]
+        T10["enforce_architecture_rules (Guardrails)"]
+    end
+
+    subgraph Tier4["Tier 4 (v5.2) — CONTEXT ECONOMICS"]
+        T11["compact_context_ledger (AST Outlines)"]
+        T12["generate_ast_impact_report (PR Blast Radius)"]
+    end
+
+    Tier1_2 --> Tier3 --> Tier4
 ```
+
+| Fase | Hito | Estado | Enfoque Principal |
+|---|:---:|:---:|---|
+| **Tier 1 & 2** | `v4.1` / `v4.5` | ✅ **Certificado** | Virtual ORM, TIA, Call Hierarchy 3-Hop, Contratos Wire y Conflictos Semánticos |
+| **Tier 3** | `v5.0` / `v5.1` | 🚀 **En Desarrollo** | Búsqueda Conceptual Offline, Verificador de Imports y Flujo de Taint Estático |
+| **Tier 4** | `v5.2` | 📋 **En Cola** | Compresor de Contexto a Firmas AST y Reporte Criptográfico de Blast Radius |
