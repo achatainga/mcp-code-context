@@ -86,3 +86,4 @@ scripts/restore-*.mjs
 
 # Test generated artifacts
 test-repo-map.html
+screenshots-render/
