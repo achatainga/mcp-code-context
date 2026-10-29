@@ -6,3 +6,4 @@ export { analyzeImpact } from "./impactAnalysis.js";
 export { searchSymbols, explainSymbol, batchRead } from "./symbolQuery.js";
 export { searchCodeConcept } from "./conceptSearch.js";
 export { verifyImportIntegrity } from "./importIntegrity.js";
+export { traceTaintFlow } from "./taintAnalysis.js";

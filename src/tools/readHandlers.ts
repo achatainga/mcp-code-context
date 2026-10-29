@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -304,6 +304,32 @@ export async function handleVerifyImportIntegrity(args: Record<string, unknown>)
   const result = await verifyImportIntegrity({
     filePath: validation.resolvedPath!,
     projectRoot,
+    content: args.content ? String(args.content) : undefined,
+    registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+
+// NEW-02d: trace_taint_flow (v5.1.0)
+export async function handleTraceTaintFlow(args: Record<string, unknown>) {
+  if (!args.filePath) throw new Error("filePath is required for trace_taint_flow");
+  const filePath = String(args.filePath);
+  const projectRoot = resolveProjectRoot(args, filePath);
+
+  const validator = new SecurityValidator(projectRoot);
+  const validation = await validator.validateFilePath(filePath);
+  if (!validation.valid) throw new Error(validation.error);
+
+  const registry = getRegistry();
+
+  const result = await traceTaintFlow({
+    filePath: validation.resolvedPath!,
+    projectRoot,
+    sourceParam: args.sourceParam ? String(args.sourceParam) : undefined,
+    dangerousSink: args.dangerousSink ? String(args.dangerousSink) : undefined,
     content: args.content ? String(args.content) : undefined,
     registry,
   });

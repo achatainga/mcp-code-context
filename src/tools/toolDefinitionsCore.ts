@@ -247,6 +247,21 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "trace_taint_flow",
+    description: "Trace data flow from untrusted user inputs (req.query, req.body, $_GET, etc.) to dangerous sinks (db.query, exec, eval, fs.readFile, innerHTML). Identifies SQL Injection, RCE, Path Traversal, and SSRF vulnerabilities before code is committed.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Path to file being analyzed" },
+        projectRoot: { type: "string", description: "Project root for security boundary (optional, defaults to file's root)" },
+        sourceParam: { type: "string", description: "Optional specific parameter name to track as tainted source" },
+        dangerousSink: { type: "string", description: "Optional specific sink to target (e.g. 'exec', 'db.query', 'eval', 'readFile')" },
+        content: { type: "string", description: "Optional proposed content to analyze before saving" },
+      },
+      required: ["filePath"],
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {
