@@ -281,6 +281,37 @@ export const CORE_TOOLS = [
     },
   },
   {
+    name: "enforce_architecture_rules",
+    description: "Enforce clean/hexagonal architectural boundary guardrails by checking AST imports against layer separation rules (e.g. domain entities cannot import infra/frameworks; UI cannot import raw database models; use cases cannot import controllers).",
+    inputSchema: {
+      type: "object" as const,
+      properties: {
+        filePath: { type: "string", description: "Path to file being checked (optional)" },
+        projectRoot: { type: "string", description: "Project root directory (optional, resolved automatically)" },
+        content: { type: "string", description: "Optional proposed content to verify before saving to disk" },
+        rules: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              layer: { type: "string", description: "Name of the architectural layer (e.g. 'domain', 'ui', 'use_cases')" },
+              pattern: { type: "string", description: "File path glob pattern belonging to this layer (e.g. 'src/domain/**')" },
+              disallow: { 
+                type: "array", 
+                items: { type: "string" },
+                description: "Array of disallowed import paths or package names (e.g. ['src/infra/**', '@prisma/client'])"
+              },
+              description: { type: "string", description: "Reason for this boundary rule" },
+              suggestion: { type: "string", description: "Recommended decoupled alternative pattern" }
+            },
+            required: ["layer", "pattern", "disallow"]
+          },
+          description: "Optional custom architectural rules (defaults to reading .architecturerc.json or applying standard Clean Architecture rules)"
+        }
+      },
+    },
+  },
+  {
     name: "explain_symbol",
     description: "Get signature, location, and callers of a symbol in one call. More efficient than read_file_surgical + analyze_impact separately.",
     inputSchema: {

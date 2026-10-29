@@ -57,7 +57,7 @@ const PYTHON_BUILTINS = new Set([
   "unittest", "pytest", "argparse", "inspect", "contextlib", "uuid", "base64"
 ]);
 
-interface RawImport {
+export interface RawImport {
   source: string;
   symbols: string[];
   isDefault: boolean;
@@ -68,7 +68,7 @@ interface RawImport {
 /**
  * Parses raw import declarations from file content using regex and AST conventions
  */
-function extractImportStatements(content: string, ext: string): RawImport[] {
+export function extractImportStatements(content: string, ext: string): RawImport[] {
   const imports: RawImport[] = [];
   const lines = content.split("\n");
 

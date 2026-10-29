@@ -4,7 +4,7 @@ import * as path from "node:path";
 import * as fs from "node:fs/promises";
 import { SecurityValidator } from "../core/validator.js";
 import { replaceSymbol, insertCode, removeSymbol, writeFile, renameSymbol } from "../operations/write.js";
-import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, explainSymbol, batchRead } from "../operations/read.js";
+import { extractSymbol, readLines, searchPattern, analyzeImpact, searchSymbols, searchCodeConcept, verifyImportIntegrity, traceTaintFlow, backfillTypes, enforceArchitectureRules, explainSymbol, batchRead } from "../operations/read.js";
 import { compressRepository } from "../operations/compress.js";
 import { globalAuditLogger } from "../utils/auditLogger.js";
 import { globalTelemetry } from "../utils/telemetry.js";
@@ -359,6 +359,30 @@ export async function handleBackfillTypes(args: Record<string, unknown>) {
     targetLanguage: args.targetLanguage as "typescript" | "python" | undefined,
     content: args.content ? String(args.content) : undefined,
     registry,
+  });
+
+  if (!result.success) throw new Error(result.error);
+  return { content: [{ type: "text", text: result.content! }] };
+}
+
+// NEW-02f: enforce_architecture_rules (v4.6.0)
+export async function handleEnforceArchitectureRules(args: Record<string, unknown>) {
+  const filePath = args.filePath ? String(args.filePath) : undefined;
+  const projectRoot = resolveProjectRoot(args, filePath || ".");
+
+  let resolvedTarget = filePath;
+  if (filePath) {
+    const validator = new SecurityValidator(projectRoot);
+    const validation = await validator.validateFilePath(filePath);
+    if (!validation.valid && !args.content) throw new Error(validation.error);
+    resolvedTarget = validation.resolvedPath || path.resolve(projectRoot, filePath);
+  }
+
+  const result = await enforceArchitectureRules({
+    filePath: resolvedTarget,
+    projectRoot,
+    rules: args.rules as any,
+    content: args.content ? String(args.content) : undefined,
   });
 
   if (!result.success) throw new Error(result.error);
