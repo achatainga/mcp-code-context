@@ -85,9 +85,9 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
     }
   }
 
-  // Unified Virtual ORM Schema injection (ActiveRecord, Eloquent, Django)
+  // Unified Virtual ORM Schema injection (ActiveRecord, Eloquent, Django, Prisma, Drizzle)
   const fileExt = path.extname(filePath);
-  if (fileExt === ".rb" || fileExt === ".php" || fileExt === ".py") {
+  if (fileExt === ".rb" || fileExt === ".php" || fileExt === ".py" || fileExt === ".ts" || fileExt === ".tsx" || fileExt === ".js" || fileExt === ".prisma") {
     let sourceForDetection = content;
     if (symbolName) {
       const fileStat = await fs.stat(validation.resolvedPath!);
@@ -97,26 +97,36 @@ export async function handleReadFileSurgical(args: Record<string, unknown>) {
     }
 
     let modelName: string | null = null;
-    let detectedFramework: "ActiveRecord" | "Eloquent" | "Django" = "ActiveRecord";
 
     if (fileExt === ".rb") {
       const m = sourceForDetection.match(/class\s+(\w+)\s*<\s*(?:ApplicationRecord|ActiveRecord::Base)/);
-      if (m) { modelName = m[1]; detectedFramework = "ActiveRecord"; }
+      if (m) { modelName = m[1]; }
     } else if (fileExt === ".php") {
       const m = sourceForDetection.match(/class\s+(\w+)\s+extends\s+(?:Model|Authenticatable)/);
-      if (m) { modelName = m[1]; detectedFramework = "Eloquent"; }
+      if (m) { modelName = m[1]; }
     } else if (fileExt === ".py") {
       const m = sourceForDetection.match(/class\s+(\w+)\s*\([^)]*models\.Model[^)]*\):/);
-      if (m) { modelName = m[1]; detectedFramework = "Django"; }
+      if (m) { modelName = m[1]; }
+    } else if (fileExt === ".prisma") {
+      const m = sourceForDetection.match(/model\s+(\w+)\s*\{/);
+      if (m) { modelName = m[1]; }
+    } else if (fileExt === ".ts" || fileExt === ".tsx" || fileExt === ".js") {
+      const drizzleM = sourceForDetection.match(/(?:export\s+const\s+(\w+)\s*=\s*)?(?:pgTable|mysqlTable|sqliteTable)\s*\(\s*["']([^"']+)["']/);
+      const prismaM = sourceForDetection.match(/(?:interface|type|class)\s+(\w+)\b/);
+      if (drizzleM) {
+        modelName = drizzleM[2] || drizzleM[1];
+      } else if (prismaM) {
+        modelName = prismaM[1];
+      }
     }
 
     if (modelName) {
       const unified = await loadUnifiedVirtualSchema(projectRoot, fileExt).catch(() => null);
       if (unified && unified.schema) {
         const tableName = modelToTable(modelName);
-        const columns = unified.schema[tableName];
+        const columns = unified.schema[tableName] || unified.schema[modelName.toLowerCase()] || unified.schema[modelName];
         if (columns && Object.keys(columns).length > 0) {
-          content = formatUnifiedSchemaAnnotation(detectedFramework, tableName, columns) + "\n" + content;
+          content = formatUnifiedSchemaAnnotation(unified.framework, tableName, columns) + "\n" + content;
         }
       }
     }

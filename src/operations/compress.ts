@@ -84,17 +84,17 @@ async function compressRepository(params: {
 
             totalSymbols += symbols.length;
 
-                    // R1: Rails AR schema injection for .rb files in repo map
+                    // R1: Virtual ORM schema injection for .rb, .php, .py, .ts, .tsx in repo map
             let fileSymbols = symbols.map(s => ({ type: s.type, name: s.name }));
             const ext = path.extname(fullPath);
-            if (ext === ".rb" || ext === ".php" || ext === ".py") {
+            if (ext === ".rb" || ext === ".php" || ext === ".py" || ext === ".ts" || ext === ".tsx") {
               const unified = await loadUnifiedVirtualSchema(params.projectRoot, ext).catch(() => null);
               const schema = unified?.schema;
               if (schema) {
                 for (const sym of symbols) {
-                  if (sym.type === "class") {
+                  if (sym.type === "class" || sym.type === "interface" || sym.type === "variable_declarator") {
                     const tableName = modelToTable(sym.name);
-                    const columns = schema[tableName];
+                    const columns = schema[tableName] || schema[sym.name.toLowerCase()] || schema[sym.name];
                     if (columns && Object.keys(columns).length > 0) {
                       const dbCols = Object.entries(columns).map(([col, type]) => ({
                         type: "db_column",

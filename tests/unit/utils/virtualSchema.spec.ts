@@ -2,11 +2,13 @@ import { describe, it, expect } from "vitest";
 import {
   parseLaravelMigration,
   parseDjangoModels,
+  parsePrismaSchema,
+  parseDrizzleSchema,
   formatUnifiedSchemaAnnotation,
   type ProjectDbSchema,
 } from "../../../src/utils/virtualSchema.js";
 
-describe("VirtualSchema (Laravel Eloquent & Django)", () => {
+describe("VirtualSchema (Laravel, Django, Prisma & Drizzle)", () => {
   it("should extract Laravel migration schema accurately without database", () => {
     const migrationCode = `
     <?php
@@ -70,14 +72,80 @@ class Invoice(models.Model):
     expect(schema["invoices"]["created_at"]).toBe("DateTimeField");
   });
 
-  it("should format unified schema annotations for Eloquent and Django", () => {
-    const annotation = formatUnifiedSchemaAnnotation("Eloquent", "orders", {
-      id: "bigint",
-      total: "decimal",
+  it("should extract Prisma model schema accurately without database", () => {
+    const prismaCode = `
+    datasource db {
+      provider = "postgresql"
+      url      = env("DATABASE_URL")
+    }
+
+    model User {
+      id        String   @id @default(cuid())
+      email     String   @unique
+      name      String?
+      role      String   @default("USER")
+      createdAt DateTime @default(now())
+      posts     Post[]
+
+      @@map("users")
+    }
+
+    model Post {
+      id        Int      @id @default(autoincrement())
+      title     String
+      content   String?
+      published Boolean  @default(false)
+      authorId  String
+      author    User     @relation(fields: [authorId], references: [id])
+    }
+    `;
+
+    const schema: ProjectDbSchema = {};
+    parsePrismaSchema(prismaCode, schema);
+
+    expect(schema["users"]).toBeDefined();
+    expect(schema["users"]["id"]).toContain("String @id @default(cuid())");
+    expect(schema["users"]["email"]).toContain("String @unique");
+    expect(schema["users"]["role"]).toContain('String @default("USER")');
+
+    expect(schema["posts"]).toBeDefined();
+    expect(schema["posts"]["id"]).toContain("Int @id @default(autoincrement())");
+    expect(schema["posts"]["title"]).toBe("String");
+    expect(schema["posts"]["published"]).toContain("Boolean @default(false)");
+  });
+
+  it("should extract Drizzle ORM schema accurately without database", () => {
+    const drizzleCode = `
+    import { pgTable, serial, text, varchar, timestamp, boolean } from 'drizzle-orm/pg-core';
+
+    export const customers = pgTable('customers', {
+      id: serial('id').primaryKey(),
+      fullName: text('full_name').notNull(),
+      email: varchar('email', { length: 256 }).unique(),
+      isActive: boolean('is_active').default(true),
+      createdAt: timestamp('created_at').defaultNow(),
+    });
+    `;
+
+    const schema: ProjectDbSchema = {};
+    parseDrizzleSchema(drizzleCode, schema);
+
+    expect(schema["customers"]).toBeDefined();
+    expect(schema["customers"]["id"]).toContain("serial.primaryKey()");
+    expect(schema["customers"]["fullName"]).toContain("text.notNull()");
+    expect(schema["customers"]["email"]).toContain("varchar.unique()");
+    expect(schema["customers"]["isActive"]).toContain("boolean.default(true)");
+    expect(schema["customers"]["createdAt"]).toContain("timestamp.defaultNow()");
+  });
+
+  it("should format unified schema annotations for Eloquent, Django, Prisma & Drizzle", () => {
+    const annotation = formatUnifiedSchemaAnnotation("Prisma", "users", {
+      id: "String @id",
+      email: "String @unique",
     });
 
-    expect(annotation).toContain("<!-- Eloquent Virtual Schema: orders");
-    expect(annotation).toContain('<column name="id" type="bigint" />');
-    expect(annotation).toContain('<column name="total" type="decimal" />');
+    expect(annotation).toContain("<!-- Prisma Virtual Schema: users");
+    expect(annotation).toContain('<column name="id" type="String @id" />');
+    expect(annotation).toContain('<column name="email" type="String @unique" />');
   });
 });

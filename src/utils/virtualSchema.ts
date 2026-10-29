@@ -8,6 +8,10 @@ export { type TableSchema, type ProjectDbSchema, modelToTable };
 const laravelCache = new Map<string, { schema: ProjectDbSchema; mtime: number }>();
 // Cache for Django schemas
 const djangoCache = new Map<string, { schema: ProjectDbSchema; mtime: number }>();
+// Cache for Prisma schemas
+const prismaCache = new Map<string, { schema: ProjectDbSchema; mtime: number }>();
+// Cache for Drizzle schemas
+const drizzleCache = new Map<string, { schema: ProjectDbSchema; mtime: number }>();
 
 /**
  * Extract virtual database schema from Laravel database/migrations
@@ -180,12 +184,188 @@ export function parseDjangoModels(content: string, schema: ProjectDbSchema = {})
 }
 
 /**
- * Unified virtual schema loader supporting Rails, Laravel & Django
+ * Extract virtual database schema from Prisma schema.prisma files
+ */
+export async function loadPrismaSchema(projectRoot: string): Promise<ProjectDbSchema | null> {
+  const possiblePaths = [
+    path.join(projectRoot, "prisma", "schema.prisma"),
+    path.join(projectRoot, "schema.prisma"),
+  ];
+
+  let schemaPath: string | null = null;
+  for (const p of possiblePaths) {
+    try {
+      await fs.access(p);
+      schemaPath = p;
+      break;
+    } catch {
+      // continue
+    }
+  }
+
+  if (!schemaPath) return null;
+
+  try {
+    const stat = await fs.stat(schemaPath);
+    const cached = prismaCache.get(projectRoot);
+    if (cached && cached.mtime === stat.mtimeMs) return cached.schema;
+
+    const content = await fs.readFile(schemaPath, "utf-8");
+    const schema = parsePrismaSchema(content);
+    prismaCache.set(projectRoot, { schema, mtime: stat.mtimeMs });
+    return Object.keys(schema).length > 0 ? schema : null;
+  } catch {
+    return null;
+  }
+}
+
+export function parsePrismaSchema(content: string, schema: ProjectDbSchema = {}): ProjectDbSchema {
+  const modelRe = /model\s+(\w+)\s*\{([\s\S]*?)\}/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = modelRe.exec(content)) !== null) {
+    const modelName = match[1];
+    const body = match[2];
+
+    const mapMatch = body.match(/@@map\s*\(\s*["']([^"']+)["']\s*\)/);
+    const tableName = mapMatch ? mapMatch[1] : modelToTable(modelName);
+
+    const columns: TableSchema = schema[tableName] || {};
+
+    const lines = body.split("\n");
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("//") || trimmed.startsWith("@@")) continue;
+
+      const fieldMatch = trimmed.match(/^(\w+)\s+([A-Za-z0-9_?\[\]]+)(?:\s+(.*))?$/);
+      if (fieldMatch) {
+        const fieldName = fieldMatch[1];
+        const fieldType = fieldMatch[2];
+        const attributes = fieldMatch[3] ? ` ${fieldMatch[3].trim()}` : "";
+        columns[fieldName] = `${fieldType}${attributes}`;
+      }
+    }
+
+    schema[tableName] = columns;
+    if (tableName !== modelName.toLowerCase()) {
+      schema[modelName.toLowerCase()] = columns;
+    }
+  }
+
+  return schema;
+}
+
+/**
+ * Extract virtual database schema from Drizzle ORM schema files
+ */
+export async function loadDrizzleSchema(projectRoot: string): Promise<ProjectDbSchema | null> {
+  const possiblePaths = [
+    path.join(projectRoot, "src", "db", "schema.ts"),
+    path.join(projectRoot, "src", "schema.ts"),
+    path.join(projectRoot, "db", "schema.ts"),
+    path.join(projectRoot, "schema.ts"),
+  ];
+
+  const foundFiles: string[] = [];
+  for (const p of possiblePaths) {
+    try {
+      await fs.access(p);
+      foundFiles.push(p);
+    } catch {
+      // continue
+    }
+  }
+
+  const schemaDir = path.join(projectRoot, "src", "db", "schema");
+  try {
+    const entries = await fs.readdir(schemaDir, { withFileTypes: true });
+    for (const e of entries) {
+      if (e.isFile() && (e.name.endsWith(".ts") || e.name.endsWith(".js"))) {
+        foundFiles.push(path.join(schemaDir, e.name));
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  if (foundFiles.length === 0) return null;
+
+  let aggregateMtime = 0;
+  for (const file of foundFiles) {
+    try {
+      const stat = await fs.stat(file);
+      aggregateMtime += stat.mtimeMs;
+    } catch {
+      // ignore
+    }
+  }
+
+  const cached = drizzleCache.get(projectRoot);
+  if (cached && cached.mtime === aggregateMtime) return cached.schema;
+
+  const schema: ProjectDbSchema = {};
+  for (const file of foundFiles) {
+    try {
+      const content = await fs.readFile(file, "utf-8");
+      parseDrizzleSchema(content, schema);
+    } catch {
+      // ignore
+    }
+  }
+
+  drizzleCache.set(projectRoot, { schema, mtime: aggregateMtime });
+  return Object.keys(schema).length > 0 ? schema : null;
+}
+
+export function parseDrizzleSchema(content: string, schema: ProjectDbSchema = {}): ProjectDbSchema {
+  const tableDeclRe = /(?:export\s+const\s+(\w+)\s*=\s*)?(?:pgTable|mysqlTable|sqliteTable)\s*\(\s*["']([^"']+)["']\s*,\s*\{/g;
+  let match: RegExpExecArray | null;
+
+  while ((match = tableDeclRe.exec(content)) !== null) {
+    const constName = match[1];
+    const tableName = match[2];
+    const startIndex = match.index + match[0].length;
+
+    let depth = 1;
+    let endIndex = startIndex;
+    while (endIndex < content.length && depth > 0) {
+      const char = content[endIndex];
+      if (char === "{") depth++;
+      else if (char === "}") depth--;
+      endIndex++;
+    }
+
+    const body = content.slice(startIndex, endIndex - 1);
+    const columns: TableSchema = schema[tableName] || {};
+
+    const colRe = /(\w+)\s*:\s*([a-zA-Z0-9_]+)\s*\(([\s\S]*?)\)((?:\.[a-zA-Z0-9_]+(?:\([^)]*\))?)*)/g;
+    let colMatch: RegExpExecArray | null;
+
+    while ((colMatch = colRe.exec(body)) !== null) {
+      const colName = colMatch[1];
+      const colType = colMatch[2];
+      const modifiers = colMatch[4] ? colMatch[4].trim() : "";
+      columns[colName] = `${colType}${modifiers}`;
+    }
+
+    schema[tableName] = columns;
+    if (constName && constName !== tableName) {
+      schema[constName] = columns;
+    }
+  }
+
+  return schema;
+}
+
+export type SupportedVirtualFramework = "ActiveRecord" | "Eloquent" | "Django" | "Prisma" | "Drizzle";
+
+/**
+ * Unified virtual schema loader supporting Rails, Laravel, Django, Prisma & Drizzle
  */
 export async function loadUnifiedVirtualSchema(
   projectRoot: string,
   fileExtension?: string
-): Promise<{ framework: "ActiveRecord" | "Eloquent" | "Django"; schema: ProjectDbSchema } | null> {
+): Promise<{ framework: SupportedVirtualFramework; schema: ProjectDbSchema } | null> {
   if (!fileExtension || fileExtension === ".rb") {
     const rails = await loadRailsSchema(projectRoot).catch(() => null);
     if (rails && Object.keys(rails).length > 0) {
@@ -207,11 +387,22 @@ export async function loadUnifiedVirtualSchema(
     }
   }
 
+  if (!fileExtension || fileExtension === ".ts" || fileExtension === ".tsx" || fileExtension === ".js" || fileExtension === ".prisma") {
+    const prisma = await loadPrismaSchema(projectRoot).catch(() => null);
+    if (prisma && Object.keys(prisma).length > 0) {
+      return { framework: "Prisma", schema: prisma };
+    }
+    const drizzle = await loadDrizzleSchema(projectRoot).catch(() => null);
+    if (drizzle && Object.keys(drizzle).length > 0) {
+      return { framework: "Drizzle", schema: drizzle };
+    }
+  }
+
   return null;
 }
 
 export function formatUnifiedSchemaAnnotation(
-  framework: "ActiveRecord" | "Eloquent" | "Django",
+  framework: SupportedVirtualFramework,
   tableName: string,
   columns: TableSchema
 ): string {
