@@ -64,9 +64,9 @@ Every feature evaluated in this canonical roadmap is scored on a **0 to 100 AST 
 | 3 | `call_hierarchy_mermaid` | **3-Hop Causal Call Hierarchy (Mermaid)** | Tier 1 | **97** | v4.1 | ✅ Shipped & Certified |
 | 4 | `validate_wire_contract` | **Cross-Language Wire Contract Validator** | Tier 2 | **94** | v4.5 | ✅ Shipped & Certified |
 | 5 | `predict_semantic_conflicts` | **Semantic Pre-Merge Conflict Predictor** | Tier 2 | **93** | v4.5 | ✅ Shipped & Certified |
-| 6 | `search_code_concept` | **Offline WASM Concept & Semantic Vector Search** | Tier 3 | **96** | v5.0 | 🚀 In Active Implementation |
-| 7 | `verify_import_integrity` | **Anti-Hallucination Import Verifier** | Tier 3 | **92** | v5.0 | 📋 Queued |
-| 8 | `trace_taint_flow` | **Source-to-Sink Static AST Taint Analyzer** | Tier 3 | **95** | v5.1 | 📋 Queued |
+| 6 | `search_code_concept` | **Offline WASM Concept & Semantic Vector Search** | Tier 3 | **96** | v4.2 | ✅ Shipped & Certified |
+| 7 | `verify_import_integrity` | **Anti-Hallucination Import Verifier** | Tier 3 | **92** | v4.3 | ✅ Shipped & Certified |
+| 8 | `trace_taint_flow` | **Source-to-Sink Static AST Taint Analyzer** | Tier 3 | **95** | v5.1 | 🚀 In Active Implementation |
 | 9 | `backfill_types` | **AST Duck-Type Backfiller & Inference** | Tier 3 | **91** | v5.1 | 📋 Queued |
 | 10 | `enforce_architecture_rules` | **AST Architectural Boundary Guardrails** | Tier 3 | **89** | v5.1 | 📋 Queued |
 | 11 | `compact_context_ledger` | **Lossless AST Snapshot Context Compactor** | Tier 4 | **91** | v5.2 | 📋 Queued |
