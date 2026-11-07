@@ -21,7 +21,7 @@ import { setServerInstances } from "./tools/context.js";
 import { registerPipeline } from "./tools/pipeline.js";
 
 const SERVER_NAME = "mcp-code-context";
-const SERVER_VERSION = "7.0.0";
+const SERVER_VERSION = "7.0.1";
 
 export function createServerInstance(): Server {
   const server = new Server(

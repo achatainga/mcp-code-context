@@ -1,6 +1,6 @@
 ---
 name: code-context-pro
-version: 7.0.0
+version: 7.0.1
 description: "Enterprise Polyglot AST Code Intelligence & Surgical Refactoring Engine for Claude Code, Cursor, Windsurf, and Antigravity. Reduces token consumption by 75%-88% using pure WebAssembly Tree-sitter parsers across 10 languages, 53 AST tools, virtual ORM schema extraction, Test Impact Analysis (TIA), 3-hop Call Hierarchy, and atomic 2-phase write protocol with instant rollback."
 author: "Alejandro Chataing <a.chataing.a@gmail.com>"
 license: "Commercial (Agensi.io Tier 1)"
@@ -10,7 +10,7 @@ category: "Developer Tools / Code Intelligence"
 compatibility: "Claude Code, Cursor, Windsurf, Antigravity, Amazon Q, Copilot"
 ---
 
-# CodeContext Pro v7.0.0 Enterprise Polyglot — AI Brain Operating System
+# CodeContext Pro v7.0.1 Enterprise Polyglot — AI Brain Operating System
 
 > *"Never feed a 1,000-line file into your attention window when a 15-line symbol is all you need."*
 
@@ -90,7 +90,7 @@ flowchart TD
 
 ## 🧬 4. THE ENTERPRISE POLYGLOT AST ARSENAL (53 TOOLS)
 
-CodeContext Pro v7.0.0 covers 10 programming languages with zero native dependencies:
+CodeContext Pro v7.0.1 covers 10 programming languages with zero native dependencies:
 **TypeScript, JavaScript, Python, PHP, Dart, Ruby, Java, Go, C#, Rust, and Kotlin.**
 
 ### Advanced Enterprise Operations:

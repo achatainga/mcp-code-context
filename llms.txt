@@ -1,4 +1,4 @@
-# mcp-code-context v7.0.0
+# mcp-code-context v7.0.1
 
 > A Model Context Protocol (MCP) server with **Tree-sitter WASM parsers** for 100% AST accuracy. Zero native dependencies. Production-ready with middleware pipeline, session-scoped state, and crash recovery.
 
@@ -10,7 +10,7 @@
 - ✅ **Incremental Tree Diffing**: `incremental_ast_diff` with `tree.edit()`.
 - ✅ **Static Complexity & Scope**: `get_ast_complexity_matrix`, `detect_dead_ast_symbols`, `resolve_lexical_scope`.
 - ✅ **Security & Architecture**: `sql_ast_validator`, `ast_codemod_transpile`, `detect_async_eventloop_blockers`, `verify_env_contract_drift`, `audit_error_handling_contracts`, `extract_api_route_matrix`, `flatten_class_hierarchy`, `detect_circular_dependencies`.
-- ✅ **Startup Diagnostics Signature**: Emits `[mcp-code-context] v7.0.0 running on stdio` on startup.
+- ✅ **Startup Diagnostics Signature**: Emits `[mcp-code-context] v7.0.1 running on stdio` on startup.
 
 ## Previously Added in v3.9.2
 
@@ -478,6 +478,6 @@ No additional configuration is needed beyond adding the MCP server definition. S
 
 ---
 
-**Version**: 7.0.0  
+**Version**: 7.0.1  
 **Last Updated**: June 8, 2026  
 **Status**: Production-ready with session-scoped state and crash recovery

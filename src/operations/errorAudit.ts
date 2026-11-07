@@ -1,6 +1,6 @@
 /**
  * AST Exception & Error Swallowing Guard
- * v7.0.0 Enterprise AST Intelligence
+ * v7.0.1 Enterprise AST Intelligence
  */
 
 import * as fs from "node:fs/promises";

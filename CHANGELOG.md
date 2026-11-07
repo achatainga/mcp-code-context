@@ -1,5 +1,16 @@
 # Changelog
 
+## [7.0.1] - 2026-11-07
+
+### Security
+- **Dependency Security Patch (`@modelcontextprotocol/sdk` to `^1.32.2`)**:
+  - Upgraded `@modelcontextprotocol/sdk` from `1.29.0` to `^1.32.2`.
+  - Fully remediated all transitive High & Medium CVEs flagged on Socket.dev supply chain audits (`hono`, `fast-uri`, `body-parser`, `zod`, `ip-address`, and `proxy-addr`).
+  - Production dependency audit verified at zero vulnerabilities (`npm audit --omit=dev` -> 0 vulnerabilities).
+- **Supply Chain Hardening**: Validated all package boundaries, ensuring deterministic stdio/HTTP transport security and complete test suite parity across 304 unit, integration, and parser tests (100% pass rate).
+
+---
+
 ## [7.0.0] - 2026-11-07
 
 ### Added

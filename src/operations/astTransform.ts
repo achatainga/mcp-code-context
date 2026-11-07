@@ -1,5 +1,5 @@
 /**
- * AST Transform - v7.0.0
+ * AST Transform - v7.0.1
  * Declarative AST transformations using Tree-sitter.
  * Operates on symbol positions from the AST — no fragile text matching.
  */
