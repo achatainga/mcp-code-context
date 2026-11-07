@@ -87,3 +87,8 @@ scripts/restore-*.mjs
 # Test generated artifacts
 test-repo-map.html
 screenshots-render/
+
+# Graphify Knowledge Graph & AI System Artifacts
+graphify-out/
+.system_generated/
+*.tgz

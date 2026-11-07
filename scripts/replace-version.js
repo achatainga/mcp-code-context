@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 /**
- * Universal Version Replacer - v2.0.0 (Targeted & Context-Aware)
+ * Universal Version Replacer - v2.1.0 (Targeted & Context-Aware)
  * Usage: node scripts/replace-version.js <oldVersion> <newVersion>
  *
  * Designed with strict safety boundaries to prevent false-positive replacements:
@@ -16,13 +16,14 @@ import path from 'node:path';
  *     3. src/index.ts (SERVER_VERSION and top header)
  *     4. src/ file header docblocks (lines 1-5 only)
  *     5. llms.txt & INSTRUCTIONS.md (title and version metadata badges)
+ *     6. skills/code-context-pro/SKILL.md (frontmatter version and title)
  */
 
 const [,, oldVersion, newVersion] = process.argv;
 
 if (!oldVersion || !newVersion) {
   console.error('Usage: node scripts/replace-version.js <oldVersion> <newVersion>');
-  console.error('Example: node scripts/replace-version.js 3.9.2 3.9.3');
+  console.error('Example: node scripts/replace-version.js 3.9.2 7.0.0');
   process.exit(1);
 }
 
@@ -142,6 +143,23 @@ updateFile('INSTRUCTIONS.md', (content) => {
     new RegExp(`(\\*\\*Version\\*\\*:\\s*)${escapeRegex(oldVersion)}`),
     `$1${newVersion}`
   );
+});
+
+// 7. skills/code-context-pro/SKILL.md (Companion Skill frontmatter and metadata)
+updateFile('skills/code-context-pro/SKILL.md', (content) => {
+  let res = content.replace(
+    new RegExp(`(\\bversion:\\s*)${escapeRegex(oldVersion)}`),
+    `$1${newVersion}`
+  );
+  res = res.replace(
+    new RegExp(`(# CodeContext Pro v)${escapeRegex(oldVersion)}`),
+    `$1${newVersion}`
+  );
+  res = res.replace(
+    new RegExp(`(CodeContext Pro v)${escapeRegex(oldVersion)}`),
+    `$1${newVersion}`
+  );
+  return res;
 });
 
 console.log('');

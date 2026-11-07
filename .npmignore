@@ -119,3 +119,14 @@ scratch.ts
 
 # Workspace state
 .workspace_state.md
+
+# Knowledge Graph & Development Analysis
+graphify-out/
+screenshots-render/
+test-repo-map.html
+CLAUDE.md
+HIRE_ME.md
+AGENSI-LISTING.md
+SPONSORS.md
+.system_generated/
+*.tgz
