@@ -260,7 +260,7 @@ newContent: "{ return 42; }"
 - ✅ **Structural S-Expression DSL**: `query_code_ast` with tree-sitter queries.
 - ✅ **Fast Tree Diffing**: `incremental_ast_diff` with `tree.edit()`.
 - ✅ **Metrics & Auditing**: `get_ast_complexity_matrix`, `detect_dead_ast_symbols`, `resolve_lexical_scope`, `sql_ast_validator`, `ast_codemod_transpile`, `detect_async_eventloop_blockers`, `verify_env_contract_drift`, `audit_error_handling_contracts`, `extract_api_route_matrix`, `flatten_class_hierarchy`, `detect_circular_dependencies`.
-- ✅ **Startup Diagnostics**: Stdio initialization signature `[mcp-code-context] v7.0.0 running on stdio`.
+- ✅ **Startup Diagnostics**: Stdio initialization signature `[mcp-code-context] v7.0.1 running on stdio`.
 
 ---
 
@@ -305,6 +305,6 @@ See `llms.txt` for complete API reference and technical details.
 
 ---
 
-**Version**: 7.0.0  
+**Version**: 7.0.1  
 **Last Updated**: October 12, 2026  
 **Status**: Production-ready with smart project root discovery and session-scoped state

@@ -180,7 +180,7 @@ Built to be robust and precise. Both read and write engines are tested against r
 | 🛣️ **`extract_api_route_matrix`** | Static endpoint extraction for Express, FastAPI, and Rails. |
 | 🌳 **`flatten_class_hierarchy`** | Inheritance flattener resolving ancestor methods and traits. |
 | 🔁 **`detect_circular_dependencies`** | Tarjan's SCC O(V+E) import cycle detector. |
-| 📡 **Startup Diagnostics Signature** | Startup banner prints `[mcp-code-context] v7.0.0 running on stdio`. |
+| 📡 **Startup Diagnostics Signature** | Startup banner prints `[mcp-code-context] v7.0.1 running on stdio`. |
 
 ### Previous: v3.9.2
 

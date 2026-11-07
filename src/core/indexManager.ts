@@ -1,5 +1,5 @@
 /**
- * Index Manager - v7.0.0
+ * Index Manager - v7.0.1
  * Persistent symbol index and dependency graph in ~/.mcp-code-context/index/
  * Enables O(1) search_symbols and analyze_impact queries.
  */

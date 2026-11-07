@@ -1,5 +1,5 @@
 /**
- * Backup Manager - v7.0.0
+ * Backup Manager - v7.0.1
  * Handles rolling backups in ~/.mcp-code-context/backups/
  */
 

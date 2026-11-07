@@ -1,5 +1,5 @@
 /**
- * Java Parser - v7.0.0
+ * Java Parser - v7.0.1
  * Tree-sitter based Java parser
  */
 

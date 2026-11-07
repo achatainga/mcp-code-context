@@ -1,5 +1,5 @@
 /**
- * Python Parser - v7.0.0
+ * Python Parser - v7.0.1
  * CLEANUP: replaceSymbol removed (inherited from BaseParser)
  * v3.9.1: override getInsideStartIndex/getInsideEndIndex for indentation-based syntax
  */
